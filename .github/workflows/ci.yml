@@ -1,0 +1,37 @@
+# RF-04: CI pipeline — disparado en push y pull_request
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # RF-04.7: Node 20 como runtime de pnpm
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      # RF-04.2: instalar dependencias con lockfile congelado
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # RF-04.3: lint
+      - name: Lint
+        run: pnpm lint
+
+      # RF-04.4: typecheck
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # RF-04.5: tests en modo run (sin watcher de Vitest)
+      - name: Test
+        run: pnpm test -- --run

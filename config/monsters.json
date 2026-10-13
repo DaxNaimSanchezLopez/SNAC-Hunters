@@ -1,0 +1,20 @@
+[
+  {
+    "id": "snac-001",
+    "name": "Frostbite Bunny",
+    "hp": 3,
+    "slots": ["Horn", "Wing", "Claw", "Tail"]
+  },
+  {
+    "id": "snac-002",
+    "name": "Candy Creeper",
+    "hp": 2,
+    "slots": ["Horn", "Horn", "all", "Tail"]
+  },
+  {
+    "id": "snac-003",
+    "name": "Sugar Sprite",
+    "hp": 4,
+    "slots": ["Wing", "Claw", "all", "all"]
+  }
+]

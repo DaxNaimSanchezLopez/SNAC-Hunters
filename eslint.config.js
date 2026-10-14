@@ -36,6 +36,8 @@ export default [
     plugins: { '@typescript-eslint': tsPlugin },
     rules: {
       ...tsPlugin.configs.recommended.rules,
+      // TypeScript ya detecta identificadores no definidos (recomendación oficial de typescript-eslint)
+      'no-undef': 'off',
     },
   },
 ];

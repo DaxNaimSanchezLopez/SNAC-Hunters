@@ -1,0 +1,66 @@
+// Adaptador DynamoDB (single-table): pk RUN#<user> / EVENT#<session>.
+import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
+import {
+  BatchWriteCommand,
+  DynamoDBDocumentClient,
+  PutCommand,
+  ScanCommand,
+} from '@aws-sdk/lib-dynamodb';
+import { summarize } from './store.js';
+import type { EventRecord, RunRecord, Stats, Store } from './store.js';
+
+export class DynamoStore implements Store {
+  private readonly doc: DynamoDBDocumentClient;
+
+  constructor(
+    private readonly tableName: string,
+    client = new DynamoDBClient({}),
+  ) {
+    this.doc = DynamoDBDocumentClient.from(client);
+  }
+
+  async saveRun(run: RunRecord): Promise<void> {
+    await this.doc.send(
+      new PutCommand({
+        TableName: this.tableName,
+        Item: { pk: `RUN#${run.userId}`, sk: `${run.createdAt}#${run.runId}`, kind: 'run', ...run },
+      }),
+    );
+  }
+
+  async saveEvents(events: readonly EventRecord[]): Promise<void> {
+    // BatchWrite acepta máximo 25 elementos por llamada
+    for (let i = 0; i < events.length; i += 25) {
+      const chunk = events.slice(i, i + 25);
+      await this.doc.send(
+        new BatchWriteCommand({
+          RequestItems: {
+            [this.tableName]: chunk.map((e, j) => ({
+              PutRequest: {
+                Item: { pk: `EVENT#${e.sessionId}`, sk: `${e.at}#${i + j}`, kind: 'event', ...e },
+              },
+            })),
+          },
+        }),
+      );
+    }
+  }
+
+  // Scan basta para el volumen de la demo; en producción: Firehose -> S3 -> Athena
+  async stats(): Promise<Stats> {
+    const runs: RunRecord[] = [];
+    const events: EventRecord[] = [];
+    let cursor: Record<string, unknown> | undefined;
+    do {
+      const page = await this.doc.send(
+        new ScanCommand({ TableName: this.tableName, ExclusiveStartKey: cursor }),
+      );
+      for (const item of page.Items ?? []) {
+        if (item.kind === 'run') runs.push(item as RunRecord);
+        else if (item.kind === 'event') events.push(item as EventRecord);
+      }
+      cursor = page.LastEvaluatedKey;
+    } while (cursor);
+    return summarize(runs, events);
+  }
+}

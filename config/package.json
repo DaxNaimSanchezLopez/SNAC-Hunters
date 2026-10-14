@@ -12,5 +12,12 @@
   },
   "devDependencies": {
     "typescript": "^5.5.4"
+  },
+  "type": "module",
+  "exports": {
+    "./monsters.json": "./monsters.json",
+    "./dice.json": "./dice.json",
+    "./game.json": "./game.json",
+    "./tutorial.json": "./tutorial.json"
   }
 }

@@ -1,6 +1,6 @@
 // RF-05.3: test trivial para verificar que Vitest está correctamente configurado
 import { describe, it, expect } from 'vitest';
-import { SeededRng, loadMonsters, MonsterSchema } from '../index.js';
+import { SeededRng, loadMonsters, MonsterSchema, startCombat } from '../index.js';
 
 describe('trivial', () => {
   it('1 + 1 equals 2', () => {
@@ -14,6 +14,10 @@ describe('trivial', () => {
 
   it('engine barrel exports loadMonsters', () => {
     expect(typeof loadMonsters).toBe('function');
+  });
+
+  it('engine barrel exports startCombat', () => {
+    expect(typeof startCombat).toBe('function');
   });
 
   it('engine barrel exports MonsterSchema', () => {

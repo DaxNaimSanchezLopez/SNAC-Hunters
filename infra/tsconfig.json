@@ -1,8 +1,8 @@
 {
   "extends": "../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "cdk.out/types",
-    "rootDir": "lib"
+    "noEmit": true,
+    "types": ["node"]
   },
   "include": ["lib", "bin"]
 }

@@ -1,0 +1,8 @@
+{
+  "red": ["Claw", "Horn", "heart", "Wing", "Tail", "heart"],
+  "orange": ["Horn", "Horn", "Horn", "Horn", "wild", "wild"],
+  "blue": ["Wing", "Wing", "Wing", "Wing", "wild", "wild"],
+  "purple": ["Tail", "Tail", "Tail", "Tail", "wild", "wild"],
+  "green": ["Claw", "Claw", "Claw", "Claw", "wild", "wild"],
+  "white": ["damage", "damage", "damage", "blank", "blank", "wild"]
+}

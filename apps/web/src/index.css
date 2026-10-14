@@ -1,0 +1,19 @@
+@font-face {
+  font-family: 'Comic Book';
+  src: url('/assets/fonts/comic-book.ttf') format('truetype');
+  font-display: swap;
+}
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+button {
+  touch-action: manipulation;
+}

@@ -1,0 +1,31 @@
+{
+  "player": {
+    "maxHp": 6,
+    "startingHp": 6,
+    "startingDice": [
+      "red",
+      "red",
+      "red",
+      "red",
+      "green"
+    ]
+  },
+  "tutorial": {
+    "monsterId": "garden-salaad",
+    "seed": "snac-hunters-tutorial"
+  },
+  "features": {
+    "tutorial": true,
+    "freeHunt": true,
+    "serverValidation": true,
+    "devAnalytics": true,
+    "town": false,
+    "boss": false
+  },
+  "scoring": {
+    "defeat": 1,
+    "study": 0,
+    "flee": 0,
+    "ko": -1
+  }
+}

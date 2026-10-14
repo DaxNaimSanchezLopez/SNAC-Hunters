@@ -1,0 +1,57 @@
+[
+  {
+    "id": "welcome",
+    "title": "¡Bienvenido, aprendiz!",
+    "text": "Soy el Huntmaster. Los SNACs están atacando Pieland y necesito cazadores. Te enseñaré a cazar en menos de 5 minutos.",
+    "advance": "next"
+  },
+  {
+    "id": "monster",
+    "title": "Tu primer SNAC",
+    "text": "Este es Garden Salaad. Para DERROTARLO debes cubrir sus 4 espacios con el símbolo que pide cada uno. El espacio con estrella acepta cualquier símbolo.",
+    "highlight": "monster",
+    "advance": "next"
+  },
+  {
+    "id": "dice",
+    "title": "Tus dados",
+    "text": "Los dados ROJOS tienen los 4 símbolos y 2 corazones. El VERDE es especial: 4 lupas y 2 comodines. El comodín (pie con picos) sirve como cualquier símbolo.",
+    "highlight": "dice",
+    "advance": "next"
+  },
+  {
+    "id": "assign",
+    "title": "Coloca un dado",
+    "text": "Toca un dado: se iluminarán los espacios donde sirve. Luego toca el espacio para colocarlo. Toca un espacio ocupado para quitar el dado.",
+    "highlight": "dice",
+    "advance": "assign"
+  },
+  {
+    "id": "reroll",
+    "title": "¡Arriesga tu suerte!",
+    "text": "¿Te faltan símbolos? Selecciona los dados que no te sirven y pulsa RELANZAR. Pero cada vez que relanzas se agrega un dado BLANCO de daño.",
+    "highlight": "reroll",
+    "advance": "reroll"
+  },
+  {
+    "id": "damage",
+    "title": "El dado blanco",
+    "text": "Tiene 3 corazones rotos (daño), 2 caras en blanco y 1 comodín. Si sale daño, un CORAZÓN de tu reserva lo bloquea como escudo. Si no tienes corazones, pierdes 1 HPie.",
+    "highlight": "hp",
+    "advance": "next"
+  },
+  {
+    "id": "outcomes",
+    "title": "Cómo terminar la caza",
+    "text": "4 espacios = DERROTAR (+1 punto y un trofeo). 2 o 3 = ESTUDIAR (ganas trofeo, el SNAC escapa). 1 = HUIR (sin premio). Si tu HPie llega a 0 quedas KO (-1 punto).",
+    "highlight": "resolve",
+    "advance": "next"
+  },
+  {
+    "id": "finish",
+    "title": "¡Tu turno!",
+    "text": "Sigue relanzando o resuelve cuando quieras. El botón de abajo te dice qué resultado obtendrás ahora mismo.",
+    "highlight": "resolve",
+    "advance": "resolve"
+  }
+]

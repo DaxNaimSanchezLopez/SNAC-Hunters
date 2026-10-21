@@ -1,56 +1,104 @@
 [
   {
     "id": "welcome",
-    "title": "¡Bienvenido, aprendiz!",
-    "text": "Soy el Huntmaster. Los SNACs están atacando Pieland y necesito cazadores. Te enseñaré a cazar en menos de 5 minutos.",
+    "es": {
+      "title": "¡Bienvenido, aprendiz!",
+      "text": "Soy el Huntmaster. Los SNACs están atacando Pieland y necesito cazadores. Te enseñaré a cazar en menos de 5 minutos."
+    },
+    "en": {
+      "title": "Welcome, apprentice!",
+      "text": "I'm the Huntmaster. SNACs are attacking Pieland and I need hunters. I'll teach you to hunt in under 5 minutes."
+    },
     "advance": "next"
   },
   {
     "id": "monster",
-    "title": "Tu primer SNAC",
-    "text": "Este es Garden Salaad. Para DERROTARLO debes cubrir sus 4 espacios con el símbolo que pide cada uno. El espacio con estrella acepta cualquier símbolo.",
+    "es": {
+      "title": "Tu primer SNAC",
+      "text": "Este es Garden Salaad. Para DERROTARLO cubre sus 4 espacios con el símbolo que pide cada uno. El espacio de 4 símbolos acepta cualquiera de los 4 (nunca un corazón)."
+    },
+    "en": {
+      "title": "Your first SNAC",
+      "text": "This is Garden Salaad. To DEFEAT it, fill its 4 spaces with the symbol each one asks for. The 4-symbol space takes any of the 4 symbols (never a heart)."
+    },
     "highlight": "monster",
     "advance": "next"
   },
   {
     "id": "dice",
-    "title": "Tus dados",
-    "text": "Los dados ROJOS tienen los 4 símbolos y 2 corazones. El VERDE es especial: 4 lupas y 2 comodines. El comodín (pie con picos) sirve como cualquier símbolo.",
+    "es": {
+      "title": "Tus dados",
+      "text": "Los dados ROJOS tienen los 4 símbolos y 2 corazones. El VERDE es especial: 4 lupas y 2 comodines. El comodín sirve como cualquier símbolo."
+    },
+    "en": {
+      "title": "Your dice",
+      "text": "RED dice have the 4 symbols and 2 hearts. The GREEN one is special: 4 finders and 2 wilds. A wild counts as any symbol."
+    },
     "highlight": "dice",
     "advance": "next"
   },
   {
     "id": "assign",
-    "title": "Coloca un dado",
-    "text": "Toca un dado: se iluminarán los espacios donde sirve. Luego toca el espacio para colocarlo. Toca un espacio ocupado para quitar el dado.",
+    "es": {
+      "title": "Coloca un dado",
+      "text": "Toca un dado: se iluminarán los espacios donde sirve. Luego toca el espacio para colocarlo. Toca un espacio ocupado para quitar el dado."
+    },
+    "en": {
+      "title": "Place a die",
+      "text": "Tap a die: the spaces where it fits light up. Then tap a space to place it. Tap a filled space to take the die back."
+    },
     "highlight": "dice",
     "advance": "assign"
   },
   {
     "id": "reroll",
-    "title": "¡Arriesga tu suerte!",
-    "text": "¿Te faltan símbolos? Selecciona los dados que no te sirven y pulsa RELANZAR. Pero cada vez que relanzas se agrega un dado BLANCO de daño.",
+    "es": {
+      "title": "¡Arriesga tu suerte!",
+      "text": "¿Te faltan símbolos? Selecciona los dados que quieres CONSERVAR y pulsa RELANZAR: se relanza el resto. Cada relanzamiento agrega un dado BLANCO."
+    },
+    "en": {
+      "title": "Push your luck!",
+      "text": "Missing symbols? Select the dice you want to KEEP and tap RE-ROLL: the rest are re-rolled. Every re-roll adds a WHITE die."
+    },
     "highlight": "reroll",
     "advance": "reroll"
   },
   {
     "id": "damage",
-    "title": "El dado blanco",
-    "text": "Tiene 3 corazones rotos (daño), 2 caras en blanco y 1 comodín. Si sale daño, un CORAZÓN de tu reserva lo bloquea como escudo. Si no tienes corazones, pierdes 1 HPie.",
+    "es": {
+      "title": "El dado blanco",
+      "text": "Tiene 3 caras de daño, 2 en blanco y 1 comodín. El daño lo bloquea un CORAZÓN de tu reserva; si no tienes, pierdes 1 de tus 4 PV. Los blancos que salen en blanco se quedan en tu reserva: el riesgo crece."
+    },
+    "en": {
+      "title": "The white die",
+      "text": "It has 3 damage faces, 2 blanks and 1 wild. A HEART in your pool blocks damage; without one you lose 1 of your 4 HP. White dice that land blank stay in your pool, so the risk keeps growing."
+    },
     "highlight": "hp",
     "advance": "next"
   },
   {
     "id": "outcomes",
-    "title": "Cómo terminar la caza",
-    "text": "4 espacios = DERROTAR (+1 punto y un trofeo). 2 o 3 = ESTUDIAR (ganas trofeo, el SNAC escapa). 1 = HUIR (sin premio). Si tu HPie llega a 0 quedas KO (-1 punto).",
+    "es": {
+      "title": "Cómo terminar la caza",
+      "text": "4 espacios = DERROTAR (+1 punto y un trofeo). 2 o 3 = ESTUDIAR (ganas trofeo). 1 = HUIR (vuelves al pueblo). Con 0 PV quedas KO: pierdes 1 punto y vuelves al pueblo."
+    },
+    "en": {
+      "title": "How a hunt ends",
+      "text": "4 spaces = DEFEAT (+1 point and a trophy). 2 or 3 = STUDY (you get a trophy). 1 = FLEE (back to town). At 0 HP you're KO'd: you lose 1 point and go back to town."
+    },
     "highlight": "resolve",
     "advance": "next"
   },
   {
     "id": "finish",
-    "title": "¡Tu turno!",
-    "text": "Sigue relanzando o resuelve cuando quieras. El botón de abajo te dice qué resultado obtendrás ahora mismo.",
+    "es": {
+      "title": "¡Tu turno!",
+      "text": "En una expedición, los dados que uses quedan gastados hasta volver al pueblo. Resuelve cuando quieras: el botón de abajo dice qué resultado obtendrás."
+    },
+    "en": {
+      "title": "Your turn!",
+      "text": "On an expedition, the dice you use stay spent until you return to town. Resolve whenever you like: the button below shows the result you'll get."
+    },
     "highlight": "resolve",
     "advance": "resolve"
   }

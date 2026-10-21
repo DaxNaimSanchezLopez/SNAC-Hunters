@@ -1,14 +1,25 @@
 {
   "player": {
-    "maxHp": 6,
-    "startingHp": 6,
+    "maxHp": 4,
+    "startingHp": 4,
     "startingDice": [
       "red",
       "red",
       "red",
       "red",
       "green"
-    ]
+    ],
+    "trophySlots": 2,
+    "startingTrophies": 1,
+    "startingItems": 1
+  },
+  "town": {
+    "actionsPerVisit": 2,
+    "itemCost": 1,
+    "skillCost": 2,
+    "offerSize": 3,
+    "maxItems": 3,
+    "maxSkills": 3
   },
   "tutorial": {
     "monsterId": "garden-salaad",
@@ -19,13 +30,15 @@
     "freeHunt": true,
     "serverValidation": true,
     "devAnalytics": true,
-    "town": false,
+    "town": true,
     "boss": false
   },
   "scoring": {
     "defeat": 1,
     "study": 0,
     "flee": 0,
-    "ko": -1
+    "ko": -1,
+    "koWeight": 3,
+    "runWeight": 1
   }
 }

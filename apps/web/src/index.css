@@ -17,3 +17,14 @@ body {
 button {
   touch-action: manipulation;
 }
+
+/* Partida guiada: la parte del juego que explica el Huntmaster queda iluminada por encima
+   del velo oscuro (que está en z-15, debajo de la barra fija de acciones). */
+.guide-focus {
+  position: relative;
+  z-index: 16;
+  border-radius: 1.5rem;
+  box-shadow:
+    0 0 0 4px #fde047,
+    0 0 26px 8px rgba(253, 224, 71, 0.75);
+}

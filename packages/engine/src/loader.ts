@@ -1,13 +1,20 @@
-import type { ZodType } from 'zod';
-import { DiceTableSchema, GameConfigSchema, MonsterSchema, TutorialSchema } from './schemas.js';
-import type { GameConfig, TutorialStep } from './schemas.js';
-import type { DiceTable, Monster } from './types.js';
+import type { ZodType, ZodTypeDef } from 'zod';
+import {
+  AbilitySchema,
+  DiceTableSchema,
+  GameConfigSchema,
+  GuideSchema,
+  MonsterSchema,
+  TutorialSchema,
+} from './schemas.js';
+import type { GameConfig, GuideLesson, TutorialStep } from './schemas.js';
+import type { Ability, DiceTable, Monster } from './types.js';
 
 function formatIssues(issues: readonly { path: (string | number)[]; message: string }[]): string {
   return issues.map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`).join('\n');
 }
 
-function parseOrThrow<T>(schema: ZodType<T>, raw: unknown, label: string): T {
+function parseOrThrow<T>(schema: ZodType<T, ZodTypeDef, unknown>, raw: unknown, label: string): T {
   const result = schema.safeParse(raw);
   if (!result.success) {
     throw new Error(`${label} es inválido:\n${formatIssues(result.error.issues)}`);
@@ -50,7 +57,28 @@ export function loadTutorial(raw: unknown): TutorialStep[] {
   return parseOrThrow(TutorialSchema, raw, 'loadTutorial: tutorial');
 }
 
+/** Valida las lecciones de la partida guiada (config/guide.json). */
+export function loadGuide(raw: unknown): GuideLesson[] {
+  return parseOrThrow(GuideSchema, raw, 'loadGuide: guía');
+}
+
 /** Valida los valores del jugador y feature toggles (config/game.json). */
 export function loadGameConfig(raw: unknown): GameConfig {
   return parseOrThrow(GameConfigSchema, raw, 'loadGameConfig: configuración');
+}
+
+/** RF-14: Valida el catálogo de habilidades (config/abilities.json); los ids deben ser únicos. */
+export function loadAbilities(raw: unknown): Ability[] {
+  if (!Array.isArray(raw)) {
+    throw new Error(`loadAbilities: se esperaba un array, se recibió ${typeof raw}`);
+  }
+  const abilities = raw.map((item, index) =>
+    parseOrThrow(AbilitySchema, item, `loadAbilities: habilidad en índice ${index}`),
+  );
+  const ids = new Set<string>();
+  for (const a of abilities) {
+    if (ids.has(a.id)) throw new Error(`loadAbilities: id de habilidad duplicado "${a.id}"`);
+    ids.add(a.id);
+  }
+  return abilities;
 }

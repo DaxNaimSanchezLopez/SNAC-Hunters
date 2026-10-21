@@ -1,22 +1,8 @@
 import { motion } from 'framer-motion';
 import type { CombatState, Monster, Slot } from '@snac-hunters/engine';
+import { slotName, typeName } from '../game/i18n';
+import { useT } from '../game/useT';
 import { DieView } from './DieView';
-
-const SLOT_LABEL: Record<Slot, string> = {
-  Horn: 'Hacha',
-  Wing: 'Flecha',
-  Claw: 'Lupa',
-  Tail: 'Gancho',
-  all: 'Cualquier símbolo',
-  damage: 'Recibir daño',
-};
-
-export const TYPE_LABEL: Record<Monster['type'], string> = {
-  Horn: 'Horn',
-  Wing: 'Wing',
-  Claw: 'Claw',
-  Tail: 'Tail',
-};
 
 export function MonsterPortrait({
   monster,
@@ -35,11 +21,13 @@ export function MonsterPortrait({
   );
 }
 
+/** Icono de espacio. El espacio 'all' usa el símbolo "any 4" (feedback V0). */
 export function SlotIcon({ slot, className = 'h-8 w-8' }: { slot: Slot; className?: string }) {
+  const t = useT();
   return (
     <img
       src={`/assets/icons/slot-${slot}.png`}
-      alt={SLOT_LABEL[slot]}
+      alt={slotName(t, slot)}
       className={`${className} object-contain`}
     />
   );
@@ -53,10 +41,12 @@ interface Props {
 }
 
 export function MonsterCard({ combat, highlightSlots, onSlot, glow = false }: Props) {
+  const t = useT();
   const { monster } = combat;
   return (
     <section
-      aria-label={`Monstruo ${monster.name}`}
+      aria-label={monster.name}
+      data-guide-target="monster"
       className={`relative rounded-3xl border-4 border-black bg-sherbet/95 p-3 shadow-[0_6px_0_#000] ${
         glow ? 'ring-4 ring-yellow-300' : ''
       }`}
@@ -67,11 +57,16 @@ export function MonsterCard({ combat, highlightSlots, onSlot, glow = false }: Pr
           <p className="mt-1 text-xs italic text-bark/70">"{monster.pun}"</p>
         </div>
         <span className="flex items-center gap-1 rounded-full border-2 border-black bg-white px-2 py-0.5 text-xs font-bold">
-          <SlotIcon slot={monster.type} className="h-4 w-4" /> {TYPE_LABEL[monster.type]}
+          <img
+            src={`/assets/trophies/${monster.type.toLowerCase()}.png`}
+            alt=""
+            className="h-5 w-4 object-contain"
+          />
+          {t('monster.type', { type: typeName(t, monster.type) })}
         </span>
       </div>
 
-      <MonsterPortrait monster={monster} className="mx-auto my-1 h-32 w-full sm:h-40" />
+      <MonsterPortrait monster={monster} className="mx-auto my-1 h-28 w-full sm:h-36" />
 
       <div className="grid grid-cols-4 gap-2">
         {monster.slots.map((slot, i) => {
@@ -83,7 +78,10 @@ export function MonsterCard({ combat, highlightSlots, onSlot, glow = false }: Pr
               key={i}
               type="button"
               onClick={() => onSlot(i)}
-              aria-label={`Espacio ${i + 1}: ${SLOT_LABEL[slot]}${die ? ' (cubierto)' : ''}`}
+              aria-label={
+                t('slot.label', { n: i + 1, slot: slotName(t, slot) }) +
+                (die ? t('slot.covered') : '')
+              }
               animate={lit ? { scale: [1, 1.08, 1] } : { scale: 1 }}
               transition={lit ? { repeat: Infinity, duration: 0.9 } : {}}
               className={`grid min-h-[64px] place-items-center rounded-2xl border-[3px] border-dashed p-1 ${

@@ -95,9 +95,24 @@ export class SnacHuntersStack extends Stack {
     const authed = { authorizer, authorizationType: apigw.AuthorizationType.COGNITO };
 
     api.root.addResource('health').addMethod('GET', integration);
-    api.root.addResource('runs').addMethod('POST', integration, authed);
+    api.root.addResource('games').addMethod('POST', integration, authed);
     api.root.addResource('events').addMethod('POST', integration, authed);
     api.root.addResource('stats').addMethod('GET', integration, authed);
+
+    // Los errores que genera API Gateway (p. ej. 401 del authorizer) no pasan por la Lambda;
+    // sin estos encabezados el navegador los reporta como error de CORS en lugar de 401.
+    const corsHeaders = {
+      'Access-Control-Allow-Origin': "'*'",
+      'Access-Control-Allow-Headers': "'Content-Type,Authorization'",
+    };
+    api.addGatewayResponse('Default4xx', {
+      type: apigw.ResponseType.DEFAULT_4XX,
+      responseHeaders: corsHeaders,
+    });
+    api.addGatewayResponse('Default5xx', {
+      type: apigw.ResponseType.DEFAULT_5XX,
+      responseHeaders: corsHeaders,
+    });
 
     // --- Hosting: S3 privado + CloudFront (OAC) ---
     const siteBucket = new s3.Bucket(this, 'SiteBucket', {

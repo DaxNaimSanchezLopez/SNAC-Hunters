@@ -1,7 +1,14 @@
 // RF-10.4, RF-10.5, RF-10.6: Tests unitarios y de propiedades para los loaders
 import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
-import { loadDiceTable, loadGameConfig, loadMonsters, loadTutorial } from '../loader.js';
+import {
+  loadAbilities,
+  loadDiceTable,
+  loadGameConfig,
+  loadGuide,
+  loadMonsters,
+  loadTutorial,
+} from '../loader.js';
 import type { Slot } from '../types.js';
 import {
   DICE,
@@ -59,14 +66,45 @@ describe('loadDiceTable / loadGameConfig', () => {
   });
 
   it('valida los pasos del tutorial', () => {
-    const steps = [{ id: 'a', title: 'T', text: 'x', advance: 'next' }];
+    const steps = [
+      {
+        id: 'a',
+        es: { title: 'T', text: 'x' },
+        en: { title: 'T', text: 'x' },
+        advance: 'next',
+      },
+    ];
     expect(loadTutorial(steps)).toEqual(steps);
     expect(() => loadTutorial([{ ...steps[0], advance: 'fly' }])).toThrow(/tutorial es inválido/);
+    expect(() => loadTutorial([{ ...steps[0], en: undefined }])).toThrow(/tutorial es inválido/);
     expect(() => loadTutorial([])).toThrow(/tutorial es inválido/);
   });
 
   it('lanza error descriptivo con configuración corrupta', () => {
     expect(() => loadGameConfig({ player: {} })).toThrow(/configuración es inválido/);
+  });
+});
+
+describe('loadAbilities', () => {
+  const blade = {
+    id: 'boom-blade',
+    name: 'Boom Blade',
+    kind: 'item',
+    effect: { type: 'triple', symbol: 'Horn' },
+  };
+
+  it('carga habilidades válidas', () => {
+    const ammo = { ...blade, id: 'extra-ammo', effect: { type: 'double', symbol: 'Wing' } };
+    expect(loadAbilities([blade, { ...ammo, bonus: 'trophySlot' }])).toHaveLength(2);
+  });
+
+  it('rechaza efectos desconocidos, dados especiales inválidos e ids repetidos', () => {
+    expect(() => loadAbilities([{ ...blade, effect: { type: 'nuke' } }])).toThrow(/índice 0/);
+    expect(() => loadAbilities([{ ...blade, effect: { type: 'special', die: 'white' } }])).toThrow(
+      /índice 0/,
+    );
+    expect(() => loadAbilities([blade, blade])).toThrow(/duplicado/);
+    expect(() => loadAbilities('x')).toThrow(/se esperaba un array/);
   });
 });
 
@@ -115,5 +153,28 @@ describe('loadMonsters Property Tests', () => {
         expect(() => loadMonsters(v)).toThrow(/se esperaba un array/);
       }),
     );
+  });
+});
+
+describe('loadGuide', () => {
+  const lesson = {
+    id: 'town-welcome',
+    phase: 'town',
+    when: ['firstVisit'],
+    advance: 'next',
+    es: { title: 'Hola', text: 'Texto' },
+    en: { title: 'Hi', text: 'Text' },
+  };
+
+  it('aplica valores por defecto (posición abajo, no final)', () => {
+    expect(loadGuide([lesson])[0]).toMatchObject({ position: 'bottom', final: false });
+  });
+
+  it('rechaza fases, condiciones o acciones desconocidas, textos faltantes e ids repetidos', () => {
+    expect(() => loadGuide([{ ...lesson, phase: 'moon' }])).toThrow(/guía es inválido/);
+    expect(() => loadGuide([{ ...lesson, when: ['rainy'] }])).toThrow(/guía es inválido/);
+    expect(() => loadGuide([{ ...lesson, advance: 'dance' }])).toThrow(/guía es inválido/);
+    expect(() => loadGuide([{ ...lesson, en: undefined }])).toThrow(/guía es inválido/);
+    expect(() => loadGuide([lesson, lesson])).toThrow(/repetidos/);
   });
 });

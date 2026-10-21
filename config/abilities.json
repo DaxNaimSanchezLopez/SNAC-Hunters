@@ -1,0 +1,190 @@
+[
+  {
+    "id": "boom-blade",
+    "name": "Boom Blade",
+    "kind": "item",
+    "effect": {
+      "type": "triple",
+      "symbol": "Horn"
+    }
+  },
+  {
+    "id": "x-ray-laser",
+    "name": "X-Ray Laser",
+    "kind": "item",
+    "effect": {
+      "type": "triple",
+      "symbol": "Claw"
+    }
+  },
+  {
+    "id": "guillotine-trap",
+    "name": "Guillotine Trap",
+    "kind": "item",
+    "effect": {
+      "type": "triple",
+      "symbol": "Tail"
+    }
+  },
+  {
+    "id": "meaty-crossbow",
+    "name": "Meaty Crossbow",
+    "kind": "item",
+    "effect": {
+      "type": "triple",
+      "symbol": "Wing"
+    }
+  },
+  {
+    "id": "extra-ammo",
+    "name": "Extra Ammo",
+    "kind": "item",
+    "effect": {
+      "type": "double",
+      "symbol": "Wing"
+    },
+    "bonus": "trophySlot"
+  },
+  {
+    "id": "double-head-axe",
+    "name": "Double-head Axe",
+    "kind": "item",
+    "effect": {
+      "type": "double",
+      "symbol": "Horn"
+    },
+    "bonus": "trophySlot"
+  },
+  {
+    "id": "smell-o-snorkle",
+    "name": "Smell-o-Snorkle",
+    "kind": "item",
+    "effect": {
+      "type": "double",
+      "symbol": "Claw"
+    },
+    "bonus": "trophySlot"
+  },
+  {
+    "id": "hunters-net",
+    "name": "Hunter's Net",
+    "kind": "item",
+    "effect": {
+      "type": "double",
+      "symbol": "Tail"
+    },
+    "bonus": "trophySlot"
+  },
+  {
+    "id": "auto-aimer",
+    "name": "Auto-Aimer",
+    "kind": "item",
+    "effect": {
+      "type": "wild",
+      "symbol": "Wing"
+    },
+    "bonus": "trophySlot"
+  },
+  {
+    "id": "lasso-trap",
+    "name": "Lasso Trap",
+    "kind": "item",
+    "effect": {
+      "type": "wild",
+      "symbol": "Tail"
+    },
+    "bonus": "trophySlot"
+  },
+  {
+    "id": "sentient-sword",
+    "name": "Sentient Sword",
+    "kind": "item",
+    "effect": {
+      "type": "wild",
+      "symbol": "Horn"
+    },
+    "bonus": "trophySlot"
+  },
+  {
+    "id": "telemonocle",
+    "name": "Telemonocle",
+    "kind": "item",
+    "effect": {
+      "type": "wild",
+      "symbol": "Claw"
+    },
+    "bonus": "trophySlot"
+  },
+  {
+    "id": "trap-hatching",
+    "name": "Trap Hatching",
+    "kind": "skill",
+    "effect": {
+      "type": "special",
+      "die": "purple"
+    }
+  },
+  {
+    "id": "axe-sharpening",
+    "name": "Axe Sharpening",
+    "kind": "skill",
+    "effect": {
+      "type": "special",
+      "die": "orange"
+    }
+  },
+  {
+    "id": "detective-work",
+    "name": "Detective Work",
+    "kind": "skill",
+    "effect": {
+      "type": "special",
+      "die": "green"
+    }
+  },
+  {
+    "id": "pierfect-shot",
+    "name": "Pierfect Shot",
+    "kind": "skill",
+    "effect": {
+      "type": "special",
+      "die": "blue"
+    }
+  },
+  {
+    "id": "scent-and-sound",
+    "name": "Scent and Sound",
+    "kind": "skill",
+    "effect": {
+      "type": "convert",
+      "symbol": "Claw"
+    }
+  },
+  {
+    "id": "ambidexterity",
+    "name": "Ambidexterity",
+    "kind": "skill",
+    "effect": {
+      "type": "convert",
+      "symbol": "Horn"
+    }
+  },
+  {
+    "id": "bait-and-snare",
+    "name": "Bait and Snare",
+    "kind": "skill",
+    "effect": {
+      "type": "convert",
+      "symbol": "Tail"
+    }
+  },
+  {
+    "id": "double-damage",
+    "name": "Double Damage",
+    "kind": "skill",
+    "effect": {
+      "type": "convert",
+      "symbol": "Wing"
+    }
+  }
+]

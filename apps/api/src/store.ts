@@ -1,17 +1,19 @@
 // Puerto de persistencia: la lógica HTTP no sabe si guarda en DynamoDB o en memoria.
-import type { GameSymbol, Outcome } from '@snac-hunters/engine';
+import type { GamePhase, Outcome } from '@snac-hunters/engine';
 
-export interface RunRecord {
-  readonly runId: string;
+/** Resumen de una partida re-simulada por el servidor (se actualiza en cada envío). */
+export interface GameRecord {
+  readonly gameId: string;
   readonly userId: string;
-  readonly monsterId: string;
-  readonly seed: string;
-  readonly outcome: Outcome;
-  readonly ko: boolean;
-  readonly trophy: GameSymbol | null;
+  readonly phase: GamePhase;
+  readonly score: number;
   readonly points: number;
+  readonly kos: number;
+  readonly runs: number;
+  readonly fights: number;
   readonly rerolls: number;
-  readonly createdAt: string;
+  readonly outcomes: Partial<Record<Outcome, number>>;
+  readonly updatedAt: string;
 }
 
 export interface EventRecord {
@@ -23,8 +25,10 @@ export interface EventRecord {
 }
 
 export interface Stats {
-  readonly runs: number;
-  readonly points: number;
+  readonly games: number;
+  readonly finished: number;
+  readonly avgScore: number;
+  readonly fights: number;
   readonly outcomes: Record<string, number>;
   readonly sessions: number;
   readonly events: Record<string, number>;
@@ -32,33 +36,38 @@ export interface Stats {
 }
 
 export interface Store {
-  saveRun(run: RunRecord): Promise<void>;
+  saveGame(game: GameRecord): Promise<void>;
   saveEvents(events: readonly EventRecord[]): Promise<void>;
   stats(): Promise<Stats>;
 }
 
-export function summarize(runs: readonly RunRecord[], events: readonly EventRecord[]): Stats {
+export function summarize(games: readonly GameRecord[], events: readonly EventRecord[]): Stats {
   const outcomes: Record<string, number> = {};
-  for (const r of runs) outcomes[r.outcome] = (outcomes[r.outcome] ?? 0) + 1;
+  for (const g of games) {
+    for (const [o, n] of Object.entries(g.outcomes)) outcomes[o] = (outcomes[o] ?? 0) + (n ?? 0);
+  }
   const byType: Record<string, number> = {};
   for (const e of events) byType[e.type] = (byType[e.type] ?? 0) + 1;
+  const fights = games.reduce((a, g) => a + g.fights, 0);
   return {
-    runs: runs.length,
-    points: runs.reduce((acc, r) => acc + r.points, 0),
+    games: games.length,
+    finished: games.filter((g) => g.phase === 'over').length,
+    avgScore: games.length ? games.reduce((a, g) => a + g.score, 0) / games.length : 0,
+    fights,
     outcomes,
     sessions: new Set(events.map((e) => e.sessionId)).size,
     events: byType,
-    avgRerolls: runs.length ? runs.reduce((a, r) => a + r.rerolls, 0) / runs.length : 0,
+    avgRerolls: fights ? games.reduce((a, g) => a + g.rerolls, 0) / fights : 0,
   };
 }
 
 /** Implementación en memoria para desarrollo local y tests de integración. */
 export class MemoryStore implements Store {
-  readonly runs: RunRecord[] = [];
+  readonly games = new Map<string, GameRecord>();
   readonly events: EventRecord[] = [];
 
-  async saveRun(run: RunRecord): Promise<void> {
-    this.runs.push(run);
+  async saveGame(game: GameRecord): Promise<void> {
+    this.games.set(`${game.userId}#${game.gameId}`, game);
   }
 
   async saveEvents(events: readonly EventRecord[]): Promise<void> {
@@ -66,6 +75,6 @@ export class MemoryStore implements Store {
   }
 
   async stats(): Promise<Stats> {
-    return summarize(this.runs, this.events);
+    return summarize([...this.games.values()], this.events);
   }
 }

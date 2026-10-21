@@ -4,7 +4,9 @@ import type { LocalSummary } from '../game/analytics';
 import { fetchServerStats } from '../game/api';
 import { authEnabled } from '../game/auth';
 import { API_URL, gameConfig, isEnabled } from '../game/config';
-import { FACE_LABEL, FaceIcon } from './DieView';
+import { faceName } from '../game/i18n';
+import { useT } from '../game/useT';
+import { FaceIcon } from './DieView';
 import type { Face } from '@snac-hunters/engine';
 
 /** Botón de desarrollo: visible solo en modo dev (o con VITE_SHOW_DEV=true). */
@@ -12,6 +14,7 @@ export const devButtonVisible =
   (import.meta.env.DEV || import.meta.env.VITE_SHOW_DEV === 'true') && isEnabled('devAnalytics');
 
 export function DevPanel() {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [local, setLocal] = useState<LocalSummary | null>(null);
   const [server, setServer] = useState<string>('');
@@ -31,7 +34,7 @@ export function DevPanel() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="fixed right-3 top-16 z-40 grid h-12 w-12 place-items-center rounded-full border-[3px] border-black bg-fuchsia-400 font-bold shadow-[0_3px_0_#000]"
+        className="fixed right-0 top-1/3 z-40 grid h-12 w-9 place-items-center rounded-l-xl border-[3px] border-r-0 border-black bg-fuchsia-400 text-[10px] font-bold opacity-80 shadow-[0_3px_0_#000]"
         aria-label="Abrir panel de desarrollo"
       >
         DEV
@@ -79,7 +82,7 @@ export function DevPanel() {
                   <div key={face} className="flex items-center gap-1 rounded bg-gray-100 p-1">
                     <FaceIcon face={face as Face} className="h-4 w-4" />
                     <span className="text-xs">
-                      {FACE_LABEL[face as Face]} {((share ?? 0) * 100).toFixed(0)}%
+                      {faceName(t, face as Face)} {((share ?? 0) * 100).toFixed(0)}%
                     </span>
                   </div>
                 ))}

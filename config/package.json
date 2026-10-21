@@ -18,6 +18,8 @@
     "./monsters.json": "./monsters.json",
     "./dice.json": "./dice.json",
     "./game.json": "./game.json",
-    "./tutorial.json": "./tutorial.json"
+    "./tutorial.json": "./tutorial.json",
+    "./abilities.json": "./abilities.json",
+    "./guide.json": "./guide.json"
   }
 }

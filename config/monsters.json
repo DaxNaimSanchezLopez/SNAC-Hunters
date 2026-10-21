@@ -1,20 +1,74 @@
 [
   {
-    "id": "snac-001",
-    "name": "Frostbite Bunny",
-    "hp": 3,
-    "slots": ["Horn", "Wing", "Claw", "Tail"]
+    "id": "garden-salaad",
+    "name": "Garden Salaad",
+    "type": "Claw",
+    "slots": ["Claw", "Claw", "Horn", "all"],
+    "trophies": ["Claw", "Horn"],
+    "pun": "You may want to leaf it alone"
   },
   {
-    "id": "snac-002",
-    "name": "Candy Creeper",
-    "hp": 2,
-    "slots": ["Horn", "Horn", "all", "Tail"]
+    "id": "guac-a-mole",
+    "name": "Guac-a-mole",
+    "type": "Claw",
+    "slots": ["Claw", "Claw", "Tail", "Wing"],
+    "trophies": ["Claw", "Tail"],
+    "pun": "Always smashing the competition"
   },
   {
-    "id": "snac-003",
-    "name": "Sugar Sprite",
-    "hp": 4,
-    "slots": ["Wing", "Claw", "all", "all"]
+    "id": "porcupineapple",
+    "name": "Porcupineapple",
+    "type": "Claw",
+    "slots": ["Claw", "Claw", "Horn", "damage"],
+    "trophies": ["Claw", "Horn"],
+    "pun": "Some real sour spines"
+  },
+  {
+    "id": "broccoltree",
+    "name": "Broccoltree",
+    "type": "Horn",
+    "slots": ["Horn", "Horn", "Wing", "all"],
+    "trophies": ["Horn", "Wing"],
+    "pun": "Don't forget your greens!"
+  },
+  {
+    "id": "picmimic",
+    "name": "Picmimic",
+    "type": "Horn",
+    "slots": ["Horn", "Horn", "Claw", "damage"],
+    "trophies": ["Horn", "Claw"],
+    "pun": "If you go down to the woods today, you're in for a big surprise"
+  },
+  {
+    "id": "spinachasaurus",
+    "name": "Spinachasaurus",
+    "type": "Tail",
+    "slots": ["Tail", "Tail", "Wing", "all"],
+    "trophies": ["Tail", "Wing"],
+    "pun": "Careful, it'll POP your EYE out"
+  },
+  {
+    "id": "porkchop",
+    "name": "Porkchop",
+    "type": "Tail",
+    "slots": ["Tail", "Tail", "Claw", "damage"],
+    "trophies": ["Tail", "Claw"],
+    "pun": "Utensils included"
+  },
+  {
+    "id": "beeholder",
+    "name": "Beeholder",
+    "type": "Wing",
+    "slots": ["Wing", "Wing", "Horn", "all"],
+    "trophies": ["Wing", "Horn"],
+    "pun": "Roll 2B4 damage"
+  },
+  {
+    "id": "chickagriff",
+    "name": "Chickagriff",
+    "type": "Wing",
+    "slots": ["Wing", "Wing", "Tail", "all"],
+    "trophies": ["Wing", "Tail"],
+    "pun": "A mythical bird that can really wing it"
   }
 ]

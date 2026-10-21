@@ -44,40 +44,36 @@ Estas reglas son invariantes de arquitectura. Toda decisión de diseño o implem
 
 ## Reglas del juego (decididas)
 
-Las siguientes reglas han sido acordadas por el equipo y están implementadas en el engine:
+Fuentes: manual `SNACs Rulebook-Esp-V03`, `Dice-guide-V03.png` y `Sherbert Forest monster list.xlsx`. Implementadas en `packages/engine/src/combat.ts`; los datos viven en `config/`.
 
 ### Símbolos
-Existen cuatro símbolos de juego:
-- `Horn` — hacha
-- `Wing` — flecha
-- `Claw` — lupa
-- `Tail` — gancho
+| Código | Ícono | Color de dado especial / trofeo |
+|--------|-------|---------------------------------|
+| `Horn` | Axe (hacha) | naranja |
+| `Wing` | Arrow (flecha) | azul |
+| `Claw` | Finder (lupa) | verde |
+| `Tail` | Hook (gancho) | morado |
 
-El valor especial `all` en un slot de monstruo indica que acepta cualquier símbolo.
+Un slot `all` acepta cualquier símbolo. Un slot `damage` (corazón roto) solo se cubre recibiendo daño (D-07).
 
-### Monstruos
-Cada monstruo tiene exactamente **4 slots** de tipo `Slot` (`Horn | Wing | Claw | Tail | all`) y un valor de HP entero positivo.
+### Dados (`config/dice.json`)
+- **Rojo (estándar):** Claw, Horn, Wing, Tail + 2 `heart`.
+- **Especial (naranja/azul/morado/verde):** 4 × su símbolo + 2 `wild`.
+- **Blanco (daño):** 3 `damage`, 2 `blank`, 1 `wild`.
+- El `wild` imita cualquier símbolo, **nunca** el corazón ni un slot de daño.
+
+### Monstruos (`config/monsters.json`)
+9 SNACs de Sherbert Forest + jefe Pieous (pendiente). Cada uno: tipo, 4 slots y 2 opciones de trofeo. Los monstruos normales **no tienen HP**.
 
 ### Outcomes de combate
-
-| Resultado    | Condición                                      | Consecuencia                        |
-|--------------|------------------------------------------------|-------------------------------------|
-| **Derrota**  | Los 4 slots del monstruo coinciden con dados  | Monstruo KO — se obtiene trofeo    |
-| **Estudio**  | Al menos un par de slots coincide             | Monstruo escapa — se obtiene trofeo |
-| **Huida**    | Solo 1 símbolo coincide (sin par)             | Sin trofeo, sin KO                  |
-| **KO**       | `playerHp` llega a 0                          | Fin de partida                      |
+| Resultado | Condición | Consecuencia |
+|-----------|-----------|--------------|
+| **Derrotar** | Los 4 slots cubiertos | +1 punto y un trofeo a elegir |
+| **Estudiar** | 2 o 3 slots cubiertos (cualesquiera) | Trofeo a elegir; el monstruo escapa |
+| **Huir** | 1 slot cubierto | Sin premio |
+| **KO** | HPie llega a 0 | -1 punto; si en esa tirada se completaron los 4 slots se conserva la derrota |
 
 ### Mecánica de dados
-- Cada relanzamiento añade un **dado de daño** al pool del jugador.
-- Un dado con cara `heart` (corazón) cancela un dado de daño del pool.
-- El HP máximo del jugador es **6**.
-
-## Supuestos no confirmados (RNF-04)
-
-Los siguientes puntos son suposiciones del equipo pendientes de validación con Pieland Games o con la documentación oficial del juego:
-
-1. **Distribución del dado de daño:** Se asume que el dado de daño tiene 6 caras con la siguiente distribución: 3 caras de `damage`, 1 cara de `wild` (comodín) y 2 caras de `blank` (en blanco).
-
-2. **El comodín no cubre slot de daño:** La cara `wild` del dado de daño **no puede** cubrir un slot de daño. Solo cubre slots de símbolo (`Horn`, `Wing`, `Claw`, `Tail`, `all`).
-
-> Estas suposiciones están marcadas con el SRS ID `RNF-04` en el código del engine. Si el reglamento oficial difiere, el cambio se limita a `src/types.ts` y los datos de `config/`.
+- Cada relanzamiento añade un **dado blanco** (de daño) a la reserva.
+- Cada cara `damage` cuesta 1 HPie, salvo que un `heart` disponible lo bloquee (escudo, D-08).
+- El HPie máximo es **6** (`config/game.json`).

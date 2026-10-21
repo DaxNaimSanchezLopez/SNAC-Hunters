@@ -63,25 +63,18 @@ describe('SeededRng Property Tests', () => {
   // Property 8: RNG es determinista — dos instancias con el mismo seed producen secuencias idénticas
   // Validates: RNF-02.1, RNF-02.2
   it('Property 8: dos instancias con el mismo seed producen exactamente las mismas secuencias', () => {
-    const seedArbitrary = fc.oneof(
-      fc.integer(),
-      fc.string({ minLength: 1 }),
-    );
+    const seedArbitrary = fc.oneof(fc.integer(), fc.string({ minLength: 1 }));
 
     fc.assert(
-      fc.property(
-        seedArbitrary,
-        fc.integer({ min: 1, max: 50 }),
-        (seed, n) => {
-          const rng1 = new SeededRng(seed);
-          const rng2 = new SeededRng(seed);
+      fc.property(seedArbitrary, fc.integer({ min: 1, max: 50 }), (seed, n) => {
+        const rng1 = new SeededRng(seed);
+        const rng2 = new SeededRng(seed);
 
-          const seq1 = Array.from({ length: n }, () => rng1.next());
-          const seq2 = Array.from({ length: n }, () => rng2.next());
+        const seq1 = Array.from({ length: n }, () => rng1.next());
+        const seq2 = Array.from({ length: n }, () => rng2.next());
 
-          expect(seq1).toEqual(seq2);
-        },
-      ),
+        expect(seq1).toEqual(seq2);
+      }),
     );
   });
 

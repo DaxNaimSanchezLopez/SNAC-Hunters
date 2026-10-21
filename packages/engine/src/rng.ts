@@ -13,8 +13,16 @@ export class SeededRng {
   private state: number;
 
   constructor(seed: number | string) {
-    // Convertir seed string a número con hash FNV-1a simple
-    this.state = typeof seed === 'string' ? SeededRng.hashString(seed) : seed;
+    // Convertir seed string a número con hash FNV-1a simple; los numéricos se normalizan a uint32
+    this.state = typeof seed === 'string' ? SeededRng.hashString(seed) : seed >>> 0;
+  }
+
+  /**
+   * Estado interno serializable (uint32). Permite guardar el RNG dentro del estado del
+   * combate y reanudarlo después con `new SeededRng(state)` (RNF-02, sesiones interrumpidas).
+   */
+  get currentState(): number {
+    return this.state >>> 0;
   }
 
   /**

@@ -3,16 +3,26 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "build": "esbuild src/index.ts --bundle --platform=node --target=node20 --outfile=dist/index.js",
+    "build": "esbuild src/lambda.ts --bundle --platform=node --target=node22 --format=esm --outfile=dist/index.mjs",
+    "dev": "tsx watch src/local.ts",
     "typecheck": "tsc --noEmit",
-    "lint": "eslint --no-error-on-unmatched-pattern src"
+    "lint": "eslint --no-error-on-unmatched-pattern src",
+    "test": "vitest run"
   },
   "dependencies": {
-    "zod": "^3.23.8",
-    "esbuild": "^0.23.0"
+    "@aws-sdk/client-dynamodb": "^3.1151.0",
+    "@aws-sdk/lib-dynamodb": "^3.1151.0",
+    "@snac-hunters/config": "workspace:*",
+    "@snac-hunters/engine": "workspace:*",
+    "esbuild": "^0.23.0",
+    "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@types/aws-lambda": "^8.10.143",
+    "@types/node": "^20.19.43",
+    "tsx": "^4.23.15",
     "typescript": "^5.5.4",
-    "@types/aws-lambda": "^8.10.143"
-  }
+    "vitest": "^2.1.9"
+  },
+  "type": "module"
 }

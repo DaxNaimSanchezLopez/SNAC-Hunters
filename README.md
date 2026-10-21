@@ -64,6 +64,38 @@ pnpm install
 
 ---
 
+## Correr la demo en local
+
+Se necesitan dos terminales:
+
+```bash
+# 1) API local: mismo router que la Lambda, con almacenamiento en memoria → http://localhost:3001
+pnpm --filter @snac-hunters/api dev
+
+# 2) Frontend → http://localhost:5173 (también se puede abrir desde el celular en la misma red)
+pnpm --filter @snac-hunters/web dev
+```
+
+Sin variables de entorno, el juego usa modo invitado contra la API local. Para apuntar a AWS, copia
+`apps/web/.env.example` a `apps/web/.env.local` y llena los valores que imprime `cdk deploy`.
+
+## Infraestructura AWS
+
+```bash
+pnpm --filter @snac-hunters/infra synth                 # genera CloudFormation (no requiere cuenta)
+pnpm --filter @snac-hunters/web build                   # el deploy sube apps/web/dist a S3
+pnpm --filter @snac-hunters/infra deploy -c stage=dev   # requiere credenciales AWS configuradas
+```
+
+| Recurso | Servicio AWS |
+|---------|--------------|
+| SPA React | S3 privado + CloudFront (OAC) |
+| API REST | API Gateway + Cognito User Pool authorizer |
+| Lógica / validación | Lambda Node.js 22 (ejecuta el mismo `packages/engine`) |
+| Partidas y analítica | DynamoDB (single-table, on-demand) |
+
+---
+
 ## Paquetes
 
 | Paquete              | Descripción                                                                 |

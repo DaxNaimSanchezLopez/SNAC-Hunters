@@ -3,6 +3,10 @@ dist
 .turbo
 .env*
 !.env.example
+!.env.firebase
 cdk.out
 coverage
 *.tsbuildinfo
+
+# Caché del CLI de Firebase
+.firebase/

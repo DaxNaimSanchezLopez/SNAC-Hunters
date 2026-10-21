@@ -7,7 +7,8 @@
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
     "build": "pnpm -r build",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "deploy:firebase": "pnpm --filter @snac-hunters/web exec vite build --mode firebase && firebase deploy --only hosting"
   },
   "devDependencies": {
     "@eslint/js": "^9.9.0",

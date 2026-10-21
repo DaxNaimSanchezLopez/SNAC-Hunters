@@ -94,6 +94,19 @@ pnpm --filter @snac-hunters/infra run deploy -c stage=dev  # requiere credencial
 | Lógica / validación | Lambda Node.js 22 (ejecuta el mismo `packages/engine`) |
 | Partidas y analítica | DynamoDB (single-table, on-demand) |
 
+## Versión de prueba para el cliente (Firebase Hosting)
+
+La V0 está publicada en **https://snac-hunters-v0.web.app** (proyecto `snac-hunters-v0`, plan gratuito Spark).
+
+```bash
+pnpm deploy:firebase   # build con --mode firebase + firebase deploy --only hosting
+```
+
+- El plan Spark solo sirve archivos estáticos, así que este build no usa la API: `apps/web/.env.firebase` apaga `serverValidation` con `VITE_FEATURES_OFF`, sin tocar `config/game.json`, que comparte con la Lambda.
+- El juego corre completo en el navegador y guarda la partida en el dispositivo (IndexedDB, con respaldo en `localStorage`).
+- La página se sirve con `Cache-Control: no-cache`, así que cada deploy llega al cliente al recargar.
+- Requiere el CLI de Firebase con sesión iniciada (`firebase login`).
+
 ---
 
 ## Paquetes

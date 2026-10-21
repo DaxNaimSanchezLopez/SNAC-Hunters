@@ -29,9 +29,21 @@ export const playerSetup: CombatSetup = {
   maxHp: gameConfig.player.maxHp,
 };
 
+/**
+ * Toggles apagados por el build (VITE_FEATURES_OFF="a,b"). Así un despliegue sin API, como la
+ * prueba en Firebase Hosting, apaga la validación en servidor sin tocar config/game.json,
+ * que comparte con la Lambda.
+ */
+const featuresOff = new Set(
+  (import.meta.env.VITE_FEATURES_OFF ?? '')
+    .split(',')
+    .map((f) => f.trim())
+    .filter(Boolean),
+);
+
 /** Feature toggles: se activan/desactivan en config/game.json sin tocar código. */
 export function isEnabled(feature: string): boolean {
-  return gameConfig.features[feature] === true;
+  return gameConfig.features[feature] === true && !featuresOff.has(feature);
 }
 
 export function getMonster(id: string): Monster | undefined {

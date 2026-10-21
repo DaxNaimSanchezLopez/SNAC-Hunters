@@ -59,10 +59,25 @@ describe('DiceTableSchema / GameConfigSchema', () => {
   });
 
   const config = {
-    player: { maxHp: 6, startingHp: 6, startingDice: ['red', 'green'] },
+    player: {
+      maxHp: 4,
+      startingHp: 4,
+      startingDice: ['red', 'green'],
+      trophySlots: 2,
+      startingTrophies: 1,
+      startingItems: 1,
+    },
+    town: {
+      actionsPerVisit: 2,
+      itemCost: 1,
+      skillCost: 2,
+      offerSize: 3,
+      maxItems: 3,
+      maxSkills: 3,
+    },
     tutorial: { monsterId: 'garden-salaad', seed: 'seed' },
     features: { town: false },
-    scoring: { defeat: 1, study: 0, flee: 0, ko: -1 },
+    scoring: { defeat: 1, study: 0, flee: 0, ko: -1, koWeight: 3, runWeight: 1 },
   };
 
   it('acepta una configuración válida', () => {
@@ -72,6 +87,13 @@ describe('DiceTableSchema / GameConfigSchema', () => {
   it('rechaza startingHp mayor que maxHp', () => {
     const bad = { ...config, player: { ...config.player, startingHp: 7 } };
     expect(GameConfigSchema.safeParse(bad).success).toBe(false);
+  });
+
+  it('rechaza dados blancos iniciales y reglas del pueblo incompletas', () => {
+    const white = { ...config, player: { ...config.player, startingDice: ['red', 'white'] } };
+    expect(GameConfigSchema.safeParse(white).success).toBe(false);
+    const noTown = { ...config, town: { actionsPerVisit: 0 } };
+    expect(GameConfigSchema.safeParse(noTown).success).toBe(false);
   });
 });
 

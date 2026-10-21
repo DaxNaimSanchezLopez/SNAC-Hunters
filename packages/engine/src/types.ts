@@ -19,10 +19,40 @@ export type Face = GameSymbol | 'heart' | 'wild' | 'damage' | 'blank';
 // RF-07.3: Tabla de caras por tipo de dado — vive en config/dice.json
 export type DiceTable = Readonly<Record<DieKind, readonly Face[]>>;
 
+// RF-13: Origen de un "dado" en combate. Además de los dados físicos, un trofeo colocado
+// en el monstruo o un símbolo creado por una habilidad se comportan como dados que
+// no se pueden relanzar y no pasan al siguiente combate.
+export type DieSource = DieKind | 'trophy' | 'token';
+
 export interface Die {
   readonly id: string;
-  readonly kind: DieKind;
+  readonly kind: DieSource;
   readonly face: Face;
+}
+
+// RF-14: Efecto de una habilidad (cartas de Objeto y Destreza)
+// - triple: tres símbolos iguales derrotan a cualquier monstruo; el trofeo puede ser cualquiera
+// - double: un símbolo se convierte en dos
+// - wild: un símbolo se convierte en comodín
+// - convert: dos símbolos iguales se convierten en tres comodines
+// - special: pasiva, el personaje gana un dado especial de ese color
+export type SpecialDieKind = Exclude<DieKind, 'red' | 'white'>;
+
+export type AbilityEffect =
+  | { readonly type: 'triple'; readonly symbol: GameSymbol }
+  | { readonly type: 'double'; readonly symbol: GameSymbol }
+  | { readonly type: 'wild'; readonly symbol: GameSymbol }
+  | { readonly type: 'convert'; readonly symbol: GameSymbol }
+  | { readonly type: 'special'; readonly die: SpecialDieKind };
+
+export interface Ability {
+  readonly id: string;
+  readonly name: string;
+  /** item = Objeto (un uso, se recarga en el pueblo); skill = Destreza (una vez por monstruo). */
+  readonly kind: 'item' | 'skill';
+  readonly effect: AbilityEffect;
+  /** Bonificación pasiva mientras se tenga la carta (aunque esté gastada). */
+  readonly bonus?: 'trophySlot';
 }
 
 // RF-07.4: Trofeo obtenido al derrotar o estudiar un monstruo.

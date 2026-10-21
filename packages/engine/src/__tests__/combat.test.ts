@@ -15,6 +15,7 @@ import {
   validSlotsFor,
 } from '../combat.js';
 import type { CombatAction, CombatSetup, CombatState } from '../combat.js';
+import type { DieKind } from '../types.js';
 import { BEEHOLDER, DICE, fixedTable, GARDEN_SALAAD, PORCUPINEAPPLE } from './fixtures.js';
 
 const SETUP: CombatSetup = { dice: ['red', 'red', 'red', 'red', 'green'], hp: 6, maxHp: 6 };
@@ -61,7 +62,7 @@ describe('startCombat', () => {
 
   it('las caras salen de la tabla de cada tipo de dado', () => {
     const s = startCombat(GARDEN_SALAAD, SETUP, 'cualquier-seed', DICE);
-    for (const d of s.dice) expect(DICE[d.kind]).toContain(d.face);
+    for (const d of s.dice) expect(DICE[d.kind as DieKind]).toContain(d.face);
   });
 
   it('rechaza reserva vacía y HPie fuera de rango', () => {

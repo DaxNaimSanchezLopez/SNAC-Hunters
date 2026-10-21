@@ -84,7 +84,7 @@ Sin variables de entorno, el juego usa modo invitado contra la API local. Para a
 ```bash
 pnpm --filter @snac-hunters/infra synth                 # genera CloudFormation (no requiere cuenta)
 pnpm --filter @snac-hunters/web build                   # el deploy sube apps/web/dist a S3
-pnpm --filter @snac-hunters/infra deploy -c stage=dev   # requiere credenciales AWS configuradas
+pnpm --filter @snac-hunters/infra run deploy -c stage=dev  # requiere credenciales AWS (ojo: "run", deploy es comando de pnpm)
 ```
 
 | Recurso | Servicio AWS |

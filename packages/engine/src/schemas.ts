@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { DiceTable, Monster } from './types.js';
+import type { Ability, DiceTable, Monster } from './types.js';
 
 // RF-08: Schemas Zod para los datos de config/
 
@@ -40,13 +40,45 @@ export const DiceTableSchema = z.object({
   white: DieFacesSchema,
 });
 
-// Valores de jugador y feature toggles — config/game.json
+// RF-14: Catálogo de habilidades — config/abilities.json
+const AbilityEffectSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('triple'), symbol: GameSymbolSchema }),
+  z.object({ type: z.literal('double'), symbol: GameSymbolSchema }),
+  z.object({ type: z.literal('wild'), symbol: GameSymbolSchema }),
+  z.object({ type: z.literal('convert'), symbol: GameSymbolSchema }),
+  z.object({ type: z.literal('special'), die: z.enum(['orange', 'blue', 'purple', 'green']) }),
+]);
+
+export const AbilitySchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  kind: z.enum(['item', 'skill']),
+  effect: AbilityEffectSchema,
+  bonus: z.literal('trophySlot').optional(),
+});
+
+const count = z.number().int().min(0);
+
+// Valores de jugador, reglas de V0 y feature toggles — config/game.json
 export const GameConfigSchema = z
   .object({
     player: z.object({
       maxHp: z.number().int().min(1),
       startingHp: z.number().int().min(1),
       startingDice: z.array(DieKindSchema).min(1),
+      // Manual p. 7: dos espacios para trofeos, un trofeo al azar y un objeto inicial
+      trophySlots: count,
+      startingTrophies: count,
+      startingItems: count,
+    }),
+    // Fase en el pueblo (manual p. 14–16): acciones por visita y precios en trofeos
+    town: z.object({
+      actionsPerVisit: z.number().int().min(1),
+      itemCost: count,
+      skillCost: count,
+      offerSize: z.number().int().min(1),
+      maxItems: z.number().int().min(1),
+      maxSkills: z.number().int().min(1),
     }),
     tutorial: z.object({
       monsterId: z.string().min(1),
@@ -59,11 +91,18 @@ export const GameConfigSchema = z
       study: z.number().int(),
       flee: z.number().int(),
       ko: z.number().int(),
+      // Puntaje final (feedback V0): puntos − KOs × koWeight − expediciones × runWeight
+      koWeight: z.number().int(),
+      runWeight: z.number().int(),
     }),
   })
   .refine((c) => c.player.startingHp <= c.player.maxHp, {
     message: 'startingHp no puede superar maxHp',
     path: ['player', 'startingHp'],
+  })
+  .refine((c) => !c.player.startingDice.includes('white'), {
+    message: 'Los dados blancos no salen del pueblo',
+    path: ['player', 'startingDice'],
   });
 
 export type GameConfig = z.infer<typeof GameConfigSchema>;
@@ -73,9 +112,10 @@ export const TutorialSchema = z
   .array(
     z.object({
       id: z.string().min(1),
-      title: z.string().min(1),
-      text: z.string().min(1),
-      highlight: z.enum(['monster', 'dice', 'hp', 'reroll', 'resolve']).optional(),
+      // Selector español / inglés (feedback V0): cada paso trae ambos textos
+      es: z.object({ title: z.string().min(1), text: z.string().min(1) }),
+      en: z.object({ title: z.string().min(1), text: z.string().min(1) }),
+      highlight: z.enum(['monster', 'dice', 'hp', 'reroll', 'resolve', 'trophies']).optional(),
       // Qué acción del jugador avanza el paso
       advance: z.enum(['next', 'assign', 'reroll', 'resolve']),
     }),
@@ -84,8 +124,67 @@ export const TutorialSchema = z
 
 export type TutorialStep = z.infer<typeof TutorialSchema>[number];
 
+const LocalizedText = z.object({ title: z.string().min(1), text: z.string().min(1) });
+
+// Partida guiada (V0 = tutorial del juego de mesa) — config/guide.json. Cada lección aparece
+// una vez, cuando la partida está en la fase indicada y se cumplen sus condiciones.
+export const GuideSchema = z
+  .array(
+    z.object({
+      id: z.string().min(1),
+      phase: z.enum(['town', 'trail', 'combat', 'aftermath']),
+      when: z
+        .array(
+          z.enum([
+            'firstVisit',
+            'returnVisit',
+            'offer',
+            'damageSlot',
+            'hasTrophies',
+            'hasAbilities',
+            'whiteDie',
+            'covered',
+            'runActive',
+            'runEnded',
+          ]),
+        )
+        .default([]),
+      // 'next' = botón "Entendido"; si no, la lección se cumple al hacer esa acción
+      advance: z.enum(['next', 'leave', 'follow', 'assign', 'reroll', 'resolve']),
+      highlight: z
+        .enum([
+          'hud',
+          'dice',
+          'trophies',
+          'cards',
+          'actions',
+          'leave',
+          'tracks',
+          'monster',
+          'abilities',
+          'reroll',
+          'resolve',
+          'status',
+        ])
+        .optional(),
+      position: z.enum(['top', 'bottom']).default('bottom'),
+      /** La última lección: al cerrarla termina la guía. */
+      final: z.boolean().default(false),
+      es: LocalizedText,
+      en: LocalizedText,
+    }),
+  )
+  .min(1)
+  .refine((g) => new Set(g.map((l) => l.id)).size === g.length, {
+    message: 'Ids de lección repetidos',
+  });
+
+export type GuideLesson = z.infer<typeof GuideSchema>[number];
+
 // Verificación de compatibilidad de tipos en tiempo de compilación (RF-08.8, RF-07.7)
 const _monsterCheck: MonsterFromSchema extends Monster ? true : false = true;
 const _diceCheck: z.infer<typeof DiceTableSchema> extends DiceTable ? true : false = true;
+const _abilityCheck: z.infer<typeof AbilitySchema> extends Ability ? true : false = true;
 void _monsterCheck;
 void _diceCheck;
+void _abilityCheck;

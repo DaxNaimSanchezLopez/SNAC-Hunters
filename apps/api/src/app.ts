@@ -1,8 +1,7 @@
 // Router HTTP independiente de AWS: lo usan la Lambda, el servidor local y los tests.
-import { randomUUID } from 'node:crypto';
 import { z } from 'zod';
-import { CombatError, replayCombat } from '@snac-hunters/engine';
-import { diceTable, gameConfig, monsters, serverSetup } from './game.js';
+import { CombatError, finalScore, replayGame } from '@snac-hunters/engine';
+import { gameConfig, gameData, monsters } from './game.js';
 import type { Store } from './store.js';
 
 export interface ApiRequest {
@@ -19,19 +18,48 @@ export interface ApiResponse {
 }
 
 const SymbolSchema = z.enum(['Horn', 'Wing', 'Claw', 'Tail']);
+const DieId = z.string().max(8);
+const Index = z.number().int();
 
-const ActionSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('reroll'), dieIds: z.array(z.string().max(8)).min(1).max(40) }),
-  z.object({ type: z.literal('assign'), dieId: z.string().max(8), slot: z.number().int() }),
-  z.object({ type: z.literal('unassign'), slot: z.number().int() }),
+const CombatActionSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('reroll'), dieIds: z.array(DieId).max(60) }),
+  z.object({ type: z.literal('assign'), dieId: DieId, slot: Index }),
+  z.object({ type: z.literal('unassign'), slot: Index }),
+  z.object({ type: z.literal('trophy'), index: Index, slot: Index }),
+  z.object({
+    type: z.literal('ability'),
+    abilityId: z.string().max(64),
+    dieIds: z.array(DieId).max(3),
+    trophy: SymbolSchema.optional(),
+  }),
   z.object({ type: z.literal('resolve'), trophy: SymbolSchema.optional() }),
 ]);
 
-// El cliente solo envía seed + acciones; el resultado lo calcula el servidor.
-const RunSubmissionSchema = z.object({
-  monsterId: z.string().min(1).max(64),
+const GameActionSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('rest') }),
+  z.object({
+    type: z.literal('buy'),
+    kind: z.enum(['item', 'skill']),
+    pay: z.array(Index).max(10),
+  }),
+  z.object({
+    type: z.literal('pick'),
+    abilityId: z.string().max(64).nullable(),
+    replace: z.string().max(64).optional(),
+  }),
+  z.object({ type: z.literal('leave') }),
+  z.object({ type: z.literal('follow'), index: Index }),
+  z.object({ type: z.literal('combat'), action: CombatActionSchema }),
+  z.object({ type: z.literal('keep'), discard: Index.nullable() }),
+  z.object({ type: z.literal('continue') }),
+  z.object({ type: z.literal('return') }),
+  z.object({ type: z.literal('finish') }),
+]);
+
+// El cliente solo envía seed + acciones de la partida; el resultado lo calcula el servidor.
+const GameSubmissionSchema = z.object({
   seed: z.string().min(1).max(128),
-  actions: z.array(ActionSchema).max(300),
+  actions: z.array(GameActionSchema).max(5000),
 });
 
 const EventsSchema = z.object({
@@ -57,40 +85,33 @@ function parseJson(body: string | null): unknown {
   }
 }
 
-async function submitRun(req: ApiRequest, store: Store): Promise<ApiResponse> {
-  const parsed = RunSubmissionSchema.safeParse(parseJson(req.body));
+async function submitGame(req: ApiRequest, store: Store): Promise<ApiResponse> {
+  const parsed = GameSubmissionSchema.safeParse(parseJson(req.body));
   if (!parsed.success) {
     return {
       statusCode: 400,
       body: { valid: false, error: 'Payload inválido', issues: parsed.error.issues },
     };
   }
-  const { monsterId, seed, actions } = parsed.data;
-  const monster = monsters.find((m) => m.id === monsterId);
-  if (!monster)
-    return { statusCode: 404, body: { valid: false, error: `Monstruo "${monsterId}" no existe` } };
-
+  const { seed, actions } = parsed.data;
   try {
-    // Regla de oro 2: re-simular seed + acciones con el mismo engine que el cliente
-    const final = replayCombat(monster, serverSetup, seed, actions, diceTable);
-    if (final.status !== 'resolved' || final.outcome === null) {
-      return { statusCode: 422, body: { valid: false, error: 'El combate no ha terminado' } };
-    }
-    const koPenalty = final.ko && final.outcome !== 'ko' ? gameConfig.scoring.ko : 0;
-    const run = {
-      runId: randomUUID(),
+    // Regla de oro 2: re-simular la partida completa con el mismo engine que el cliente
+    const final = replayGame(gameData, seed, actions);
+    const game = {
+      gameId: seed,
       userId: req.userId,
-      monsterId,
-      seed,
-      outcome: final.outcome,
-      ko: final.ko,
-      trophy: final.trophy,
-      points: gameConfig.scoring[final.outcome] + koPenalty,
+      phase: final.phase,
+      score: finalScore(final, gameConfig),
+      points: final.points,
+      kos: final.kos,
+      runs: final.runs,
+      fights: final.fights,
       rerolls: final.rerolls,
-      createdAt: new Date().toISOString(),
+      outcomes: final.outcomes,
+      updatedAt: new Date().toISOString(),
     };
-    await store.saveRun(run);
-    return { statusCode: 201, body: { valid: true, ...run, hp: final.hp } };
+    await store.saveGame(game);
+    return { statusCode: 201, body: { valid: true, ...game } };
   } catch (e) {
     if (e instanceof CombatError)
       return { statusCode: 422, body: { valid: false, error: e.message } };
@@ -105,8 +126,8 @@ export async function handleRequest(req: ApiRequest, store: Store): Promise<ApiR
     case 'GET /health':
       return { statusCode: 200, body: { ok: true, monsters: monsters.length } };
 
-    case 'POST /runs':
-      return submitRun(req, store);
+    case 'POST /games':
+      return submitGame(req, store);
 
     case 'POST /events': {
       const parsed = EventsSchema.safeParse(parseJson(req.body));

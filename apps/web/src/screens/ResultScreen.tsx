@@ -1,83 +1,107 @@
 import { motion } from 'framer-motion';
+import { canHunt } from '@snac-hunters/engine';
+import type { CombatState, Outcome } from '@snac-hunters/engine';
 import { Button } from '../components/Button';
+import { Hud } from '../components/Hud';
 import { MonsterPortrait } from '../components/MonsterCard';
-import { isEnabled } from '../game/config';
+import { TrophyToken } from '../components/Trophy';
+import { typeName } from '../game/i18n';
+import type { MessageKey } from '../game/i18n';
 import { useGame } from '../game/store';
-import { TROPHY_IMG } from './CombatScreen';
+import { useT } from '../game/useT';
 
-const TITLES = {
-  defeat: { title: '¡SNAC derrotado!', icon: '/assets/icons/defeat.png', tone: 'text-green-700' },
-  study: {
-    title: 'SNAC estudiado',
-    icon: '/assets/icons/sherbert-forest.png',
-    tone: 'text-blue-700',
-  },
-  flee: { title: 'Huiste a salvo', icon: '/assets/icons/shield.png', tone: 'text-bark' },
-  ko: { title: '¡KO!', icon: '/assets/icons/skull.png', tone: 'text-red-700' },
-} as const;
+const LOOK: Record<Outcome, { icon: string; tone: string }> = {
+  defeat: { icon: '/assets/icons/defeat.png', tone: 'text-green-700' },
+  study: { icon: '/assets/icons/sherbert-forest.png', tone: 'text-blue-700' },
+  flee: { icon: '/assets/icons/shield.png', tone: 'text-bark' },
+  ko: { icon: '/assets/icons/skull.png', tone: 'text-red-700' },
+};
 
-const SERVER_TEXT = {
-  idle: '',
-  pending: 'Validando en el servidor (re-simulación)…',
-  ok: '✓ Validado por el servidor',
-  rejected: '✗ El servidor rechazó la partida',
-  offline: '⚠ Guardado local — API no disponible',
-  disabled: 'Validación en servidor desactivada (feature toggle)',
-} as const;
+function OutcomeCard({ combat, children }: { combat: CombatState; children?: React.ReactNode }) {
+  const t = useT();
+  const outcome = combat.outcome as Outcome;
+  return (
+    <motion.div
+      initial={{ scale: 0.6, opacity: 0 }}
+      animate={{ scale: 1, opacity: 1 }}
+      className="rounded-3xl border-4 border-black bg-sherbet p-5 text-center shadow-[0_6px_0_#000]"
+    >
+      <img src={LOOK[outcome].icon} alt="" className="mx-auto h-14 object-contain" />
+      <h1 className={`mt-2 font-comic text-4xl ${LOOK[outcome].tone}`}>
+        {t(`result.${outcome}` as MessageKey)}
+      </h1>
+      {combat.ko && outcome === 'defeat' && (
+        <p className="text-sm text-red-700">{t('result.koDefeat')}</p>
+      )}
+      <MonsterPortrait
+        monster={combat.monster}
+        className={`mx-auto my-3 h-32 ${outcome === 'defeat' ? 'grayscale' : ''}`}
+      />
+      {combat.trophy && (
+        <div className="flex items-center justify-center gap-3">
+          <TrophyToken symbol={combat.trophy} />
+          <span className="font-comic text-xl">
+            {t('result.trophy', { symbol: typeName(t, combat.trophy) })}
+          </span>
+        </div>
+      )}
+      {children}
+    </motion.div>
+  );
+}
 
+/** Resultado de un combate de la expedición: seguir cazando o volver al pueblo. */
 export function ResultScreen() {
-  const { combat, active, server, progress, goHome, openHunt } = useGame();
-  if (!combat || !combat.outcome || !active) return null;
-  const t = TITLES[combat.outcome];
+  const t = useT();
+  const { game, act } = useGame();
+  const combat = game?.combat;
+  const run = game?.run;
+  if (!game || !combat || !run) return null;
+  const ended = run.status === 'ended';
 
   return (
-    <div className="flex min-h-[100dvh] flex-col justify-center gap-4 px-4 py-6">
-      <motion.div
-        initial={{ scale: 0.6, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        className="rounded-3xl border-4 border-black bg-sherbet p-5 text-center shadow-[0_6px_0_#000]"
-      >
-        <img src={t.icon} alt="" className="mx-auto h-16 object-contain" />
-        <h1 className={`mt-2 font-comic text-4xl ${t.tone}`}>{t.title}</h1>
-        {combat.ko && combat.outcome === 'defeat' && (
-          <p className="text-sm text-red-700">
-            Quedaste KO en la misma tirada, pero conservas el premio.
-          </p>
-        )}
-        <MonsterPortrait
-          monster={combat.monster}
-          className={`mx-auto my-3 h-36 ${combat.outcome === 'defeat' ? 'grayscale' : ''}`}
-        />
-        {combat.trophy && (
-          <div className="flex items-center justify-center gap-3">
-            <img src={TROPHY_IMG(combat.trophy)} alt="" className="h-16 object-contain" />
-            <span className="font-comic text-xl">Trofeo {combat.trophy}</span>
-          </div>
-        )}
-        <p className="mt-2 text-sm text-bark/70">
-          Relanzamientos: {combat.rerolls} · HPie restante: {combat.hp} · Puntos totales:{' '}
-          {progress.points}
+    <div className="flex min-h-[100dvh] flex-col gap-4 px-3 py-3">
+      <Hud game={game} />
+      <OutcomeCard combat={combat}>
+        <p data-guide-target="status" className="mt-2 text-sm text-bark/80">
+          {t('result.status', { hp: game.hp, max: game.maxHp, dice: run.pool.length })}
         </p>
-        {server.state !== 'idle' && (
-          <p
-            className={`mt-3 rounded-xl border-2 border-black px-3 py-2 text-sm font-bold ${
-              server.state === 'ok'
-                ? 'bg-green-200'
-                : server.state === 'pending'
-                  ? 'bg-yellow-100'
-                  : 'bg-orange-200'
-            }`}
-          >
-            {SERVER_TEXT[server.state]}
-            {server.message && <span className="block font-normal">{server.message}</span>}
+        {ended && run.endedBy !== 'town' && (
+          <p className="mt-2 rounded-xl border-2 border-black bg-orange-200 px-3 py-2 text-sm font-bold">
+            {t(run.endedBy === 'ko' ? 'result.runOver.ko' : 'result.runOver.flee')}
           </p>
         )}
-      </motion.div>
+        {!ended && !canHunt(run) && <p className="mt-2 text-sm">{t('result.noDice')}</p>}
+      </OutcomeCard>
+      <div className="mt-auto grid gap-3">
+        {canHunt(run) && (
+          <Button onClick={() => act({ type: 'continue' })}>{t('result.continue')}</Button>
+        )}
+        <Button
+          variant={canHunt(run) ? 'secondary' : 'primary'}
+          onClick={() => act({ type: 'return' })}
+        >
+          {t('result.town')}
+        </Button>
+      </div>
+    </div>
+  );
+}
 
+/** Fin del tutorial: un combate suelto, sin expedición. */
+export function TutorialResultScreen() {
+  const t = useT();
+  const { tutorialCombat, goHome, newGame, game } = useGame();
+  if (!tutorialCombat) return null;
+  return (
+    <div className="flex min-h-[100dvh] flex-col justify-center gap-4 px-4 py-6">
+      <OutcomeCard combat={tutorialCombat}>
+        <p className="mt-3 font-comic text-lg text-bark">{t('result.tutorialDone')}</p>
+      </OutcomeCard>
       <div className="grid gap-3">
-        {isEnabled('freeHunt') && <Button onClick={openHunt}>Cazar otro SNAC</Button>}
-        <Button variant="secondary" onClick={goHome}>
-          Volver al inicio
+        {!game && <Button onClick={() => newGame()}>{t('result.startGame')}</Button>}
+        <Button variant={game ? 'primary' : 'secondary'} onClick={goHome}>
+          {t('result.home')}
         </Button>
       </div>
     </div>

@@ -1,6 +1,13 @@
 // Capa de datos: todo valor de juego viene de config/, validado con Zod por el engine.
-import { loadDiceTable, loadGameConfig, loadMonsters, loadTutorial } from '@snac-hunters/engine';
-import type { CombatSetup, Monster } from '@snac-hunters/engine';
+import {
+  loadAbilities,
+  loadDiceTable,
+  loadGameConfig,
+  loadMonsters,
+  loadTutorial,
+} from '@snac-hunters/engine';
+import type { Ability, CombatSetup, GameData, Monster } from '@snac-hunters/engine';
+import rawAbilities from '@snac-hunters/config/abilities.json';
 import rawDice from '@snac-hunters/config/dice.json';
 import rawGame from '@snac-hunters/config/game.json';
 import rawMonsters from '@snac-hunters/config/monsters.json';
@@ -10,7 +17,12 @@ export const diceTable = loadDiceTable(rawDice);
 export const gameConfig = loadGameConfig(rawGame);
 export const monsters: readonly Monster[] = loadMonsters(rawMonsters);
 export const tutorialSteps = loadTutorial(rawTutorial);
+export const abilities: readonly Ability[] = loadAbilities(rawAbilities);
 
+/** Lo mismo que usa el servidor para re-simular la partida. */
+export const gameData: GameData = { config: gameConfig, monsters, abilities, dice: diceTable };
+
+/** Setup del tutorial: un combate suelto con los dados iniciales. */
 export const playerSetup: CombatSetup = {
   dice: gameConfig.player.startingDice,
   hp: gameConfig.player.startingHp,
@@ -26,4 +38,12 @@ export function getMonster(id: string): Monster | undefined {
   return monsters.find((m) => m.id === id);
 }
 
-export const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:3001';
+export function getAbility(id: string): Ability | undefined {
+  return abilities.find((a) => a.id === id);
+}
+
+// Sin "/" final: la salida ApiUrl de CDK termina en "/" y produciría rutas como "/dev//runs"
+export const API_URL: string = (import.meta.env.VITE_API_URL ?? 'http://localhost:3001').replace(
+  /\/+$/,
+  '',
+);

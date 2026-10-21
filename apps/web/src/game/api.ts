@@ -1,12 +1,11 @@
 // Cliente HTTP de la API (API Gateway + Lambda en AWS, o el servidor local en desarrollo).
-import type { CombatAction } from '@snac-hunters/engine';
+import type { GameAction } from '@snac-hunters/engine';
 import { API_URL } from './config';
 import { getIdToken } from './auth';
 
-export interface ServerRunResult {
+export interface ServerGameResult {
   readonly valid: boolean;
-  readonly outcome?: string;
-  readonly points?: number;
+  readonly score?: number;
   readonly error?: string;
 }
 
@@ -22,17 +21,16 @@ async function request(path: string, init: RequestInit = {}): Promise<Response> 
   });
 }
 
-/** El cliente solo manda seed + acciones; el servidor re-simula y decide el resultado. */
-export async function submitRun(
-  monsterId: string,
+/** El cliente solo manda seed + acciones de la partida; el servidor re-simula y decide. */
+export async function submitGame(
   seed: string,
-  actions: readonly CombatAction[],
-): Promise<ServerRunResult> {
-  const res = await request('/runs', {
+  actions: readonly GameAction[],
+): Promise<ServerGameResult> {
+  const res = await request('/games', {
     method: 'POST',
-    body: JSON.stringify({ monsterId, seed, actions }),
+    body: JSON.stringify({ seed, actions }),
   });
-  return (await res.json()) as ServerRunResult;
+  return (await res.json()) as ServerGameResult;
 }
 
 export async function sendEvents(sessionId: string, events: readonly unknown[]): Promise<boolean> {

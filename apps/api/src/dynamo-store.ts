@@ -1,4 +1,4 @@
-// Adaptador DynamoDB (single-table): pk RUN#<user> / EVENT#<session>.
+// Adaptador DynamoDB (single-table): pk GAME#<user> / EVENT#<session>.
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
 import {
   BatchWriteCommand,
@@ -7,7 +7,7 @@ import {
   ScanCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { summarize } from './store.js';
-import type { EventRecord, RunRecord, Stats, Store } from './store.js';
+import type { EventRecord, GameRecord, Stats, Store } from './store.js';
 
 export class DynamoStore implements Store {
   private readonly doc: DynamoDBDocumentClient;
@@ -19,11 +19,12 @@ export class DynamoStore implements Store {
     this.doc = DynamoDBDocumentClient.from(client);
   }
 
-  async saveRun(run: RunRecord): Promise<void> {
+  /** Put con la misma clave reemplaza la partida: cada envío trae la partida completa. */
+  async saveGame(game: GameRecord): Promise<void> {
     await this.doc.send(
       new PutCommand({
         TableName: this.tableName,
-        Item: { pk: `RUN#${run.userId}`, sk: `${run.createdAt}#${run.runId}`, kind: 'run', ...run },
+        Item: { pk: `GAME#${game.userId}`, sk: game.gameId, kind: 'game', ...game },
       }),
     );
   }
@@ -48,7 +49,7 @@ export class DynamoStore implements Store {
 
   // Scan basta para el volumen de la demo; en producción: Firehose -> S3 -> Athena
   async stats(): Promise<Stats> {
-    const runs: RunRecord[] = [];
+    const games: GameRecord[] = [];
     const events: EventRecord[] = [];
     let cursor: Record<string, unknown> | undefined;
     do {
@@ -56,11 +57,11 @@ export class DynamoStore implements Store {
         new ScanCommand({ TableName: this.tableName, ExclusiveStartKey: cursor }),
       );
       for (const item of page.Items ?? []) {
-        if (item.kind === 'run') runs.push(item as RunRecord);
+        if (item.kind === 'game') games.push(item as GameRecord);
         else if (item.kind === 'event') events.push(item as EventRecord);
       }
       cursor = page.LastEvaluatedKey;
     } while (cursor);
-    return summarize(runs, events);
+    return summarize(games, events);
   }
 }

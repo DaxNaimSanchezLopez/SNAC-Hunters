@@ -1,20 +1,48 @@
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { DevPanel } from './components/DevPanel';
+import { GuideCoach } from './components/GuideCoach';
+import { KeepTrophy } from './components/KeepTrophy';
 import { flush, track } from './game/analytics';
 import { useGame } from './game/store';
+import { useT } from './game/useT';
 import { CombatScreen } from './screens/CombatScreen';
 import { HomeScreen } from './screens/HomeScreen';
-import { PickScreen } from './screens/PickScreen';
-import { ResultScreen } from './screens/ResultScreen';
+import { OverScreen } from './screens/OverScreen';
+import { ResultScreen, TutorialResultScreen } from './screens/ResultScreen';
+import { TownScreen } from './screens/TownScreen';
+import { TrailScreen } from './screens/TrailScreen';
+
+/** La pantalla de la partida sale de su fase en el engine; la UI no decide reglas. */
+function GameScreens() {
+  const game = useGame((s) => s.game);
+  if (!game) return <HomeScreen />;
+  switch (game.phase) {
+    case 'town':
+      return <TownScreen game={game} />;
+    case 'trail':
+      return <TrailScreen game={game} />;
+    case 'combat':
+      return <CombatScreen />;
+    case 'aftermath':
+      return <ResultScreen />;
+    case 'over':
+      return <OverScreen game={game} />;
+  }
+}
 
 export function App() {
-  const { hydrated, screen, toast, toastSeq, clearToast } = useGame();
+  const t = useT();
+  const { hydrated, screen, toast, toastSeq, clearToast, tutorialCombat, lang } = useGame();
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   useEffect(() => {
     if (!toast) return;
-    const t = setTimeout(clearToast, 2600);
-    return () => clearTimeout(t);
+    const timer = setTimeout(clearToast, 2600);
+    return () => clearTimeout(timer);
   }, [toast, toastSeq, clearToast]);
 
   useEffect(() => {
@@ -39,17 +67,20 @@ export function App() {
       <main className="mx-auto max-w-md">
         {!hydrated ? (
           <p className="grid min-h-[100dvh] place-items-center font-comic text-2xl text-white">
-            Cargando…
+            {t('loading')}
           </p>
         ) : (
           <>
             {screen === 'home' && <HomeScreen />}
-            {screen === 'pick' && <PickScreen />}
-            {screen === 'combat' && <CombatScreen />}
-            {screen === 'result' && <ResultScreen />}
+            {screen === 'game' && <GameScreens />}
+            {screen === 'tutorial' &&
+              (tutorialCombat?.status === 'resolved' ? <TutorialResultScreen /> : <CombatScreen />)}
           </>
         )}
       </main>
+
+      {screen === 'game' && <KeepTrophy />}
+      {screen === 'game' && <GuideCoach />}
 
       <AnimatePresence>
         {toast && (

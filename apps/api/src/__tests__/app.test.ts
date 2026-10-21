@@ -1,16 +1,22 @@
-// Tests de integración: envío de puntuaciones validado en servidor + configuración real de config/.
+// Tests de integración: partidas validadas en servidor + configuración real de config/.
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-  applyAction,
+  applyGameAction,
   availableDice,
+  canRerollAny,
+  coveredSlots,
+  finalScore,
+  isRollable,
+  loadGuide,
   loadTutorial,
-  startCombat,
+  newGame,
   validSlotsFor,
 } from '@snac-hunters/engine';
+import rawGuide from '@snac-hunters/config/guide.json';
 import rawTutorial from '@snac-hunters/config/tutorial.json';
-import type { CombatAction, CombatState } from '@snac-hunters/engine';
+import type { GameAction, GameState } from '@snac-hunters/engine';
 import { handleRequest } from '../app.js';
-import { diceTable, monsters, serverSetup } from '../game.js';
+import { abilities, diceTable, gameConfig, gameData, monsters } from '../game.js';
 import { MemoryStore } from '../store.js';
 
 let store: MemoryStore;
@@ -21,101 +27,126 @@ beforeEach(() => {
 const post = (path: string, body: unknown) =>
   handleRequest({ method: 'POST', path, body: JSON.stringify(body), userId: 'u1' }, store);
 
-/** Simula a un cliente honesto: asigna todo lo que pueda y resuelve. */
-function playHonestly(
-  monsterId: string,
-  seed: string,
-): { actions: CombatAction[]; final: CombatState } {
-  const monster = monsters.find((m) => m.id === monsterId)!;
-  let s = startCombat(monster, serverSetup, seed, diceTable);
-  const actions: CombatAction[] = [];
-  const doAct = (a: CombatAction) => {
-    s = applyAction(s, a, diceTable);
+/** Simula a un cliente honesto: una expedición, asigna lo que puede y resuelve. */
+function playHonestly(seed: string): { actions: GameAction[]; final: GameState } {
+  let s = newGame(gameData, seed);
+  const actions: GameAction[] = [];
+  const act = (a: GameAction) => {
+    s = applyGameAction(s, a, gameData);
     actions.push(a);
   };
-  for (const die of availableDice(s)) {
-    const slot = validSlotsFor(s, die.id)[0];
-    if (slot !== undefined) doAct({ type: 'assign', dieId: die.id, slot });
-  }
-  if (s.status === 'active') {
-    if (s.assignments.every((a) => a === null))
-      doAct({ type: 'reroll', dieIds: [availableDice(s)[0]!.id] });
-    if (s.status === 'active' && s.assignments.some((a) => a !== null)) {
-      doAct({ type: 'resolve', trophy: monster.trophies[0] });
+  act({ type: 'leave' });
+  act({ type: 'follow', index: 0 });
+  for (let guard = 0; s.phase === 'combat' && guard < 30; guard++) {
+    const combat = s.combat!;
+    const die = availableDice(combat).find((d) => validSlotsFor(combat, d.id).length > 0);
+    if (die) {
+      act({
+        type: 'combat',
+        action: { type: 'assign', dieId: die.id, slot: validSlotsFor(combat, die.id)[0]! },
+      });
+    } else if (coveredSlots(combat) > 0) {
+      act({ type: 'combat', action: { type: 'resolve', trophy: combat.monster.trophies[0] } });
+    } else {
+      const free = availableDice(combat).find((d) => isRollable(d.kind));
+      act({
+        type: 'combat',
+        action: { type: 'reroll', dieIds: free && canRerollAny(combat) ? [free.id] : [] },
+      });
     }
   }
+  if (s.pendingTrophy) act({ type: 'keep', discard: null });
+  act({ type: 'return' });
+  act({ type: 'finish' });
   return { actions, final: s };
 }
 
 describe('config/ real', () => {
-  it('los 9 monstruos de Sherbert Forest, la tabla de dados y game.json son válidos', () => {
+  it('monstruos, dados, 20 habilidades, game.json, tutorial y guía son válidos', () => {
     expect(monsters).toHaveLength(9);
     expect(Object.keys(diceTable)).toHaveLength(6);
-    expect(serverSetup.hp).toBeLessThanOrEqual(serverSetup.maxHp);
+    expect(abilities.filter((a) => a.kind === 'item')).toHaveLength(12);
+    expect(abilities.filter((a) => a.kind === 'skill')).toHaveLength(8);
+    expect(gameConfig.player.maxHp).toBe(4);
     expect(loadTutorial(rawTutorial).length).toBeGreaterThan(0);
+    expect(loadGuide(rawGuide).filter((l) => l.final)).toHaveLength(1);
   });
 });
 
-describe('POST /runs', () => {
-  it('re-simula seed + acciones y guarda el resultado calculado por el servidor', async () => {
-    const { actions, final } = playHonestly('garden-salaad', 'demo-1');
-    const res = await post('/runs', { monsterId: 'garden-salaad', seed: 'demo-1', actions });
-    if (final.status === 'resolved') {
-      expect(res.statusCode).toBe(201);
-      expect(res.body).toMatchObject({ valid: true, outcome: final.outcome, userId: 'u1' });
-      expect(store.runs).toHaveLength(1);
-    } else {
-      expect(res.statusCode).toBe(422);
-    }
+describe('POST /games', () => {
+  it('re-simula seed + acciones y guarda el puntaje calculado por el servidor', async () => {
+    const { actions, final } = playHonestly('demo-1');
+    const res = await post('/games', { seed: 'demo-1', actions });
+    expect(res.statusCode).toBe(201);
+    expect(res.body).toMatchObject({
+      valid: true,
+      gameId: 'demo-1',
+      userId: 'u1',
+      phase: 'over',
+      score: finalScore(final, gameConfig),
+      runs: 1,
+      fights: 1,
+    });
+    expect(store.games.size).toBe(1);
   });
 
-  it('rechaza un combate sin terminar', async () => {
-    const res = await post('/runs', { monsterId: 'garden-salaad', seed: 'x', actions: [] });
-    expect(res).toMatchObject({ statusCode: 422, body: { valid: false } });
-    expect(store.runs).toHaveLength(0);
+  it('cada envío reemplaza la partida anterior con el mismo id', async () => {
+    const { actions } = playHonestly('demo-2');
+    await post('/games', { seed: 'demo-2', actions: actions.slice(0, 1) });
+    await post('/games', { seed: 'demo-2', actions });
+    expect(store.games.size).toBe(1);
+    expect([...store.games.values()][0]?.phase).toBe('over');
   });
 
-  it('rechaza un cliente tramposo que inventa una asignación ilegal', async () => {
+  it('rechaza un cliente tramposo que inventa una jugada ilegal', async () => {
     const actions = [
-      { type: 'assign', dieId: 'd0', slot: 0 },
-      { type: 'assign', dieId: 'd0', slot: 1 },
-      { type: 'resolve', trophy: 'Claw' },
+      { type: 'leave' },
+      { type: 'follow', index: 0 },
+      { type: 'combat', action: { type: 'assign', dieId: 'd0', slot: 0 } },
+      { type: 'combat', action: { type: 'assign', dieId: 'd0', slot: 1 } },
     ];
-    const res = await post('/runs', { monsterId: 'garden-salaad', seed: 'x', actions });
+    const res = await post('/games', { seed: 'x', actions });
     expect(res.statusCode).toBe(422);
-    expect(store.runs).toHaveLength(0);
+    expect(store.games.size).toBe(0);
+  });
+
+  it('rechaza usar un trofeo o una habilidad que no se tiene', async () => {
+    const steal = [
+      { type: 'leave' },
+      { type: 'follow', index: 0 },
+      { type: 'combat', action: { type: 'trophy', index: 7, slot: 0 } },
+    ];
+    expect((await post('/games', { seed: 'x', actions: steal })).statusCode).toBe(422);
+    const ability = [
+      { type: 'leave' },
+      { type: 'follow', index: 0 },
+      {
+        type: 'combat',
+        action: { type: 'ability', abilityId: 'nope', dieIds: ['d0', 'd1', 'd2'], trophy: 'Horn' },
+      },
+    ];
+    expect((await post('/games', { seed: 'x', actions: ability })).statusCode).toBe(422);
   });
 
   it('ignora resultados que el cliente intente imponer', async () => {
-    const { actions } = playHonestly('beeholder', 'seed-2');
-    const res = await post('/runs', {
-      monsterId: 'beeholder',
-      seed: 'seed-2',
-      actions,
-      outcome: 'defeat',
-      points: 999,
-    });
-    expect((res.body as { points?: number }).points).not.toBe(999);
+    const { actions } = playHonestly('seed-2');
+    const res = await post('/games', { seed: 'seed-2', actions, score: 999, points: 999 });
+    expect((res.body as { score: number }).score).not.toBe(999);
   });
 
-  it('valida el payload: JSON roto, monstruo inexistente, acciones desconocidas', async () => {
+  it('valida el payload: JSON roto, sin seed, acciones desconocidas', async () => {
     const broken = await handleRequest(
-      { method: 'POST', path: '/runs', body: '{oops', userId: 'u1' },
+      { method: 'POST', path: '/games', body: '{oops', userId: 'u1' },
       store,
     );
     expect(broken.statusCode).toBe(400);
-    expect((await post('/runs', { monsterId: 'nope', seed: 'x', actions: [] })).statusCode).toBe(
-      404,
-    );
-    expect(
-      (await post('/runs', { monsterId: 'beeholder', seed: 'x', actions: [{ type: 'win' }] }))
-        .statusCode,
-    ).toBe(400);
+    expect((await post('/games', { actions: [] })).statusCode).toBe(400);
+    expect((await post('/games', { seed: 'x', actions: [{ type: 'win' }] })).statusCode).toBe(400);
   });
 });
 
 describe('analítica', () => {
-  it('POST /events guarda eventos y GET /stats los resume', async () => {
+  it('POST /events guarda eventos y GET /stats resume eventos y partidas', async () => {
     const res = await post('/events', {
       sessionId: 's1',
       events: [
@@ -124,11 +155,16 @@ describe('analítica', () => {
       ],
     });
     expect(res.statusCode).toBe(202);
+    const { actions } = playHonestly('demo-3');
+    await post('/games', { seed: 'demo-3', actions });
     const stats = await handleRequest(
       { method: 'GET', path: '/stats', body: null, userId: 'u1' },
       store,
     );
     expect(stats.body).toMatchObject({
+      games: 1,
+      finished: 1,
+      fights: 1,
       sessions: 1,
       events: { session_start: 1, monster_seen: 1 },
     });
@@ -146,7 +182,7 @@ describe('rutas', () => {
         .statusCode,
     ).toBe(200);
     expect(
-      (await handleRequest({ method: 'DELETE', path: '/runs', body: null, userId: 'u1' }, store))
+      (await handleRequest({ method: 'DELETE', path: '/games', body: null, userId: 'u1' }, store))
         .statusCode,
     ).toBe(404);
   });

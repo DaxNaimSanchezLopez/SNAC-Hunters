@@ -302,4 +302,98 @@ El riesgo de D-11 (seeds elegidas por el cliente) sigue igual.
 
 ---
 
-*Última actualización: 2026-10-21 — V0: partida guiada, pueblo, trofeos, 20 habilidades, puntaje, idioma.*
+## D-28 — Mapa estilo FTL de Sherbet Forest (V1)
+
+**Requisito:** RF-15 · **Fuente:** feedback, sección 7
+
+**Decisión:** Al salir del pueblo se genera un mapa nuevo (`GameState.map`): **3 columnas de 2–3 nodos** más el nodo del jefe, todo en `config/game.json` (`map`).
+- Cada nodo tiene un tipo de monstruo al azar y un monstruo oculto de ese tipo.
+- Cada nodo se conecta con los más cercanos de la siguiente columna, sin cruces, y todos los de la última llevan al jefe.
+- Desde el pueblo se puede ir a cualquier nodo de la primera columna; después, solo por los caminos del nodo actual (`reachableNodes`).
+- Se puede volver al pueblo entre combates, y cada expedición empieza de nuevo desde el pueblo con un mapa distinto.
+- La acción `follow` ahora lleva el id del nodo (`{ type: 'follow', node }`) en lugar del índice del rastro.
+
+**Balance (simulación de 2,000 partidas por caso):** como los dados gastados no vuelven durante la expedición, el largo del mapa decide si el jefe es alcanzable. Con una estrategia razonable (estudiar para ahorrar dados, usar trofeos y relanzar):
+
+| Columnas | Inicial (5 dados, 1 trofeo) | Media (7 dados, 3 trofeos) | Fuerte (8 dados, 5 trofeos) |
+|---|---|---|---|
+| 4 | llega 17 % · gana 0.1 % | 39 % · 1 % | 54 % · 8 % |
+| **3** | **46 % · 0.3 %** | **100 % · 6 %** | **100 % · 48 %** |
+| 2 | 98 % · 3 % | 100 % · 30 % | 100 % · 79 % |
+
+Se eligieron **3 columnas**: al principio casi nunca se gana, y al fortalecer al cazador (dados especiales, espacios de trofeo) vencer al jefe se vuelve realista. Con 4, ni un cazador fuerte gana más del 8 %.
+
+**Pendiente de validar con el cliente:** el tamaño del mapa.
+
+---
+
+## D-29 — Jefe: Pieous Assassin
+
+**Requisito:** RF-16 · **Fuente:** lista de monstruos ("Any type, Random symbols") y brief original ("6 símbolos de vida")
+
+**Decisión:** El jefe se sortea al empezar la partida: 6 espacios con símbolos al azar (`config/game.json`, `boss`).
+- Solo se puede **derrotar** (cubrir los 6) o **huir** (1 o más): no se puede estudiar y no da trofeo.
+- Derrotarlo gana la partida (`result: 'victory'`), suma `scoring.victoryBonus` (5) y esa expedición no cuenta para la cuenta regresiva de Pieland.
+
+**Pendiente de validar con el cliente:** los símbolos del jefe, si debería poder estudiarse y el bonus.
+
+---
+
+## D-30 — "Tres iguales" no sirve contra el jefe
+
+**Decisión:** Las cartas ×3 (Boom Blade, X-Ray Laser, Guillotine Trap, Meaty Crossbow) derrotan a cualquier monstruo, salvo al jefe; si no, bastarían 3 dados para ganar la partida.
+
+**Pendiente de validar con el cliente.**
+
+---
+
+## D-31 — Vidas, Pieland amenazada y game over
+
+**Fuente:** feedback, secciones 8 y 9
+
+**Decisión:**
+- **Vidas:** 3. Cada KO cuesta una vida (y el punto de siempre).
+- **Pieland:** 5 PV con la cuenta regresiva 6 → 5 → 4 → 3 → 2. Cada expedición que termina sin derrotar al jefe descuenta una al volver al pueblo. Al agotarse, Pieland pierde 1 PV y empieza la siguiente. Si se agotan todas, se repite la última (2).
+- **Fin de partida:** sin vidas o con Pieland en 0 se va a la pantalla de puntaje (`result: 'lives' | 'pieland'`). Si nunca se derrota al jefe, la partida termina en la expedición 20, como dice el feedback.
+- **Abandonar:** "Terminar partida" sigue disponible desde el pueblo (`result: 'abandon'`).
+
+---
+
+## D-32 — Misión secreta
+
+**Requisito:** RF-17 · **Fuente:** feedback, sección 4; cartas en `Image files/secret quest cards`
+
+**Decisión:** Al empezar se reparte una de las 8 cartas (`config/quests.json`). Cada una tiene un tipo de monstruo y dos símbolos. Al final da +1 punto por:
+- cada monstruo derrotado de ese tipo;
+- cada trofeo con esos símbolos **pagado en las misiones del pueblo** (en el juego de mesa, las misiones tienen símbolos; aquí son las compras con trofeos);
+- cada trofeo con esos símbolos que se conserve al final.
+
+**Pendiente de validar con el cliente:** que los trofeos pagados cuenten como "misiones".
+
+---
+
+## D-33 — Las 10 habilidades restantes
+
+**Fuente:** cartas en `Image files/abilities`; manual p. 21–22
+
+| Carta | Efecto implementado |
+|---|---|
+| Lucky Catch / Find / Hit / Shot (destrezas) | Un comodín lanzado en el dado especial de su color (morado, verde, naranja, azul) se convierte en 2 comodines |
+| Cursed Gauntlet (objeto) | Gastar 1 HPie da 1 comodín; con 1 HPie deja KO |
+| Cloning Tool (objeto, +1 espacio de trofeo) | Fuera de combate, recarga otro objeto gastado sin gastar acción |
+| Double Healing (destreza) | Cada corazón bloquea 2 daños antes de gastarse |
+| Piebix Cube (objeto) | +1 punto al final por cada dado especial distinto (máx. 4) |
+| Varied Samples (destreza) | +1 punto al final por cada tipo de trofeo distinto (máx. 4) |
+| Well Traveled (destreza) | +1 punto al final por cada tipo de monstruo derrotado distinto (máx. 4; en el juego de mesa cuenta ubicaciones, y V1 tiene solo una) |
+
+**Pendiente de validar con el cliente:** Double Healing (el ícono también puede leerse como "curar el doble"), Cursed Gauntlet (el ∞ podría significar usos ilimitados) y Well Traveled.
+
+---
+
+## D-34 — Puntaje final de V1
+
+**Decisión:** `puntos − KOs × 3 − expediciones + misión secreta + cartas de puntos + bonus del jefe`. La pantalla final muestra el desglose (`scoreBreakdown`). El servidor guarda también el resultado de la partida (`result`).
+
+---
+
+*Última actualización: 2026-10-21 — V1 (roguelite sencillo): mapa FTL, jefe, vidas, Pieland, misión secreta, 30 habilidades.*

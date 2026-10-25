@@ -186,5 +186,93 @@
       "type": "convert",
       "symbol": "Wing"
     }
+  },
+  {
+    "id": "cloning-tool",
+    "name": "Cloning Tool",
+    "kind": "item",
+    "effect": {
+      "type": "recharge"
+    },
+    "bonus": "trophySlot"
+  },
+  {
+    "id": "cursed-gauntlet",
+    "name": "Cursed Gauntlet",
+    "kind": "item",
+    "effect": {
+      "type": "gauntlet"
+    }
+  },
+  {
+    "id": "piebix-cube",
+    "name": "Piebix Cube",
+    "kind": "item",
+    "effect": {
+      "type": "points",
+      "by": "specialDice"
+    }
+  },
+  {
+    "id": "double-healing",
+    "name": "Double Healing",
+    "kind": "skill",
+    "effect": {
+      "type": "shield"
+    }
+  },
+  {
+    "id": "varied-samples",
+    "name": "Varied Samples",
+    "kind": "skill",
+    "effect": {
+      "type": "points",
+      "by": "trophyTypes"
+    }
+  },
+  {
+    "id": "well-traveled",
+    "name": "Well Traveled",
+    "kind": "skill",
+    "effect": {
+      "type": "points",
+      "by": "monsterTypes"
+    }
+  },
+  {
+    "id": "lucky-catch",
+    "name": "Lucky Catch",
+    "kind": "skill",
+    "effect": {
+      "type": "lucky",
+      "die": "purple"
+    }
+  },
+  {
+    "id": "lucky-find",
+    "name": "Lucky Find",
+    "kind": "skill",
+    "effect": {
+      "type": "lucky",
+      "die": "green"
+    }
+  },
+  {
+    "id": "lucky-hit",
+    "name": "Lucky Hit",
+    "kind": "skill",
+    "effect": {
+      "type": "lucky",
+      "die": "orange"
+    }
+  },
+  {
+    "id": "lucky-shot",
+    "name": "Lucky Shot",
+    "kind": "skill",
+    "effect": {
+      "type": "lucky",
+      "die": "blue"
+    }
   }
 ]

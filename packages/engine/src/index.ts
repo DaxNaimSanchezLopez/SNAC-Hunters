@@ -12,6 +12,8 @@ export type {
   Ability,
   AbilityEffect,
   SpecialDieKind,
+  PointsBy,
+  SecretQuest,
 } from './types.js';
 
 // RF-08: Schemas Zod de config/
@@ -22,6 +24,7 @@ export {
   TutorialSchema,
   AbilitySchema,
   GuideSchema,
+  SecretQuestSchema,
 } from './schemas.js';
 export type { MonsterFromSchema, GameConfig, TutorialStep, GuideLesson } from './schemas.js';
 
@@ -33,6 +36,7 @@ export {
   loadTutorial,
   loadAbilities,
   loadGuide,
+  loadQuests,
 } from './loader.js';
 
 // RNF-02: RNG determinista con semilla
@@ -49,7 +53,8 @@ export {
   previewOutcome,
   validSlotsFor,
   slotsForFace,
-  faceActivates,
+  dieActivates,
+  isActive,
   isRollable,
   canRerollAny,
   ABILITY_INPUTS,
@@ -70,14 +75,30 @@ export {
 } from './run.js';
 export type { RunState, RunSetup, RunFight, RunEnd } from './run.js';
 
-// RF-15: Partida V0 (pueblo, expediciones, trofeos, habilidades, puntaje)
+// RF-15: Partida (V0: pueblo, trofeos, habilidades, puntaje; V1: mapa, jefe, vidas, Pieland)
 export {
   newGame,
   applyGameAction,
   replayGame,
   finalScore,
+  scoreBreakdown,
   trophyCapacity,
   readyAbilities,
   findAbility,
+  findQuest,
+  nodeMonster,
+  reachableNodes,
+  BOSS_NODE,
 } from './game.js';
-export type { GameData, GameState, GameAction, GamePhase, OwnedItem } from './game.js';
+export type {
+  GameData,
+  GameState,
+  GameAction,
+  GamePhase,
+  GameResult,
+  GameMap,
+  MapNode,
+  Pieland,
+  OwnedItem,
+  ScoreBreakdown,
+} from './game.js';

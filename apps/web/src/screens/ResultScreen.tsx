@@ -17,7 +17,15 @@ const LOOK: Record<Outcome, { icon: string; tone: string }> = {
   ko: { icon: '/assets/icons/skull.png', tone: 'text-red-700' },
 };
 
-function OutcomeCard({ combat, children }: { combat: CombatState; children?: React.ReactNode }) {
+function OutcomeCard({
+  combat,
+  title,
+  children,
+}: {
+  combat: CombatState;
+  title?: string;
+  children?: React.ReactNode;
+}) {
   const t = useT();
   const outcome = combat.outcome as Outcome;
   return (
@@ -28,7 +36,7 @@ function OutcomeCard({ combat, children }: { combat: CombatState; children?: Rea
     >
       <img src={LOOK[outcome].icon} alt="" className="mx-auto h-14 object-contain" />
       <h1 className={`mt-2 font-comic text-4xl ${LOOK[outcome].tone}`}>
-        {t(`result.${outcome}` as MessageKey)}
+        {title ?? t(`result.${outcome}` as MessageKey)}
       </h1>
       {combat.ko && outcome === 'defeat' && (
         <p className="text-sm text-red-700">{t('result.koDefeat')}</p>
@@ -58,15 +66,32 @@ export function ResultScreen() {
   const run = game?.run;
   if (!game || !combat || !run) return null;
   const ended = run.status === 'ended';
+  // V1: derrotar al jefe o quedarse sin vidas termina la partida
+  const over = game.result !== null;
+  const victory = game.result === 'victory';
 
   return (
     <div className="flex min-h-[100dvh] flex-col gap-4 px-3 py-3">
       <Hud game={game} />
-      <OutcomeCard combat={combat}>
+      <OutcomeCard
+        combat={combat}
+        title={victory ? t('result.victory', { name: combat.monster.name }) : undefined}
+      >
+        {victory && (
+          <p className="mt-2 rounded-xl border-2 border-black bg-green-200 px-3 py-2 font-comic text-lg">
+            {t('result.victoryText')}
+          </p>
+        )}
         <p data-guide-target="status" className="mt-2 text-sm text-bark/80">
-          {t('result.status', { hp: game.hp, max: game.maxHp, dice: run.pool.length })}
+          {t('result.status', { hp: game.hp, max: game.maxHp, dice: run.pool.length })} ·{' '}
+          {t('result.lives', { n: game.lives })}
         </p>
-        {ended && run.endedBy !== 'town' && (
+        {game.result === 'lives' && (
+          <p className="mt-2 rounded-xl border-2 border-black bg-red-200 px-3 py-2 text-sm font-bold">
+            {t('result.livesOut')}
+          </p>
+        )}
+        {ended && !over && run.endedBy !== 'town' && (
           <p className="mt-2 rounded-xl border-2 border-black bg-orange-200 px-3 py-2 text-sm font-bold">
             {t(run.endedBy === 'ko' ? 'result.runOver.ko' : 'result.runOver.flee')}
           </p>
@@ -74,15 +99,18 @@ export function ResultScreen() {
         {!ended && !canHunt(run) && <p className="mt-2 text-sm">{t('result.noDice')}</p>}
       </OutcomeCard>
       <div className="mt-auto grid gap-3">
-        {canHunt(run) && (
+        {over && <Button onClick={() => act({ type: 'return' })}>{t('result.score')}</Button>}
+        {!over && canHunt(run) && (
           <Button onClick={() => act({ type: 'continue' })}>{t('result.continue')}</Button>
         )}
-        <Button
-          variant={canHunt(run) ? 'secondary' : 'primary'}
-          onClick={() => act({ type: 'return' })}
-        >
-          {t('result.town')}
-        </Button>
+        {!over && (
+          <Button
+            variant={canHunt(run) ? 'secondary' : 'primary'}
+            onClick={() => act({ type: 'return' })}
+          >
+            {t('result.town')}
+          </Button>
+        )}
       </div>
     </div>
   );

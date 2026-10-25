@@ -7,6 +7,7 @@ import {
   loadGameConfig,
   loadGuide,
   loadMonsters,
+  loadQuests,
   loadTutorial,
 } from '../loader.js';
 import type { Slot } from '../types.js';
@@ -176,5 +177,22 @@ describe('loadGuide', () => {
     expect(() => loadGuide([{ ...lesson, advance: 'dance' }])).toThrow(/guía es inválido/);
     expect(() => loadGuide([{ ...lesson, en: undefined }])).toThrow(/guía es inválido/);
     expect(() => loadGuide([lesson, lesson])).toThrow(/repetidos/);
+  });
+});
+
+describe('loadQuests', () => {
+  const quest = {
+    id: 'longclaw',
+    name: 'Longclaw',
+    monsterType: 'Claw',
+    symbols: ['Wing', 'Claw'],
+  };
+
+  it('carga misiones válidas y rechaza símbolos, vacíos o no-arrays', () => {
+    expect(loadQuests([quest])).toEqual([quest]);
+    expect(() => loadQuests([{ ...quest, symbols: ['Wing'] }])).toThrow(/índice 0/);
+    expect(() => loadQuests([{ ...quest, monsterType: 'Pie' }])).toThrow(/índice 0/);
+    expect(() => loadQuests([])).toThrow(/al menos una/);
+    expect(() => loadQuests('x')).toThrow(/se esperaba un array/);
   });
 });

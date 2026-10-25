@@ -67,6 +67,40 @@
     }
   },
   {
+    "id": "town-quest",
+    "phase": "town",
+    "when": [
+      "firstVisit"
+    ],
+    "advance": "next",
+    "highlight": "quest",
+    "es": {
+      "title": "Tu misión secreta",
+      "text": "Al empezar te tocó una carta de misión secreta. Al final de la partida te da puntos extra por cada SNAC de su tipo que derrotes y por cada trofeo con sus símbolos que pagues en las misiones del pueblo o que conserves."
+    },
+    "en": {
+      "title": "Your secret quest",
+      "text": "At the start you were dealt a secret quest card. At the end of the game it gives bonus points for each SNAC of its type you defeat and each trophy with its symbols that you pay in town quests or keep."
+    }
+  },
+  {
+    "id": "town-threat",
+    "phase": "town",
+    "when": [
+      "firstVisit"
+    ],
+    "advance": "next",
+    "highlight": "threat",
+    "es": {
+      "title": "Pieland está en peligro",
+      "text": "Tienes 3 VIDAS: cada KO cuesta una. Y Pieland tiene 5 PV: cada expedición en la que no derrotes al jefe acerca su ataque. Cuando la cuenta llega a 0, Pieland pierde 1 PV. Si te quedas sin vidas o Pieland cae, termina la partida."
+    },
+    "en": {
+      "title": "Pieland is in danger",
+      "text": "You have 3 LIVES: each KO costs one. And Pieland has 5 HP: every run where you don't defeat the boss brings its attack closer. When the countdown hits 0, Pieland loses 1 HP. If you run out of lives or Pieland falls, the game ends."
+    }
+  },
+  {
     "id": "town-actions",
     "phase": "town",
     "when": [
@@ -102,31 +136,31 @@
     }
   },
   {
-    "id": "trail-hidden",
+    "id": "map-intro",
     "phase": "trail",
     "advance": "next",
-    "highlight": "tracks",
+    "highlight": "map",
     "es": {
-      "title": "El sendero",
-      "text": "En cada paso verás dos rastros. Solo sabes el TIPO de SNAC, no cuál es. Cada tipo pide sobre todo un símbolo: Cuerno → Hacha, Ala → Flecha, Garra → Lupa y Cola → Anzuelo. Elige según tus dados."
+      "title": "El mapa de Sherbet Forest",
+      "text": "El pueblo está a la izquierda y el jefe, Pieous Assassin, a la derecha. Cada nodo es un SNAC del que solo conoces el tipo. Los caminos marcan a dónde puedes ir. Como los dados que uses quedan gastados, tienes que administrarlos para llegar al jefe. ¡El mapa cambia en cada expedición!"
     },
     "en": {
-      "title": "The trail",
-      "text": "At each step you'll see two tracks. You only know the TYPE of SNAC, not which one. Each type mostly asks for one symbol: Horn → Axe, Wing → Arrow, Claw → Finder, Tail → Hook. Choose based on your dice."
+      "title": "The Sherbet Forest map",
+      "text": "Town is on the left and the boss, Pieous Assassin, on the right. Each node is a SNAC you only know the type of. Paths show where you can go. Since the dice you use stay spent, you have to manage them to reach the boss. The map changes on every run!"
     }
   },
   {
-    "id": "trail-follow",
+    "id": "map-follow",
     "phase": "trail",
     "advance": "follow",
-    "highlight": "tracks",
+    "highlight": "map",
     "es": {
-      "title": "Sigue un rastro",
-      "text": "Toca SEGUIR en uno de los dos. El SNAC se revela cuando empieza el combate."
+      "title": "Elige un nodo",
+      "text": "Toca uno de los nodos iluminados. Cada tipo pide sobre todo un símbolo: Cuerno → Hacha, Ala → Flecha, Garra → Lupa y Cola → Anzuelo. Elige según tus dados."
     },
     "en": {
-      "title": "Follow a track",
-      "text": "Tap FOLLOW on one of them. The SNAC is revealed when the fight starts."
+      "title": "Pick a node",
+      "text": "Tap one of the glowing nodes. Each type mostly asks for one symbol: Horn → Axe, Wing → Arrow, Claw → Finder, Tail → Hook. Choose based on your dice."
     }
   },
   {
@@ -141,6 +175,23 @@
     "en": {
       "title": "Your SNAC",
       "text": "To DEFEAT it, fill its 4 spaces with the symbol each one asks for. The 4-symbol space takes any of them, but never a heart."
+    }
+  },
+  {
+    "id": "combat-boss",
+    "phase": "combat",
+    "when": [
+      "boss"
+    ],
+    "advance": "next",
+    "highlight": "monster",
+    "es": {
+      "title": "¡Pieous Assassin!",
+      "text": "El jefe tiene 6 espacios y no se puede estudiar: o cubres los 6 y salvas Pieland, o huyes y termina la expedición. Las cartas de \"tres iguales\" no funcionan contra él."
+    },
+    "en": {
+      "title": "Pieous Assassin!",
+      "text": "The boss has 6 spaces and can't be studied: either you fill all 6 and save Pieland, or you flee and the run ends. \"Three of a kind\" cards don't work against it."
     }
   },
   {
@@ -280,11 +331,11 @@
     "highlight": "status",
     "es": {
       "title": "Dados gastados",
-      "text": "Los dados que usaste en el SNAC quedan GASTADOS hasta que vuelvas al pueblo, y tu HPie tampoco se recupera. Puedes SEGUIR CAZANDO con lo que te queda o VOLVER AL PUEBLO a tiempo."
+      "text": "Los dados que usaste en el SNAC quedan GASTADOS hasta que vuelvas al pueblo, y tu HPie tampoco se recupera. Puedes SEGUIR por el mapa hacia el jefe con lo que te queda o VOLVER AL PUEBLO a tiempo."
     },
     "en": {
       "title": "Spent dice",
-      "text": "The dice you used on the SNAC stay SPENT until you return to town, and your HP doesn't recover either. You can KEEP HUNTING with what's left or HEAD BACK TO TOWN in time."
+      "text": "The dice you used on the SNAC stay SPENT until you return to town, and your HP doesn't recover either. You can KEEP GOING across the map toward the boss with what's left, or HEAD BACK TO TOWN in time."
     }
   },
   {
@@ -311,14 +362,14 @@
       "returnVisit"
     ],
     "advance": "next",
-    "highlight": "actions",
+    "highlight": "threat",
     "es": {
       "title": "De vuelta en el pueblo",
-      "text": "Al volver recuperas tu HPie y tus dados, y se retiran los dados blancos. Tienes 2 acciones nuevas: descansa para recargar tus objetos o usa tus trofeos para comprar cartas."
+      "text": "Al volver recuperas tu HPie y tus dados, y se retiran los dados blancos. Pero esa expedición sin derrotar al jefe acercó el ataque a Pieland: mira la cuenta arriba. Tienes 2 acciones nuevas para prepararte."
     },
     "en": {
       "title": "Back in town",
-      "text": "Coming back restores your HP and dice, and white dice are removed. You get 2 new actions: rest to recharge your items, or spend trophies to buy cards."
+      "text": "Coming back restores your HP and dice, and white dice are removed. But that run without defeating the boss brought Pieland's attack closer: check the countdown up top. You get 2 new actions to get ready."
     }
   },
   {
@@ -348,11 +399,11 @@
     "highlight": "hud",
     "es": {
       "title": "Tu puntaje",
-      "text": "Puntaje final = puntos − KOs × 3 − expediciones. Cazar muchos SNACs en pocas expediciones y sin quedar KO da más puntaje. Puedes terminar la partida cuando quieras."
+      "text": "Puntaje final = puntos − KOs × 3 − expediciones, más tu misión secreta, las cartas de puntos y un bonus si derrotas al jefe. Cazar mucho en pocas expediciones y sin quedar KO da más puntaje."
     },
     "en": {
       "title": "Your score",
-      "text": "Final score = points − KOs × 3 − runs. Hunting many SNACs in few runs without getting KO'd scores the most. You can end the game whenever you like."
+      "text": "Final score = points − KOs × 3 − runs, plus your secret quest, points cards and a bonus if you defeat the boss. Hunting a lot in few runs without getting KO'd scores the most."
     }
   },
   {
@@ -365,11 +416,11 @@
     "final": true,
     "es": {
       "title": "¡Ya sabes jugar!",
-      "text": "Eso es todo el juego de mesa. Desde aquí ya no te interrumpo. ¡Buena caza, cazador!"
+      "text": "Eso es todo el juego. Tu meta: llegar a Pieous Assassin y derrotarlo antes de que caiga Pieland. Desde aquí ya no te interrumpo. ¡Buena caza, cazador!"
     },
     "en": {
       "title": "You know how to play!",
-      "text": "That's the whole board game. From here on I won't interrupt you. Happy hunting, hunter!"
+      "text": "That's the whole game. Your goal: reach Pieous Assassin and defeat it before Pieland falls. From here on I won't interrupt you. Happy hunting, hunter!"
     }
   }
 ]

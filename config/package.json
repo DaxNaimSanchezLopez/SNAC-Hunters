@@ -20,6 +20,7 @@
     "./game.json": "./game.json",
     "./tutorial.json": "./tutorial.json",
     "./abilities.json": "./abilities.json",
-    "./guide.json": "./guide.json"
+    "./guide.json": "./guide.json",
+    "./quests.json": "./quests.json"
   }
 }

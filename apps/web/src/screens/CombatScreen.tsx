@@ -77,7 +77,8 @@ export function CombatScreen() {
         : [];
 
   function onResolve() {
-    if (preview === 'flee') resolve();
+    // Huir no da trofeo, y el jefe tampoco: derrotarlo gana la partida
+    if (preview === 'flee' || combat?.monster.boss) resolve();
     else setChoosing({ kind: 'resolve' });
   }
 
@@ -118,6 +119,12 @@ export function CombatScreen() {
           </span>
           <HpBar hp={combat.hp} maxHp={combat.maxHp} glow={highlight === 'hp'} />
         </header>
+      )}
+
+      {combat.monster.boss && (
+        <p className="rounded-2xl border-[3px] border-black bg-red-500 px-3 py-2 text-center font-comic text-lg text-white shadow-[0_3px_0_#000]">
+          {t('combat.boss', { n: combat.monster.slots.length })}
+        </p>
       )}
 
       <MonsterCard

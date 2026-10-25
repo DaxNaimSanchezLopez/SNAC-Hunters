@@ -5,6 +5,7 @@ import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import {
   ABILITY_INPUTS,
+  isActive,
   applyAction,
   applyGameAction,
   availableDice,
@@ -20,6 +21,7 @@ import type {
   CombatAction,
   CombatState,
   GameAction,
+  GameResult,
   GameState,
   GameSymbol,
 } from '@snac-hunters/engine';
@@ -36,7 +38,7 @@ import {
   tutorialSteps,
 } from './config';
 import { activeLesson, completesLesson, guide } from './guide';
-import { faceName, translate } from './i18n';
+import { faceName, kindName, translate } from './i18n';
 import type { Lang, MessageKey, Vars } from './i18n';
 import { idbStorage } from './persistence';
 
@@ -54,6 +56,8 @@ export interface FinishedGame {
   readonly kos: number;
   readonly runs: number;
   readonly defeated: number;
+  /** V1: cómo terminó la partida. */
+  readonly result?: GameResult | null;
   readonly at: number;
 }
 
@@ -172,7 +176,11 @@ function trackTransition(before: GameState, after: GameState, action: GameAction
     void track('town_action', { action: action.type });
   }
   if (action.type === 'finish') {
-    void track('game_over', { score: finalScore(after, gameConfig), runs: after.runs });
+    void track('game_over', {
+      score: finalScore(after, gameData),
+      runs: after.runs,
+      result: after.result,
+    });
   }
 }
 
@@ -214,11 +222,12 @@ export const useGame = create<GameStore>()(
       function recordFinished(game: GameState): void {
         const entry: FinishedGame = {
           gameId: game.seed,
-          score: finalScore(game, gameConfig),
+          score: finalScore(game, gameData),
           points: game.points,
           kos: game.kos,
           runs: game.runs,
           defeated: game.outcomes.defeat ?? 0,
+          result: game.result,
           at: Date.now(),
         };
         setState({ history: [entry, ...getState().history].slice(0, HISTORY_SIZE) });
@@ -246,9 +255,9 @@ export const useGame = create<GameStore>()(
 
         const fresh = action.type === 'follow' ? null : game.combat;
         toast(damageMessage(getState().lang, fresh, next.combat));
-        if (action.type === 'return') toast(t('town.welcomeBack'));
+        if (action.type === 'return' && next.phase === 'town') toast(t('town.welcomeBack'));
         if (action.type === 'return' || action.type === 'finish') void validateOnServer(nextSaved);
-        if (action.type === 'finish') recordFinished(next);
+        if (next.phase === 'over' && game.phase !== 'over') recordFinished(next);
       }
 
       function tutorialDispatch(action: CombatAction): void {
@@ -422,16 +431,18 @@ export const useGame = create<GameStore>()(
         activateAbility(abilityId, trophy) {
           const state = getState();
           const ability = getAbility(abilityId);
-          if (!ability || ability.effect.type === 'special') return;
-          const need = ABILITY_INPUTS[ability.effect.type];
+          if (!ability || !isActive(ability)) return;
+          const { effect } = ability;
+          const need = ABILITY_INPUTS[effect.type];
           if (state.selected.length !== need) {
-            toast(
-              t('combat.needDice', {
-                name: ability.name,
-                n: need,
-                symbol: faceName(t, ability.effect.symbol),
-              }),
-            );
+            // Lucky pide el comodín de su dado especial; las demás, su símbolo
+            const symbol =
+              effect.type === 'lucky'
+                ? `${faceName(t, 'wild')} (${kindName(t, effect.die)})`
+                : 'symbol' in effect
+                  ? faceName(t, effect.symbol)
+                  : '';
+            toast(t('combat.needDice', { name: ability.name, n: need, symbol }));
             return;
           }
           combatDispatch({ type: 'ability', abilityId, dieIds: state.selected, trophy });

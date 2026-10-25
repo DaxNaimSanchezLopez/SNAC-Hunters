@@ -1,11 +1,13 @@
 // Puerto de persistencia: la lógica HTTP no sabe si guarda en DynamoDB o en memoria.
-import type { GamePhase, Outcome } from '@snac-hunters/engine';
+import type { GamePhase, GameResult, Outcome } from '@snac-hunters/engine';
 
 /** Resumen de una partida re-simulada por el servidor (se actualiza en cada envío). */
 export interface GameRecord {
   readonly gameId: string;
   readonly userId: string;
   readonly phase: GamePhase;
+  /** V1: victoria, sin vidas, cayó Pieland o abandonada; null si sigue en curso. */
+  readonly result: GameResult | null;
   readonly score: number;
   readonly points: number;
   readonly kos: number;
@@ -27,6 +29,7 @@ export interface EventRecord {
 export interface Stats {
   readonly games: number;
   readonly finished: number;
+  readonly victories: number;
   readonly avgScore: number;
   readonly fights: number;
   readonly outcomes: Record<string, number>;
@@ -52,6 +55,7 @@ export function summarize(games: readonly GameRecord[], events: readonly EventRe
   return {
     games: games.length,
     finished: games.filter((g) => g.phase === 'over').length,
+    victories: games.filter((g) => g.result === 'victory').length,
     avgScore: games.length ? games.reduce((a, g) => a + g.score, 0) / games.length : 0,
     fights,
     outcomes,

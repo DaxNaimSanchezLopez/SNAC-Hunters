@@ -1,0 +1,74 @@
+[
+  {
+    "id": "axe-and-claw",
+    "name": "Axe and Claw",
+    "monsterType": "Claw",
+    "symbols": [
+      "Horn",
+      "Claw"
+    ]
+  },
+  {
+    "id": "axe-throwing",
+    "name": "Axe Throwing",
+    "monsterType": "Wing",
+    "symbols": [
+      "Horn",
+      "Wing"
+    ]
+  },
+  {
+    "id": "hook-wing-and-sinker",
+    "name": "Hook, Wing and Sinker",
+    "monsterType": "Wing",
+    "symbols": [
+      "Tail",
+      "Wing"
+    ]
+  },
+  {
+    "id": "longclaw",
+    "name": "Longclaw",
+    "monsterType": "Claw",
+    "symbols": [
+      "Wing",
+      "Claw"
+    ]
+  },
+  {
+    "id": "hooked-horns",
+    "name": "Hooked Horns",
+    "monsterType": "Horn",
+    "symbols": [
+      "Tail",
+      "Horn"
+    ]
+  },
+  {
+    "id": "horn-hunter",
+    "name": "Horn Hunter",
+    "monsterType": "Horn",
+    "symbols": [
+      "Claw",
+      "Horn"
+    ]
+  },
+  {
+    "id": "find-the-tail",
+    "name": "Find the Tail",
+    "monsterType": "Tail",
+    "symbols": [
+      "Claw",
+      "Tail"
+    ]
+  },
+  {
+    "id": "arrow-to-the-tail",
+    "name": "Arrow to the Tail",
+    "monsterType": "Tail",
+    "symbols": [
+      "Wing",
+      "Tail"
+    ]
+  }
+]

@@ -4,7 +4,15 @@ import { applyAction, availableDice, canRerollAny, slotsForFace, startCombat } f
 import type { CombatAction, CombatSetup, CombatState } from '../combat.js';
 import { remainingPool } from '../run.js';
 import type { DiceTable } from '../types.js';
-import { ability, BEEHOLDER, fixedTable, GARDEN_SALAAD, PORCUPINEAPPLE } from './fixtures.js';
+import {
+  ability,
+  BEEHOLDER,
+  BOSS,
+  DICE as DICE_TABLE,
+  fixedTable,
+  GARDEN_SALAAD,
+  PORCUPINEAPPLE,
+} from './fixtures.js';
 
 const SETUP: CombatSetup = { dice: ['red', 'red', 'red', 'red', 'green'], hp: 4, maxHp: 4 };
 
@@ -215,5 +223,125 @@ describe('sin dados que relanzar', () => {
     const s2 = applyAction(s1, { type: 'reroll', dieIds: [] }, table);
     expect(s2.dice).toHaveLength(3);
     expect(s2.hp).toBe(3);
+  });
+});
+
+describe('cartas de V1 en combate', () => {
+  const setupWith = (...ids: string[]): CombatSetup => ({ ...SETUP, abilities: ids.map(ability) });
+
+  it('Lucky: un comodín del dado especial de su color se convierte en dos comodines', () => {
+    const table = fixedTable({ red: 'Claw', green: 'wild' });
+    const s = applyAction(
+      startCombat(GARDEN_SALAAD, setupWith('lucky-find'), 1, table),
+      { type: 'ability', abilityId: 'lucky-find', dieIds: ['d4'] },
+      table,
+    );
+    expect(s.spent).toEqual(['d4']);
+    expect(s.dice.slice(-2).map((d) => d.face)).toEqual(['wild', 'wild']);
+    // Un comodín de otro dado no sirve
+    const red = fixedTable({ red: 'wild', green: 'Claw' });
+    expect(() =>
+      applyAction(
+        startCombat(GARDEN_SALAAD, setupWith('lucky-find'), 1, red),
+        { type: 'ability', abilityId: 'lucky-find', dieIds: ['d0'] },
+        red,
+      ),
+    ).toThrow(/no activa/);
+  });
+
+  it('Cursed Gauntlet: cuesta 1 HPie y da un comodín; con 1 HPie deja KO', () => {
+    const table = fixedTable({ red: 'Claw', green: 'Claw' });
+    const s = applyAction(
+      startCombat(GARDEN_SALAAD, setupWith('cursed-gauntlet'), 1, table),
+      { type: 'ability', abilityId: 'cursed-gauntlet', dieIds: [] },
+      table,
+    );
+    expect(s.hp).toBe(3);
+    expect(s.dice.at(-1)).toMatchObject({ kind: 'token', face: 'wild' });
+    const ko = applyAction(
+      startCombat(GARDEN_SALAAD, { ...setupWith('cursed-gauntlet'), hp: 1 }, 1, table),
+      { type: 'ability', abilityId: 'cursed-gauntlet', dieIds: [] },
+      table,
+    );
+    expect(ko).toMatchObject({ status: 'resolved', outcome: 'ko', hp: 0, ko: true });
+  });
+
+  it('Double Healing: cada corazón bloquea dos daños', () => {
+    const table = fixedTable({ red: 'heart', green: 'Claw', white: 'damage' });
+    const setup: CombatSetup = { ...setupWith('double-healing'), dice: ['red', 'green'] };
+    const s0 = startCombat(GARDEN_SALAAD, setup, 1, table);
+    expect(s0.heartBlocks).toBe(2);
+    const s1 = applyAction(s0, { type: 'reroll', dieIds: ['d1'] }, table);
+    expect(s1).toMatchObject({ hp: 4, cracked: ['d0'] });
+    const s2 = applyAction(s1, { type: 'reroll', dieIds: ['d1'] }, table);
+    expect(s2.hp).toBe(4);
+    expect(s2.spent).toContain('d0');
+    const s3 = applyAction(s2, { type: 'reroll', dieIds: ['d1'] }, table);
+    expect(s3.hp).toBe(3);
+  });
+
+  it('las cartas pasivas y de fuera de combate no aparecen como activables', () => {
+    const s = startCombat(
+      GARDEN_SALAAD,
+      setupWith('double-healing', 'cloning-tool', 'piebix-cube', 'lucky-find'),
+      1,
+      DICE_TABLE,
+    );
+    expect(s.abilities.map((a) => a.id)).toEqual(['lucky-find']);
+  });
+});
+
+describe('jefe de 6 espacios', () => {
+  const table = fixedTable({ red: 'wild', green: 'wild' });
+  const setup: CombatSetup = {
+    dice: ['red', 'red', 'red', 'red', 'red', 'green'],
+    hp: 4,
+    maxHp: 4,
+  };
+
+  it('se derrota cubriendo los 6 espacios y no da trofeo', () => {
+    const s0 = startCombat(BOSS, setup, 1, table);
+    expect(s0.assignments).toHaveLength(6);
+    const assigns: CombatAction[] = [0, 1, 2, 3, 4, 5].map((slot) => ({
+      type: 'assign',
+      dieId: `d${slot}`,
+      slot,
+    }));
+    const s1 = play(s0, assigns, table);
+    const s2 = applyAction(s1, { type: 'resolve' }, table);
+    expect(s2).toMatchObject({ outcome: 'defeat', trophy: null });
+  });
+
+  it('no se puede estudiar: con menos de 6 espacios, se huye', () => {
+    const s = play(
+      startCombat(BOSS, setup, 1, table),
+      [
+        { type: 'assign', dieId: 'd0', slot: 0 },
+        { type: 'assign', dieId: 'd1', slot: 1 },
+        { type: 'assign', dieId: 'd2', slot: 2 },
+      ],
+      table,
+    );
+    expect(applyAction(s, { type: 'resolve' }, table).outcome).toBe('flee');
+    expect(() => applyAction(s, { type: 'assign', dieId: 'd3', slot: 6 }, table)).toThrow(
+      /Slot inválido/,
+    );
+  });
+
+  it('"tres iguales" no sirve contra el jefe', () => {
+    const wings = fixedTable({ red: 'Wing', green: 'Wing' });
+    const s = startCombat(BOSS, { ...setup, abilities: [ability('meaty-crossbow')] }, 1, wings);
+    expect(() =>
+      applyAction(
+        s,
+        {
+          type: 'ability',
+          abilityId: 'meaty-crossbow',
+          dieIds: ['d0', 'd1', 'd2'],
+          trophy: 'Horn',
+        },
+        wings,
+      ),
+    ).toThrow(/no sirve contra el jefe/);
   });
 });

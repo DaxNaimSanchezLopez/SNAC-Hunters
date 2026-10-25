@@ -68,7 +68,8 @@ export function MonsterCard({ combat, highlightSlots, onSlot, glow = false }: Pr
 
       <MonsterPortrait monster={monster} className="mx-auto my-1 h-28 w-full sm:h-36" />
 
-      <div className="grid grid-cols-4 gap-2">
+      {/* El jefe tiene 6 espacios: dos filas de 3 */}
+      <div className={`grid gap-2 ${monster.slots.length > 4 ? 'grid-cols-3' : 'grid-cols-4'}`}>
         {monster.slots.map((slot, i) => {
           const dieId = combat.assignments[i];
           const die = dieId ? combat.dice.find((d) => d.id === dieId) : undefined;

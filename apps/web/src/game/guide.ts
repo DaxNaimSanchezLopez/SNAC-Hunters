@@ -20,6 +20,7 @@ const CONDITIONS: Record<Condition, (g: GameState) => boolean> = {
   covered: (g) => (g.combat ? coveredSlots(g.combat) > 0 : false),
   runActive: (g) => g.run?.status === 'active',
   runEnded: (g) => g.run?.status === 'ended',
+  boss: (g) => g.combat?.monster.boss === true,
 };
 
 /** Primera lección no vista cuya fase y condiciones se cumplen ahora mismo. */

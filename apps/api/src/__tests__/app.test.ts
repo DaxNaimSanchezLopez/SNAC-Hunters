@@ -10,13 +10,14 @@ import {
   loadGuide,
   loadTutorial,
   newGame,
+  reachableNodes,
   validSlotsFor,
 } from '@snac-hunters/engine';
 import rawGuide from '@snac-hunters/config/guide.json';
 import rawTutorial from '@snac-hunters/config/tutorial.json';
 import type { GameAction, GameState } from '@snac-hunters/engine';
 import { handleRequest } from '../app.js';
-import { abilities, diceTable, gameConfig, gameData, monsters } from '../game.js';
+import { abilities, diceTable, gameConfig, gameData, monsters, quests } from '../game.js';
 import { MemoryStore } from '../store.js';
 
 let store: MemoryStore;
@@ -36,7 +37,7 @@ function playHonestly(seed: string): { actions: GameAction[]; final: GameState }
     actions.push(a);
   };
   act({ type: 'leave' });
-  act({ type: 'follow', index: 0 });
+  act({ type: 'follow', node: reachableNodes(s)[0]! });
   for (let guard = 0; s.phase === 'combat' && guard < 30; guard++) {
     const combat = s.combat!;
     const die = availableDice(combat).find((d) => validSlotsFor(combat, d.id).length > 0);
@@ -62,11 +63,14 @@ function playHonestly(seed: string): { actions: GameAction[]; final: GameState }
 }
 
 describe('config/ real', () => {
-  it('monstruos, dados, 20 habilidades, game.json, tutorial y guía son válidos', () => {
+  it('monstruos, dados, habilidades, misiones, game.json, tutorial y guía son válidos', () => {
     expect(monsters).toHaveLength(9);
     expect(Object.keys(diceTable)).toHaveLength(6);
-    expect(abilities.filter((a) => a.kind === 'item')).toHaveLength(12);
-    expect(abilities.filter((a) => a.kind === 'skill')).toHaveLength(8);
+    // V1: las 30 cartas (15 objetos y 15 destrezas) y las 8 misiones secretas
+    expect(abilities.filter((a) => a.kind === 'item')).toHaveLength(15);
+    expect(abilities.filter((a) => a.kind === 'skill')).toHaveLength(15);
+    expect(quests).toHaveLength(8);
+    expect(gameConfig.lives).toBe(3);
     expect(gameConfig.player.maxHp).toBe(4);
     expect(loadTutorial(rawTutorial).length).toBeGreaterThan(0);
     expect(loadGuide(rawGuide).filter((l) => l.final)).toHaveLength(1);
@@ -83,7 +87,8 @@ describe('POST /games', () => {
       gameId: 'demo-1',
       userId: 'u1',
       phase: 'over',
-      score: finalScore(final, gameConfig),
+      result: 'abandon',
+      score: finalScore(final, gameData),
       runs: 1,
       fights: 1,
     });
@@ -101,7 +106,7 @@ describe('POST /games', () => {
   it('rechaza un cliente tramposo que inventa una jugada ilegal', async () => {
     const actions = [
       { type: 'leave' },
-      { type: 'follow', index: 0 },
+      { type: 'follow', node: 'c0n0' },
       { type: 'combat', action: { type: 'assign', dieId: 'd0', slot: 0 } },
       { type: 'combat', action: { type: 'assign', dieId: 'd0', slot: 1 } },
     ];
@@ -113,13 +118,13 @@ describe('POST /games', () => {
   it('rechaza usar un trofeo o una habilidad que no se tiene', async () => {
     const steal = [
       { type: 'leave' },
-      { type: 'follow', index: 0 },
+      { type: 'follow', node: 'c0n0' },
       { type: 'combat', action: { type: 'trophy', index: 7, slot: 0 } },
     ];
     expect((await post('/games', { seed: 'x', actions: steal })).statusCode).toBe(422);
     const ability = [
       { type: 'leave' },
-      { type: 'follow', index: 0 },
+      { type: 'follow', node: 'c0n0' },
       {
         type: 'combat',
         action: { type: 'ability', abilityId: 'nope', dieIds: ['d0', 'd1', 'd2'], trophy: 'Horn' },

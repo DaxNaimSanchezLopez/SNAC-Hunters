@@ -5,10 +5,11 @@ import {
   GameConfigSchema,
   GuideSchema,
   MonsterSchema,
+  SecretQuestSchema,
   TutorialSchema,
 } from './schemas.js';
 import type { GameConfig, GuideLesson, TutorialStep } from './schemas.js';
-import type { Ability, DiceTable, Monster } from './types.js';
+import type { Ability, DiceTable, Monster, SecretQuest } from './types.js';
 
 function formatIssues(issues: readonly { path: (string | number)[]; message: string }[]): string {
   return issues.map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`).join('\n');
@@ -81,4 +82,15 @@ export function loadAbilities(raw: unknown): Ability[] {
     ids.add(a.id);
   }
   return abilities;
+}
+
+/** RF-17: Valida las cartas de misión secreta (config/quests.json). */
+export function loadQuests(raw: unknown): SecretQuest[] {
+  if (!Array.isArray(raw)) {
+    throw new Error(`loadQuests: se esperaba un array, se recibió ${typeof raw}`);
+  }
+  if (raw.length === 0) throw new Error('loadQuests: se necesita al menos una misión');
+  return raw.map((item, index) =>
+    parseOrThrow(SecretQuestSchema, item, `loadQuests: misión en índice ${index}`),
+  );
 }

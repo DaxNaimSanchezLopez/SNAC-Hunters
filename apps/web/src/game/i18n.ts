@@ -187,6 +187,45 @@ const es = {
   'ability.bonus': '+1 espacio para trofeos',
   'ability.item': 'Objeto',
   'ability.skill': 'Destreza',
+  'hud.lives': 'Vidas',
+  'hud.pieland': 'Pieland',
+  'hud.countdown': 'Ataque en {n}',
+  'threat.title': 'Pieland amenazada',
+  'threat.text': 'Pieland pierde 1 PV si no vences al jefe en {n} expediciones más.',
+  'quest.title': 'Misión secreta',
+  'quest.text':
+    'Puntos extra al final por cada monstruo de tipo {type} derrotado y cada trofeo de {a} o {b} que pagues en misiones o guardes.',
+  'town.recharge': 'Recargar',
+  'town.rechargeHint': 'Tu {tool} puede recargar un objeto gastado.',
+  'map.title': 'Mapa de Sherbet Forest',
+  'map.subtitle': 'Expedición {run} · Dados disponibles: {n}',
+  'map.pick': 'Toca un nodo iluminado para pelear. Solo sabes el tipo de cada SNAC.',
+  'map.town': 'Pueblo',
+  'map.boss': 'Jefe',
+  'map.node': 'Nodo de tipo {type}',
+  'map.bossNode': 'Jefe: {name}',
+  'map.noDice': 'No te quedan dados: vuelve al pueblo.',
+  'map.return': 'Volver al pueblo',
+  'combat.boss': '¡Jefe! Cubre los {n} espacios para salvar Pieland.',
+  'result.victory': '¡Derrotaste a {name}!',
+  'result.victoryText': '¡Pieland está a salvo! Ganaste la partida.',
+  'result.livesOut': 'Te quedaste sin vidas: la partida termina.',
+  'result.lives': 'Vidas: {n}',
+  'result.score': 'Ver puntaje',
+  'over.victory': '¡Victoria!',
+  'over.lives': 'Sin vidas',
+  'over.pieland': 'Cayó Pieland',
+  'over.abandon': 'Partida terminada',
+  'over.questRow': 'Misión secreta ({name})',
+  'over.cardsRow': 'Cartas de puntos',
+  'over.victoryRow': 'Jefe derrotado',
+  'ability.lucky': 'Comodín en el dado {die} → 2 comodines',
+  'ability.gauntlet': 'Gasta 1 PV → 1 comodín',
+  'ability.recharge': 'Recarga otro objeto (fuera de combate)',
+  'ability.shield': 'Cada corazón bloquea 2 daños',
+  'ability.points.specialDice': '+1 punto por cada dado especial distinto (máx. 4)',
+  'ability.points.trophyTypes': '+1 punto por cada tipo de trofeo distinto (máx. 4)',
+  'ability.points.monsterTypes': '+1 punto por cada tipo de SNAC derrotado (máx. 4)',
 };
 
 export type MessageKey = keyof typeof es;
@@ -367,6 +406,45 @@ const en: Record<MessageKey, string> = {
   'ability.bonus': '+1 trophy space',
   'ability.item': 'Item',
   'ability.skill': 'Skill',
+  'hud.lives': 'Lives',
+  'hud.pieland': 'Pieland',
+  'hud.countdown': 'Attack in {n}',
+  'threat.title': 'Pieland under threat',
+  'threat.text': 'Pieland loses 1 HP unless you beat the boss within {n} more runs.',
+  'quest.title': 'Secret quest',
+  'quest.text':
+    'Bonus points at the end for each {type} monster defeated and each {a} or {b} trophy you pay in quests or keep.',
+  'town.recharge': 'Recharge',
+  'town.rechargeHint': 'Your {tool} can recharge a spent item.',
+  'map.title': 'Sherbet Forest map',
+  'map.subtitle': 'Run {run} · Available dice: {n}',
+  'map.pick': 'Tap a glowing node to fight. You only know each SNAC’s type.',
+  'map.town': 'Town',
+  'map.boss': 'Boss',
+  'map.node': '{type} node',
+  'map.bossNode': 'Boss: {name}',
+  'map.noDice': 'No dice left: head back to town.',
+  'map.return': 'Back to town',
+  'combat.boss': 'Boss! Fill all {n} spaces to save Pieland.',
+  'result.victory': 'You defeated {name}!',
+  'result.victoryText': 'Pieland is safe! You won the game.',
+  'result.livesOut': 'You ran out of lives: the game is over.',
+  'result.lives': 'Lives: {n}',
+  'result.score': 'See score',
+  'over.victory': 'Victory!',
+  'over.lives': 'Out of lives',
+  'over.pieland': 'Pieland has fallen',
+  'over.abandon': 'Game ended',
+  'over.questRow': 'Secret quest ({name})',
+  'over.cardsRow': 'Points cards',
+  'over.victoryRow': 'Boss defeated',
+  'ability.lucky': 'Wild on the {die} die → 2 wilds',
+  'ability.gauntlet': 'Spend 1 HP → 1 wild',
+  'ability.recharge': 'Recharge another item (outside combat)',
+  'ability.shield': 'Each heart blocks 2 damage',
+  'ability.points.specialDice': '+1 point per different special die (max 4)',
+  'ability.points.trophyTypes': '+1 point per different trophy type (max 4)',
+  'ability.points.monsterTypes': '+1 point per different SNAC type defeated (max 4)',
 };
 
 const DICTIONARIES: Record<Lang, Record<MessageKey, string>> = { es, en };
@@ -407,8 +485,20 @@ export function outcomeName(t: Translate, outcome: Exclude<Outcome, 'ko'>): stri
 
 /** Descripción del efecto de una carta, generada a partir de config/abilities.json. */
 export function describeEffect(t: Translate, effect: AbilityEffect): string {
-  if (effect.type === 'special') return t('ability.special', { die: kindName(t, effect.die) });
-  return t(`ability.${effect.type}` as MessageKey, { symbol: faceName(t, effect.symbol) });
+  switch (effect.type) {
+    case 'special':
+      return t('ability.special', { die: kindName(t, effect.die) });
+    case 'lucky':
+      return t('ability.lucky', { die: kindName(t, effect.die) });
+    case 'points':
+      return t(`ability.points.${effect.by}` as MessageKey);
+    case 'gauntlet':
+    case 'recharge':
+    case 'shield':
+      return t(`ability.${effect.type}` as MessageKey);
+    default:
+      return t(`ability.${effect.type}` as MessageKey, { symbol: faceName(t, effect.symbol) });
+  }
 }
 
 export const SYMBOLS: readonly GameSymbol[] = ['Horn', 'Wing', 'Claw', 'Tail'];

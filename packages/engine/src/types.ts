@@ -36,14 +36,28 @@ export interface Die {
 // - wild: un símbolo se convierte en comodín
 // - convert: dos símbolos iguales se convierten en tres comodines
 // - special: pasiva, el personaje gana un dado especial de ese color
+// V1 (resto de las cartas):
+// - lucky: un comodín lanzado en el dado especial de ese color se convierte en dos comodines
+// - gauntlet: gastar 1 HPie como un comodín (Cursed Gauntlet)
+// - recharge: recarga otro objeto, fuera de combate (Cloning Tool)
+// - shield: cada corazón bloquea dos daños en lugar de uno (Double Healing)
+// - points: puntos al final de la partida (Piebix Cube, Varied Samples, Well Traveled)
 export type SpecialDieKind = Exclude<DieKind, 'red' | 'white'>;
+
+/** Qué cuentan las cartas de puntos al final (una por tipo distinto, máximo 4). */
+export type PointsBy = 'specialDice' | 'trophyTypes' | 'monsterTypes';
 
 export type AbilityEffect =
   | { readonly type: 'triple'; readonly symbol: GameSymbol }
   | { readonly type: 'double'; readonly symbol: GameSymbol }
   | { readonly type: 'wild'; readonly symbol: GameSymbol }
   | { readonly type: 'convert'; readonly symbol: GameSymbol }
-  | { readonly type: 'special'; readonly die: SpecialDieKind };
+  | { readonly type: 'special'; readonly die: SpecialDieKind }
+  | { readonly type: 'lucky'; readonly die: SpecialDieKind }
+  | { readonly type: 'gauntlet' }
+  | { readonly type: 'recharge' }
+  | { readonly type: 'shield' }
+  | { readonly type: 'points'; readonly by: PointsBy };
 
 export interface Ability {
   readonly id: string;
@@ -61,12 +75,23 @@ export interface Trophy {
   readonly symbol: GameSymbol;
 }
 
-// RF-07.5: Monstruo con exactamente 4 slots y sus opciones de trofeo
+// RF-07.5: Monstruo con sus espacios (4; el jefe tiene 6) y sus opciones de trofeo
 export interface Monster {
   readonly id: string;
   readonly name: string;
   readonly type: GameSymbol;
-  readonly slots: readonly [Slot, Slot, Slot, Slot];
+  readonly slots: readonly Slot[];
+  /** RF-16: El jefe de la región: solo se puede derrotar (todos los espacios) o huir. */
+  readonly boss?: boolean;
   readonly trophies: readonly GameSymbol[];
   readonly pun: string;
+}
+
+// RF-17: Carta de misión secreta (Image files/secret quest cards). Da puntos al final por
+// coleccionar el tipo de monstruo indicado y los dos símbolos en misiones y trofeos.
+export interface SecretQuest {
+  readonly id: string;
+  readonly name: string;
+  readonly monsterType: GameSymbol;
+  readonly symbols: readonly [GameSymbol, GameSymbol];
 }

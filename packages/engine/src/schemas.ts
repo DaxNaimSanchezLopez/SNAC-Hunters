@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Ability, DiceTable, Monster } from './types.js';
+import type { Ability, DiceTable, Monster, SecretQuest } from './types.js';
 
 // RF-08: Schemas Zod para los datos de config/
 
@@ -41,12 +41,23 @@ export const DiceTableSchema = z.object({
 });
 
 // RF-14: Catálogo de habilidades — config/abilities.json
+const SpecialDieSchema = z.enum(['orange', 'blue', 'purple', 'green']);
+
 const AbilityEffectSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('triple'), symbol: GameSymbolSchema }),
   z.object({ type: z.literal('double'), symbol: GameSymbolSchema }),
   z.object({ type: z.literal('wild'), symbol: GameSymbolSchema }),
   z.object({ type: z.literal('convert'), symbol: GameSymbolSchema }),
-  z.object({ type: z.literal('special'), die: z.enum(['orange', 'blue', 'purple', 'green']) }),
+  z.object({ type: z.literal('special'), die: SpecialDieSchema }),
+  // V1: resto de las cartas
+  z.object({ type: z.literal('lucky'), die: SpecialDieSchema }),
+  z.object({ type: z.literal('gauntlet') }),
+  z.object({ type: z.literal('recharge') }),
+  z.object({ type: z.literal('shield') }),
+  z.object({
+    type: z.literal('points'),
+    by: z.enum(['specialDice', 'trophyTypes', 'monsterTypes']),
+  }),
 ]);
 
 export const AbilitySchema = z.object({
@@ -71,6 +82,26 @@ export const GameConfigSchema = z
       startingTrophies: count,
       startingItems: count,
     }),
+    // V1 (roguelite): vidas, Pieland amenazada, mapa FTL y jefe (feedback, secciones 7–9)
+    lives: z.number().int().min(1),
+    pieland: z.object({
+      hp: z.number().int().min(1),
+      // Expediciones sin vencer al jefe antes de que Pieland pierda 1 PV; la última se repite
+      countdown: z.array(z.number().int().min(1)).min(1),
+    }),
+    map: z
+      .object({
+        columns: z.number().int().min(1),
+        minNodes: z.number().int().min(1),
+        maxNodes: z.number().int().min(1),
+      })
+      .refine((m) => m.minNodes <= m.maxNodes, { message: 'minNodes no puede superar maxNodes' }),
+    boss: z.object({
+      id: z.string().min(1),
+      name: z.string().min(1),
+      pun: z.string(),
+      slots: z.number().int().min(1),
+    }),
     // Fase en el pueblo (manual p. 14–16): acciones por visita y precios en trofeos
     town: z.object({
       actionsPerVisit: z.number().int().min(1),
@@ -94,6 +125,9 @@ export const GameConfigSchema = z
       // Puntaje final (feedback V0): puntos − KOs × koWeight − expediciones × runWeight
       koWeight: z.number().int(),
       runWeight: z.number().int(),
+      // V1: bonus por derrotar al jefe y máximo de las cartas de puntos
+      victoryBonus: z.number().int(),
+      pointsCardMax: z.number().int().min(0),
     }),
   })
   .refine((c) => c.player.startingHp <= c.player.maxHp, {
@@ -124,6 +158,14 @@ export const TutorialSchema = z
 
 export type TutorialStep = z.infer<typeof TutorialSchema>[number];
 
+// RF-17: Cartas de misión secreta — config/quests.json
+export const SecretQuestSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  monsterType: GameSymbolSchema,
+  symbols: z.tuple([GameSymbolSchema, GameSymbolSchema]),
+});
+
 const LocalizedText = z.object({ title: z.string().min(1), text: z.string().min(1) });
 
 // Partida guiada (V0 = tutorial del juego de mesa) — config/guide.json. Cada lección aparece
@@ -146,6 +188,7 @@ export const GuideSchema = z
             'covered',
             'runActive',
             'runEnded',
+            'boss',
           ]),
         )
         .default([]),
@@ -165,6 +208,9 @@ export const GuideSchema = z
           'reroll',
           'resolve',
           'status',
+          'map',
+          'threat',
+          'quest',
         ])
         .optional(),
       position: z.enum(['top', 'bottom']).default('bottom'),
@@ -185,6 +231,8 @@ export type GuideLesson = z.infer<typeof GuideSchema>[number];
 const _monsterCheck: MonsterFromSchema extends Monster ? true : false = true;
 const _diceCheck: z.infer<typeof DiceTableSchema> extends DiceTable ? true : false = true;
 const _abilityCheck: z.infer<typeof AbilitySchema> extends Ability ? true : false = true;
+const _questCheck: z.infer<typeof SecretQuestSchema> extends SecretQuest ? true : false = true;
+void _questCheck;
 void _monsterCheck;
 void _diceCheck;
 void _abilityCheck;

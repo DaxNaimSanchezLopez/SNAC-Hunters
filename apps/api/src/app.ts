@@ -1,7 +1,7 @@
 // Router HTTP independiente de AWS: lo usan la Lambda, el servidor local y los tests.
 import { z } from 'zod';
 import { CombatError, finalScore, replayGame } from '@snac-hunters/engine';
-import { gameConfig, gameData, monsters } from './game.js';
+import { gameData, monsters } from './game.js';
 import type { Store } from './store.js';
 
 export interface ApiRequest {
@@ -48,7 +48,8 @@ const GameActionSchema = z.discriminatedUnion('type', [
     replace: z.string().max(64).optional(),
   }),
   z.object({ type: z.literal('leave') }),
-  z.object({ type: z.literal('follow'), index: Index }),
+  z.object({ type: z.literal('recharge'), target: z.string().max(64) }),
+  z.object({ type: z.literal('follow'), node: z.string().max(16) }),
   z.object({ type: z.literal('combat'), action: CombatActionSchema }),
   z.object({ type: z.literal('keep'), discard: Index.nullable() }),
   z.object({ type: z.literal('continue') }),
@@ -101,7 +102,8 @@ async function submitGame(req: ApiRequest, store: Store): Promise<ApiResponse> {
       gameId: seed,
       userId: req.userId,
       phase: final.phase,
-      score: finalScore(final, gameConfig),
+      result: final.result,
+      score: finalScore(final, gameData),
       points: final.points,
       kos: final.kos,
       runs: final.runs,

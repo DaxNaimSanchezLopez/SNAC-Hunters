@@ -11,7 +11,7 @@ import { HomeScreen } from './screens/HomeScreen';
 import { OverScreen } from './screens/OverScreen';
 import { ResultScreen, TutorialResultScreen } from './screens/ResultScreen';
 import { TownScreen } from './screens/TownScreen';
-import { TrailScreen } from './screens/TrailScreen';
+import { MapScreen } from './screens/MapScreen';
 
 /** La pantalla de la partida sale de su fase en el engine; la UI no decide reglas. */
 function GameScreens() {
@@ -21,7 +21,7 @@ function GameScreens() {
     case 'town':
       return <TownScreen game={game} />;
     case 'trail':
-      return <TrailScreen game={game} />;
+      return <MapScreen game={game} />;
     case 'combat':
       return <CombatScreen />;
     case 'aftermath':

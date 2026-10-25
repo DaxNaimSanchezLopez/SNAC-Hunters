@@ -1,7 +1,7 @@
 // Integración: persistencia de la partida, sesiones interrumpidas, estado corrupto e idioma.
 // En jsdom no hay IndexedDB, así que idbStorage usa su respaldo en memoria (mismo contrato).
 import { describe, it, expect, beforeEach } from 'vitest';
-import { availableDice, isRollable } from '@snac-hunters/engine';
+import { availableDice, isRollable, reachableNodes } from '@snac-hunters/engine';
 import { summarize } from '../game/analytics';
 import type { AnalyticsEvent } from '../game/analytics';
 import { activeLesson, guide } from '../game/guide';
@@ -22,7 +22,7 @@ describe('persistencia de la partida', () => {
     const store = useGame.getState();
     store.newGame();
     useGame.getState().act({ type: 'leave' });
-    useGame.getState().act({ type: 'follow', index: 0 });
+    useGame.getState().act({ type: 'follow', node: reachableNodes(useGame.getState().game!)[0]! });
     const before = useGame.getState().game!;
     expect(before.phase).toBe('combat');
 
@@ -56,7 +56,7 @@ describe('persistencia de la partida', () => {
       KEY,
       JSON.stringify({
         state: {
-          saved: { seed: 'x', actions: [{ type: 'follow', index: 0 }] },
+          saved: { seed: 'x', actions: [{ type: 'follow', node: 'c0n0' }] },
           history: [{ gameId: 'a', score: 5, points: 9, kos: 1, runs: 1, defeated: 9, at: 1 }],
           lang: 'en',
           langChosen: true,
@@ -82,7 +82,7 @@ describe('controles del combate', () => {
   it('relanzar conserva los dados seleccionados y relanza el resto', () => {
     useGame.getState().newGame();
     useGame.getState().act({ type: 'leave' });
-    useGame.getState().act({ type: 'follow', index: 0 });
+    useGame.getState().act({ type: 'follow', node: reachableNodes(useGame.getState().game!)[0]! });
     const combat = useGame.getState().game!.combat!;
     const keep = availableDice(combat).filter((d) => isRollable(d.kind))[0]!;
     useGame.getState().toggleDie(keep.id);
@@ -101,7 +101,7 @@ describe('controles del combate', () => {
     useGame.getState().act({ type: 'finish' });
     const s = useGame.getState();
     expect(s.game?.phase).toBe('over');
-    expect(s.history[0]).toMatchObject({ runs: 1, score: -1 });
+    expect(s.history[0]).toMatchObject({ runs: 1, result: 'abandon' });
   });
 
   it('una acción inválida muestra un aviso y no cambia la partida', () => {
@@ -135,19 +135,21 @@ describe('partida guiada (V0 = tutorial del juego de mesa)', () => {
       'town-dice',
       'town-trophies',
       'town-cards',
+      'town-quest',
+      'town-threat',
       'town-actions',
     ]);
     // Lección "hazlo tú": se cumple al salir del pueblo
     expect(lessonNow()?.id).toBe('town-leave');
     useGame.getState().act({ type: 'leave' });
     expect(useGame.getState().guideSeen).toContain('town-leave');
-    expect(lessonNow()?.id).toBe('trail-hidden');
+    expect(lessonNow()?.id).toBe('map-intro');
   });
 
   it('en combate explica el SNAC, los dados y cómo colocar uno', () => {
     useGame.getState().newGame(true);
     useGame.getState().act({ type: 'leave' });
-    useGame.getState().act({ type: 'follow', index: 0 });
+    useGame.getState().act({ type: 'follow', node: reachableNodes(useGame.getState().game!)[0]! });
     const ids: string[] = [];
     for (let i = 0; i < 3 && lessonNow()?.advance === 'next'; i++) {
       ids.push(lessonNow()!.id);

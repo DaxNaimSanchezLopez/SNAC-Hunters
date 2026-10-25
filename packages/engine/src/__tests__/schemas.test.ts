@@ -67,6 +67,10 @@ describe('DiceTableSchema / GameConfigSchema', () => {
       startingTrophies: 1,
       startingItems: 1,
     },
+    lives: 3,
+    pieland: { hp: 5, countdown: [6, 5, 4, 3, 2] },
+    map: { columns: 4, minNodes: 2, maxNodes: 3 },
+    boss: { id: 'pieous', name: 'Pieous Assassin', pun: '', slots: 6 },
     town: {
       actionsPerVisit: 2,
       itemCost: 1,
@@ -77,7 +81,16 @@ describe('DiceTableSchema / GameConfigSchema', () => {
     },
     tutorial: { monsterId: 'garden-salaad', seed: 'seed' },
     features: { town: false },
-    scoring: { defeat: 1, study: 0, flee: 0, ko: -1, koWeight: 3, runWeight: 1 },
+    scoring: {
+      defeat: 1,
+      study: 0,
+      flee: 0,
+      ko: -1,
+      koWeight: 3,
+      runWeight: 1,
+      victoryBonus: 5,
+      pointsCardMax: 4,
+    },
   };
 
   it('acepta una configuración válida', () => {
@@ -94,6 +107,8 @@ describe('DiceTableSchema / GameConfigSchema', () => {
     expect(GameConfigSchema.safeParse(white).success).toBe(false);
     const noTown = { ...config, town: { actionsPerVisit: 0 } };
     expect(GameConfigSchema.safeParse(noTown).success).toBe(false);
+    const badMap = { ...config, map: { columns: 4, minNodes: 3, maxNodes: 2 } };
+    expect(GameConfigSchema.safeParse(badMap).success).toBe(false);
   });
 });
 

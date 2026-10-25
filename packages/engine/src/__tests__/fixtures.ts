@@ -1,7 +1,7 @@
 // Datos de prueba compartidos. Copia de config/ para que los tests del engine no dependan de I/O.
 import * as fc from 'fast-check';
 import type { GameConfig } from '../schemas.js';
-import type { Ability, DiceTable, GameSymbol, Monster, Slot } from '../types.js';
+import type { Ability, DiceTable, GameSymbol, Monster, SecretQuest, Slot } from '../types.js';
 
 export const SYMBOLS: readonly GameSymbol[] = ['Horn', 'Wing', 'Claw', 'Tail'];
 export const VALID_SLOTS: readonly Slot[] = ['Horn', 'Wing', 'Claw', 'Tail', 'all', 'damage'];
@@ -115,8 +115,57 @@ export const ABILITIES: readonly Ability[] = [
   },
 ];
 
+// V1: cartas restantes (una de cada efecto nuevo)
+export const V1_ABILITIES: readonly Ability[] = [
+  { id: 'lucky-find', name: 'Lucky Find', kind: 'skill', effect: { type: 'lucky', die: 'green' } },
+  { id: 'cursed-gauntlet', name: 'Cursed Gauntlet', kind: 'item', effect: { type: 'gauntlet' } },
+  { id: 'double-healing', name: 'Double Healing', kind: 'skill', effect: { type: 'shield' } },
+  {
+    id: 'cloning-tool',
+    name: 'Cloning Tool',
+    kind: 'item',
+    effect: { type: 'recharge' },
+    bonus: 'trophySlot',
+  },
+  {
+    id: 'piebix-cube',
+    name: 'Piebix Cube',
+    kind: 'item',
+    effect: { type: 'points', by: 'specialDice' },
+  },
+  {
+    id: 'varied-samples',
+    name: 'Varied Samples',
+    kind: 'skill',
+    effect: { type: 'points', by: 'trophyTypes' },
+  },
+  {
+    id: 'well-traveled',
+    name: 'Well Traveled',
+    kind: 'skill',
+    effect: { type: 'points', by: 'monsterTypes' },
+  },
+];
+
+// RF-17: Misiones secretas de prueba (copia de config/quests.json)
+export const QUESTS: readonly SecretQuest[] = [
+  { id: 'axe-and-claw', name: 'Axe and Claw', monsterType: 'Claw', symbols: ['Horn', 'Claw'] },
+  { id: 'longclaw', name: 'Longclaw', monsterType: 'Claw', symbols: ['Wing', 'Claw'] },
+];
+
+/** Jefe de prueba de 6 espacios. */
+export const BOSS: Monster = {
+  id: 'pieous',
+  name: 'Pieous Assassin',
+  type: 'Wing',
+  slots: ['Wing', 'Wing', 'Horn', 'Claw', 'Tail', 'Wing'],
+  trophies: ['Horn', 'Wing', 'Claw', 'Tail'],
+  pun: 'Boss',
+  boss: true,
+};
+
 export function ability(id: string): Ability {
-  const found = ABILITIES.find((a) => a.id === id);
+  const found = [...ABILITIES, ...V1_ABILITIES].find((a) => a.id === id);
   if (!found) throw new Error(`fixture: no existe la habilidad ${id}`);
   return found;
 }
@@ -131,8 +180,21 @@ export const CONFIG: GameConfig = {
     startingTrophies: 1,
     startingItems: 1,
   },
+  lives: 3,
+  pieland: { hp: 5, countdown: [6, 5, 4, 3, 2] },
+  map: { columns: 2, minNodes: 2, maxNodes: 2 },
+  boss: { id: 'pieous', name: 'Pieous Assassin', pun: 'Boss', slots: 6 },
   town: { actionsPerVisit: 2, itemCost: 1, skillCost: 2, offerSize: 3, maxItems: 3, maxSkills: 3 },
   tutorial: { monsterId: 'garden-salaad', seed: 'tutorial' },
   features: {},
-  scoring: { defeat: 1, study: 0, flee: 0, ko: -1, koWeight: 3, runWeight: 1 },
+  scoring: {
+    defeat: 1,
+    study: 0,
+    flee: 0,
+    ko: -1,
+    koWeight: 3,
+    runWeight: 1,
+    victoryBonus: 5,
+    pointsCardMax: 4,
+  },
 };

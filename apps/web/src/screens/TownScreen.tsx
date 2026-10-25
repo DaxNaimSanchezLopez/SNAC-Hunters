@@ -4,7 +4,7 @@ import { trophyCapacity } from '@snac-hunters/engine';
 import type { Ability, DieKind, GameState } from '@snac-hunters/engine';
 import { AbilityCard } from '../components/AbilityCard';
 import { Button } from '../components/Button';
-import { Hud } from '../components/Hud';
+import { Hud, QuestCard } from '../components/Hud';
 import { Modal } from '../components/Modal';
 import { TrophySlot, TrophyToken } from '../components/Trophy';
 import { gameConfig, gameData, getAbility } from '../game/config';
@@ -35,6 +35,11 @@ export function TownScreen({ game }: { game: GameState }) {
   const items = owned(game.items.map((i) => i.id));
   const skills = owned(game.skills);
   const noActions = game.townActions <= 0;
+  // V1: Cloning Tool cargado puede recargar otro objeto gastado
+  const recharger = items.find(
+    (a) => a.effect.type === 'recharge' && game.items.find((i) => i.id === a.id)?.ready,
+  );
+  const isSpent = (a: Ability) => game.items.find((i) => i.id === a.id)?.ready === false;
 
   function togglePay(i: number) {
     setPay((p) => (p.includes(i) ? p.filter((x) => x !== i) : [...p, i]));
@@ -102,6 +107,10 @@ export function TownScreen({ game }: { game: GameState }) {
           </div>
         </section>
 
+        <section className="rounded-3xl border-4 border-black bg-black/55 p-3">
+          <QuestCard game={game} />
+        </section>
+
         <div data-guide-target="actions" className="grid grid-cols-3 gap-2 rounded-2xl">
           <TownSign
             img="/assets/town/rest.png"
@@ -133,10 +142,16 @@ export function TownScreen({ game }: { game: GameState }) {
           <h2 className="font-comic text-lg">
             {t('town.items', { n: items.length, max: town.maxItems })}
           </h2>
+          {recharger && items.some(isSpent) && (
+            <p className="text-xs text-yellow-200">
+              {t('town.rechargeHint', { tool: recharger.name })}
+            </p>
+          )}
           <CardRow
             cards={items}
             empty={t('town.emptyItems')}
-            spent={(a) => game.items.find((i) => i.id === a.id)?.ready === false}
+            spent={isSpent}
+            onRecharge={recharger ? (a) => act({ type: 'recharge', target: a.id }) : undefined}
           />
           <h2 className="mt-3 font-comic text-lg">
             {t('town.skills', { n: skills.length, max: town.maxSkills })}
@@ -188,18 +203,30 @@ function CardRow(props: {
   cards: readonly Ability[];
   empty: string;
   spent: (a: Ability) => boolean;
+  /** Botón "Recargar" bajo los objetos gastados (Cloning Tool). */
+  onRecharge?: (a: Ability) => void;
 }) {
   const t = useT();
   if (props.cards.length === 0) return <p className="text-sm text-white/60">{props.empty}</p>;
   return (
     <div className="mt-1 grid grid-cols-3 gap-2">
       {props.cards.map((a) => (
-        <AbilityCard
-          key={a.id}
-          ability={a}
-          dimmed={props.spent(a)}
-          badge={props.spent(a) ? t('town.spent') : undefined}
-        />
+        <div key={a.id} className="flex flex-col gap-1">
+          <AbilityCard
+            ability={a}
+            dimmed={props.spent(a)}
+            badge={props.spent(a) ? t('town.spent') : undefined}
+          />
+          {props.onRecharge && props.spent(a) && (
+            <button
+              type="button"
+              onClick={() => props.onRecharge?.(a)}
+              className="min-h-[40px] rounded-xl border-2 border-black bg-yellow-300 font-comic text-sm text-bark"
+            >
+              {t('town.recharge')}
+            </button>
+          )}
+        </div>
       ))}
     </div>
   );

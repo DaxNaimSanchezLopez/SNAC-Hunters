@@ -13,6 +13,28 @@
     "startingTrophies": 1,
     "startingItems": 1
   },
+  "lives": 3,
+  "pieland": {
+    "hp": 5,
+    "countdown": [
+      6,
+      5,
+      4,
+      3,
+      2
+    ]
+  },
+  "map": {
+    "columns": 3,
+    "minNodes": 2,
+    "maxNodes": 3
+  },
+  "boss": {
+    "id": "pieous",
+    "name": "Pieous Assassin",
+    "pun": "The last slice is always the deadliest",
+    "slots": 6
+  },
   "town": {
     "actionsPerVisit": 2,
     "itemCost": 1,
@@ -31,7 +53,7 @@
     "serverValidation": true,
     "devAnalytics": true,
     "town": true,
-    "boss": false
+    "boss": true
   },
   "scoring": {
     "defeat": 1,
@@ -39,6 +61,8 @@
     "flee": 0,
     "ko": -1,
     "koWeight": 3,
-    "runWeight": 1
+    "runWeight": 1,
+    "victoryBonus": 5,
+    "pointsCardMax": 4
   }
 }

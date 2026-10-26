@@ -134,6 +134,104 @@ describe('habilidades', () => {
     expect(s).toMatchObject({ outcome: 'defeat', hp: 4 });
   });
 
+  it('un trofeo del inventario también activa habilidades y se gasta', () => {
+    const blanks = fixedTable({ red: 'heart', green: 'heart' });
+    const setup: CombatSetup = { ...withAbilities('auto-aimer'), trophies: ['Claw', 'Wing'] };
+    const s0 = startCombat(BEEHOLDER, setup, 1, blanks);
+    const s1 = applyAction(
+      s0,
+      { type: 'ability', abilityId: 'auto-aimer', dieIds: [], trophies: [1] },
+      blanks,
+    );
+    expect(s1.trophies).toEqual(['Claw']);
+    expect(s1.dice.slice(-2)).toEqual([
+      { id: 'd5', kind: 'trophy', face: 'Wing' },
+      { id: 'd6', kind: 'token', face: 'wild' },
+    ]);
+    expect(s1.spent).toEqual(['d5']);
+    expect(() =>
+      applyAction(
+        s0,
+        { type: 'ability', abilityId: 'auto-aimer', dieIds: [], trophies: [0] },
+        blanks,
+      ),
+    ).toThrow(/no activa/);
+    expect(() =>
+      applyAction(
+        s0,
+        { type: 'ability', abilityId: 'auto-aimer', dieIds: [], trophies: [7] },
+        blanks,
+      ),
+    ).toThrow(/No tienes el trofeo/);
+  });
+
+  it('dados y trofeos se combinan para activar una habilidad', () => {
+    const setup: CombatSetup = { ...withAbilities('double-damage'), trophies: ['Wing'] };
+    const s = applyAction(
+      startCombat(BEEHOLDER, setup, 1, wings),
+      { type: 'ability', abilityId: 'double-damage', dieIds: ['d0'], trophies: [0] },
+      wings,
+    );
+    expect(s.trophies).toEqual([]);
+    expect(s.spent).toEqual(['d0', 'd5']);
+    expect(s.dice.slice(-3).map((d) => d.face)).toEqual(['wild', 'wild', 'wild']);
+  });
+
+  it('hasta resolver nada es definitivo: deshacer devuelve dados y trofeos', () => {
+    const setup: CombatSetup = { ...withAbilities('double-damage'), trophies: ['Wing'] };
+    const s0 = startCombat(BEEHOLDER, setup, 1, wings);
+    const s1 = play(
+      s0,
+      [
+        { type: 'ability', abilityId: 'double-damage', dieIds: ['d0'], trophies: [0] },
+        { type: 'assign', dieId: 'd6', slot: 2 },
+      ],
+      wings,
+    );
+    const s2 = applyAction(s1, { type: 'undo', abilityId: 'double-damage' }, wings);
+    expect(s2.usedAbilities).toEqual([]);
+    expect(s2.trophies).toEqual(['Wing']);
+    expect(s2.spent).toEqual([]);
+    expect(s2.assignments).toEqual([null, null, null, null]);
+    expect(s2.dice.map((d) => d.id)).toEqual(s0.dice.map((d) => d.id));
+    // y se puede volver a usar
+    const s3 = applyAction(
+      s2,
+      { type: 'ability', abilityId: 'double-damage', dieIds: ['d0', 'd1'] },
+      wings,
+    );
+    expect(s3.usedAbilities).toEqual(['double-damage']);
+  });
+
+  it('no se deshace una habilidad sin usar ni una cuyos símbolos activaron otra', () => {
+    const s0 = startCombat(BEEHOLDER, withAbilities('auto-aimer', 'extra-ammo'), 1, wings);
+    expect(() => applyAction(s0, { type: 'undo', abilityId: 'auto-aimer' }, wings)).toThrow(
+      /No has usado/,
+    );
+    // extra-ammo crea dos Ala; una activa auto-aimer
+    const s1 = play(
+      s0,
+      [
+        { type: 'ability', abilityId: 'extra-ammo', dieIds: ['d0'] },
+        { type: 'ability', abilityId: 'auto-aimer', dieIds: ['d5'] },
+      ],
+      wings,
+    );
+    expect(() => applyAction(s1, { type: 'undo', abilityId: 'extra-ammo' }, wings)).toThrow(
+      /deshaz esa primero/,
+    );
+    const s2 = play(
+      s1,
+      [
+        { type: 'undo', abilityId: 'auto-aimer' },
+        { type: 'undo', abilityId: 'extra-ammo' },
+      ],
+      wings,
+    );
+    expect(s2.usedAbilities).toEqual([]);
+    expect(availableDice(s2)).toHaveLength(5);
+  });
+
   it('×3 exige elegir un trofeo', () => {
     const s0 = startCombat(BEEHOLDER, withAbilities('meaty-crossbow'), 1, wings);
     expect(() =>
@@ -214,6 +312,6 @@ describe('sin dados que relanzar', () => {
     expect(canRerollAny(s1)).toBe(false);
     const s2 = applyAction(s1, { type: 'reroll', dieIds: [] }, table);
     expect(s2.dice).toHaveLength(3);
-    expect(s2.hp).toBe(3);
+    expect(s2.hp).toBe(3.5);
   });
 });

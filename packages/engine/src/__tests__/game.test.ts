@@ -38,24 +38,31 @@ function run(state: GameState, actions: readonly GameAction[], data = DATA): Gam
   return actions.reduce((s, a) => applyGameAction(s, a, data), state);
 }
 
-/** Estado de partida con valores arbitrarios para probar casos concretos. */
+/** El personaje en el pueblo antes de su primera expedición, para probar el pueblo. */
+function townGame(data: GameData, seed: string): GameState {
+  return { ...newGame(data, seed), phase: 'town', run: null, trail: null, runs: 0 };
+}
+
+/** Estado de partida (en el pueblo) con valores arbitrarios para probar casos concretos. */
 function withState(patch: Partial<GameState>, data = DATA): GameState {
-  return { ...newGame(data, 'base'), ...patch };
+  return { ...townGame(data, 'base'), ...patch };
 }
 
 describe('nueva partida', () => {
-  it('empieza en el pueblo con HPie completo, dados, 1 trofeo y 1 objeto (manual p. 7)', () => {
+  it('empieza de expedición (la caza va primero) con HPie completo, dados, 1 trofeo y 1 objeto', () => {
     const g = newGame(DATA, 'seed-1');
     expect(g).toMatchObject({
-      phase: 'town',
+      phase: 'trail',
       hp: 4,
       maxHp: 4,
       dice: ['red', 'red', 'red', 'red', 'green'],
-      townActions: 2,
       skills: [],
       points: 0,
-      runs: 0,
+      runs: 1,
     });
+    expect(g.run).toMatchObject({ hp: 4, pool: ['red', 'red', 'red', 'red', 'green'], fights: 0 });
+    expect(g.trail).toHaveLength(2);
+    expect(() => applyGameAction(g, { type: 'rest' }, DATA)).toThrow(/fase/);
     expect(g.trophies).toHaveLength(1);
     expect(g.items).toHaveLength(1);
     expect(g.items[0]?.ready).toBe(true);
@@ -68,9 +75,10 @@ describe('nueva partida', () => {
 });
 
 describe('pueblo', () => {
-  it('descansar recarga los objetos, da un trofeo y gasta una acción', () => {
-    const g = withState({ items: [{ id: 'extra-ammo', ready: false }], trophies: [] });
+  it('descansar sana, recarga los objetos, da un trofeo y gasta una acción', () => {
+    const g = withState({ items: [{ id: 'extra-ammo', ready: false }], trophies: [], hp: 1 });
     const r = applyGameAction(g, { type: 'rest' }, DATA);
+    expect(r.hp).toBe(4);
     expect(r.items).toEqual([{ id: 'extra-ammo', ready: true }]);
     expect(r.trophies).toHaveLength(1);
     expect(r.townActions).toBe(1);
@@ -173,7 +181,7 @@ describe('pueblo', () => {
 
 describe('expedición', () => {
   it('salir del pueblo abre el sendero con dos rastros de tipos distintos', () => {
-    const g = applyGameAction(newGame(DATA, 's'), { type: 'leave' }, DATA);
+    const g = applyGameAction(townGame(DATA, 's'), { type: 'leave' }, DATA);
     expect(g).toMatchObject({ phase: 'trail', runs: 1, hp: 4 });
     const [a, b] = (g.trail ?? []).map((id) => DATA.monsters.find((m) => m.id === id));
     expect(a?.type).not.toBe(b?.type);
@@ -252,7 +260,7 @@ describe('expedición', () => {
       [{ type: 'leave' }, { type: 'follow', index: 0 }],
       data,
     );
-    for (let i = 0; i < 4 && g.phase === 'combat'; i++) {
+    for (let i = 0; i < 8 && g.phase === 'combat'; i++) {
       g = applyGameAction(g, { type: 'combat', action: { type: 'reroll', dieIds: ['d0'] } }, data);
     }
     expect(g).toMatchObject({ phase: 'aftermath', hp: 0, kos: 1, points: -1 });
@@ -260,13 +268,31 @@ describe('expedición', () => {
     expect(applyGameAction(g, { type: 'return' }, data).hp).toBe(4);
   });
 
+  it('volver al pueblo no sana: se sale con el HPie que se tenga hasta descansar', () => {
+    const g = withState({
+      phase: 'aftermath',
+      hp: 2,
+      runs: 1,
+      run: { hp: 2, maxHp: 4, pool: ['red'], fights: 1, status: 'ended', endedBy: 'flee' },
+    });
+    const town = applyGameAction(g, { type: 'return' }, DATA);
+    expect(town.hp).toBe(2);
+    const out = applyGameAction(town, { type: 'leave' }, DATA);
+    expect(out.run?.hp).toBe(2);
+    expect(applyGameAction(town, { type: 'rest' }, DATA).hp).toBe(4);
+  });
+
   it('se puede volver al pueblo desde el sendero sin pelear', () => {
-    const g = run(newGame(DATA, 's'), [{ type: 'leave' }, { type: 'return' }]);
+    const g = run(townGame(DATA, 's'), [{ type: 'leave' }, { type: 'return' }]);
     expect(g).toMatchObject({ phase: 'town', runs: 1 });
   });
 
   it('un objeto usado queda gastado hasta descansar; una destreza se puede volver a usar', () => {
-    const data = rigged({ red: 'Wing', green: 'Wing' });
+    // Sin espacios de daño: un solo símbolo es huir
+    const data = {
+      ...rigged({ red: 'Wing', green: 'Wing' }),
+      monsters: [GARDEN_SALAAD, BEEHOLDER],
+    };
     const g = run(
       withState({ items: [{ id: 'extra-ammo', ready: true }], skills: ['double-damage'] }, data),
       [
@@ -296,7 +322,10 @@ describe('expedición', () => {
   });
 
   it('un trofeo colocado en el monstruo sale del inventario', () => {
-    const data = rigged({ red: 'heart', green: 'heart' });
+    const data = {
+      ...rigged({ red: 'heart', green: 'heart' }),
+      monsters: [GARDEN_SALAAD, BEEHOLDER],
+    };
     const g0 = run(
       withState({ trophies: ['Claw', 'Wing'] }, data),
       [{ type: 'leave' }, { type: 'follow', index: 0 }],
@@ -339,17 +368,24 @@ describe('puntaje y fin de partida', () => {
     expect(finalScore(g, CONFIG)).toBe(10 - 6 - 3);
   });
 
+  it('la expedición en curso no resta: la partida empieza en 0', () => {
+    const out = applyGameAction(townGame(DATA, 's'), { type: 'leave' }, DATA);
+    expect(out.runs).toBe(1);
+    expect(finalScore(out, CONFIG)).toBe(0);
+    expect(finalScore(applyGameAction(out, { type: 'return' }, DATA), CONFIG)).toBe(-1);
+  });
+
   it('terminar la partida desde el pueblo; después no se acepta nada', () => {
-    const over = applyGameAction(newGame(DATA, 's'), { type: 'finish' }, DATA);
+    const over = applyGameAction(townGame(DATA, 's'), { type: 'finish' }, DATA);
     expect(over.phase).toBe('over');
     expect(() => applyGameAction(over, { type: 'rest' }, DATA)).toThrow(/terminó/);
-    const trail = applyGameAction(newGame(DATA, 's'), { type: 'leave' }, DATA);
+    const trail = applyGameAction(townGame(DATA, 's'), { type: 'leave' }, DATA);
     expect(() => applyGameAction(trail, { type: 'finish' }, DATA)).toThrow(/fase/);
   });
 
   it('rechaza acciones desconocidas', () => {
     expect(() =>
-      applyGameAction(newGame(DATA, 's'), { type: 'fly' } as unknown as GameAction, DATA),
+      applyGameAction(townGame(DATA, 's'), { type: 'fly' } as unknown as GameAction, DATA),
     ).toThrow(/desconocida/);
   });
 });
@@ -414,7 +450,6 @@ describe('replayGame (validación en servidor)', () => {
   it('un cliente tramposo que inventa acciones es rechazado', () => {
     expect(() =>
       replayGame(DATA, 'demo', [
-        { type: 'leave' },
         { type: 'follow', index: 0 },
         { type: 'combat', action: { type: 'resolve', trophy: 'Horn' } },
       ]),

@@ -8,7 +8,7 @@ import { Hud } from '../components/Hud';
 import { Modal } from '../components/Modal';
 import { TrophySlot, TrophyToken } from '../components/Trophy';
 import { gameConfig, gameData, getAbility } from '../game/config';
-import { kindName } from '../game/i18n';
+import { formatHp, kindName } from '../game/i18n';
 import { useGame } from '../game/store';
 import { useT } from '../game/useT';
 
@@ -150,7 +150,9 @@ export function TownScreen({ game }: { game: GameState }) {
           className="text-xl"
         >
           {t('town.leave')}
-          <span className="block font-sans text-xs">{t('town.leaveText')}</span>
+          <span className="block font-sans text-xs">
+            {t('town.leaveText', { hp: formatHp(game.hp), max: game.maxHp })}
+          </span>
         </Button>
         <Button variant="secondary" onClick={() => act({ type: 'finish' })}>
           {t('town.finish')}

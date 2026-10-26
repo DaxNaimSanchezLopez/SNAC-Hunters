@@ -8,6 +8,7 @@ import {
   CombatError,
   coveredSlots,
   faceMatchesSlot,
+  pendingDamage,
   pickEncounterPair,
   previewOutcome,
   replayCombat,
@@ -31,11 +32,12 @@ describe('faceMatchesSlot', () => {
     expect(faceMatchesSlot('Claw', 'Horn')).toBe(false);
   });
 
-  it('el comodín cubre cualquier slot de símbolo pero nunca un slot de daño', () => {
+  it('el comodín cubre cualquier slot de símbolo; el de daño solo lo cubre un corazón', () => {
     for (const slot of ['Horn', 'Wing', 'Claw', 'Tail', 'all'] as const) {
       expect(faceMatchesSlot('wild', slot)).toBe(true);
     }
     expect(faceMatchesSlot('wild', 'damage')).toBe(false);
+    expect(faceMatchesSlot('heart', 'damage')).toBe(true);
   });
 
   it('corazones, caras en blanco y daño no cubren slots de símbolo', () => {
@@ -69,7 +71,8 @@ describe('startCombat', () => {
     expect(() => startCombat(GARDEN_SALAAD, { ...SETUP, dice: [] }, 1, DICE)).toThrow(CombatError);
     expect(() => startCombat(GARDEN_SALAAD, { ...SETUP, hp: 0 }, 1, DICE)).toThrow(/HPie/);
     expect(() => startCombat(GARDEN_SALAAD, { ...SETUP, hp: 7 }, 1, DICE)).toThrow(/HPie/);
-    expect(() => startCombat(GARDEN_SALAAD, { ...SETUP, hp: 2.5 }, 1, DICE)).toThrow(/HPie/);
+    expect(() => startCombat(GARDEN_SALAAD, { ...SETUP, hp: 2.25 }, 1, DICE)).toThrow(/HPie/);
+    expect(startCombat(GARDEN_SALAAD, { ...SETUP, hp: 2.5 }, 1, DICE).hp).toBe(2.5);
   });
 });
 
@@ -177,14 +180,14 @@ describe('relanzar (push your luck)', () => {
 });
 
 describe('daño y corazones (escudo)', () => {
-  it('sin corazones, cada cara de daño quita 1 HPie y el dado se gasta', () => {
+  it('sin corazones, cada cara de daño quita medio corazón y el dado se gasta', () => {
     const table = fixedTable({ red: 'Claw', white: 'damage' });
     const s1 = act(
       startCombat(GARDEN_SALAAD, SETUP, 1, table),
       { type: 'reroll', dieIds: ['d0'] },
       table,
     );
-    expect(s1.hp).toBe(5);
+    expect(s1.hp).toBe(5.5);
     expect(s1.spent).toEqual(['d5']);
     expect(s1.log.at(-1)).toEqual({
       type: 'damage',
@@ -214,37 +217,100 @@ describe('daño y corazones (escudo)', () => {
       1,
       table,
     );
-    expect(s.hp).toBe(5);
+    expect(s.hp).toBe(5.5);
     expect(s.spent).toEqual(['d1', 'd0', 'd2']);
   });
 
-  it('un slot de daño se cubre al recibir daño, y el daño aún se paga', () => {
+  it('el daño del dado blanco es directo: no cubre el espacio de daño del monstruo', () => {
     const table = fixedTable({ red: 'Claw', white: 'damage' });
     const s1 = act(
       startCombat(PORCUPINEAPPLE, SETUP, 1, table),
       { type: 'reroll', dieIds: ['d0'] },
       table,
     );
-    expect(s1.assignments[3]).toBe('d5');
-    expect(s1.hp).toBe(5);
-    expect(() => act(s1, { type: 'unassign', slot: 3 }, table)).toThrow(/no se puede deshacer/);
+    expect(s1.assignments[3]).toBeNull();
+    expect(s1.hp).toBe(5.5);
+    expect(s1.spent).toEqual(['d5']);
     expect(validSlotsFor(s1, 'd1')).toEqual([0, 1]);
   });
+});
 
-  it('un corazón puede pagar el daño del slot de daño', () => {
-    const table = fixedTable({ red: 'heart', white: 'damage' });
+describe('espacio de daño del monstruo', () => {
+  const claws = fixedTable({ red: 'Claw', green: 'wild' });
+
+  it('cuenta como cubierto: con los otros 3 símbolos se derrota, pagando 1 HPie', () => {
+    let s = startCombat(PORCUPINEAPPLE, SETUP, 1, claws);
+    s = act(s, { type: 'assign', dieId: 'd0', slot: 0 }, claws);
+    s = act(s, { type: 'assign', dieId: 'd1', slot: 1 }, claws);
+    s = act(s, { type: 'assign', dieId: 'd4', slot: 2 }, claws);
+    expect(pendingDamage(s)).toBe(1);
+    expect(previewOutcome(s)).toBe('defeat');
+    s = act(s, { type: 'resolve', trophy: 'Claw' }, claws);
+    expect(s).toMatchObject({ outcome: 'defeat', trophy: 'Claw', hp: 5, ko: false });
+    expect(s.log.at(-1)).toEqual({ type: 'resolve', outcome: 'defeat', trophy: 'Claw', damage: 1 });
+  });
+
+  it('un corazón del dado rojo lo cubre y anula ese daño; el comodín no', () => {
+    const table = fixedTable({ red: 'heart', green: 'wild' });
+    const setup: CombatSetup = { ...SETUP, trophies: ['Claw', 'Claw', 'Horn'] };
+    let s = startCombat(PORCUPINEAPPLE, setup, 1, table);
+    expect(validSlotsFor(s, 'd0')).toEqual([3]);
+    expect(validSlotsFor(s, 'd4')).toEqual([0, 1, 2]);
+    s = act(s, { type: 'assign', dieId: 'd0', slot: 3 }, table);
+    for (const slot of [0, 1, 2]) s = act(s, { type: 'trophy', index: 0, slot }, table);
+    expect(pendingDamage(s)).toBe(0);
+    s = act(s, { type: 'resolve', trophy: 'Horn' }, table);
+    expect(s).toMatchObject({ outcome: 'defeat', hp: 6 });
+  });
+
+  it('el corazón colocado se puede retirar antes de resolver', () => {
+    const table = fixedTable({ red: 'heart' });
     const s1 = act(
       startCombat(PORCUPINEAPPLE, SETUP, 1, table),
-      { type: 'reroll', dieIds: ['d4'] },
+      { type: 'assign', dieId: 'd0', slot: 3 },
       table,
     );
-    expect(s1.assignments[3]).toBe('d5');
-    expect(s1.hp).toBe(6);
+    const s2 = act(s1, { type: 'unassign', slot: 3 }, table);
+    expect(s2.assignments[3]).toBeNull();
+    expect(availableDice(s2).map((d) => d.id)).toContain('d0');
+  });
+
+  it('también cuenta y cuesta al estudiar: 1 símbolo + daño = estudiar', () => {
+    let s = startCombat(PORCUPINEAPPLE, SETUP, 1, claws);
+    s = act(s, { type: 'assign', dieId: 'd0', slot: 0 }, claws);
+    expect(previewOutcome(s)).toBe('study');
+    s = act(s, { type: 'resolve', trophy: 'Horn' }, claws);
+    expect(s).toMatchObject({ outcome: 'study', trophy: 'Horn', hp: 5 });
+  });
+
+  it('no basta con el espacio de daño: hace falta al menos un dado o trofeo', () => {
+    expect(previewOutcome(startCombat(PORCUPINEAPPLE, SETUP, 1, claws))).toBeNull();
+  });
+
+  it('si su daño deja KO: estudiar se pierde, derrotar conserva los beneficios', () => {
+    const weak = { ...SETUP, hp: 1 };
+    const study = act(
+      act(
+        startCombat(PORCUPINEAPPLE, weak, 1, claws),
+        { type: 'assign', dieId: 'd0', slot: 0 },
+        claws,
+      ),
+      { type: 'resolve', trophy: 'Horn' },
+      claws,
+    );
+    expect(study).toMatchObject({ outcome: 'ko', trophy: null, hp: 0, ko: true });
+
+    let s = startCombat(PORCUPINEAPPLE, weak, 1, claws);
+    s = act(s, { type: 'assign', dieId: 'd0', slot: 0 }, claws);
+    s = act(s, { type: 'assign', dieId: 'd1', slot: 1 }, claws);
+    s = act(s, { type: 'assign', dieId: 'd4', slot: 2 }, claws);
+    s = act(s, { type: 'resolve', trophy: 'Claw' }, claws);
+    expect(s).toMatchObject({ outcome: 'defeat', trophy: 'Claw', hp: 0, ko: true });
   });
 
   it('KO cuando el HPie llega a 0: el combate termina', () => {
     const table = fixedTable({ red: 'Claw', white: 'damage' });
-    const s0 = startCombat(GARDEN_SALAAD, { ...SETUP, hp: 1 }, 1, table);
+    const s0 = startCombat(GARDEN_SALAAD, { ...SETUP, hp: 0.5 }, 1, table);
     const s1 = act(s0, { type: 'reroll', dieIds: ['d0'] }, table);
     expect(s1).toMatchObject({ hp: 0, ko: true, status: 'resolved', outcome: 'ko', trophy: null });
     expect(() => act(s1, { type: 'reroll', dieIds: ['d1'] }, table)).toThrow(/ya terminó/);
@@ -252,7 +318,7 @@ describe('daño y corazones (escudo)', () => {
 
   it('KO y derrota en la misma tirada: se conservan los beneficios', () => {
     const table = fixedTable({ red: 'Claw', green: 'wild', white: 'damage' });
-    let s = startCombat(PORCUPINEAPPLE, { ...SETUP, hp: 1 }, 1, table);
+    let s = startCombat(PORCUPINEAPPLE, { ...SETUP, hp: 0.5 }, 1, table);
     s = act(s, { type: 'assign', dieId: 'd0', slot: 0 }, table);
     s = act(s, { type: 'assign', dieId: 'd1', slot: 1 }, table);
     s = act(s, { type: 'assign', dieId: 'd4', slot: 2 }, table);

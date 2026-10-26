@@ -15,6 +15,7 @@ import {
   newGame,
   replayGame,
   startCombat,
+  WHITE_DIE_DAMAGE,
 } from '@snac-hunters/engine';
 import type {
   CombatAction,
@@ -36,7 +37,7 @@ import {
   tutorialSteps,
 } from './config';
 import { activeLesson, completesLesson, guide } from './guide';
-import { faceName, translate } from './i18n';
+import { faceName, formatHp, translate } from './i18n';
 import type { Lang, MessageKey, Vars } from './i18n';
 import { idbStorage } from './persistence';
 
@@ -80,8 +81,8 @@ interface GameStore {
   guideSeen: readonly string[];
   /** Dados seleccionados: para colocar (uno), conservar al relanzar o activar una habilidad. */
   selected: string[];
-  /** Trofeo del inventario seleccionado para colocarlo en el monstruo. */
-  selectedTrophy: number | null;
+  /** Trofeos del inventario seleccionados: uno para colocarlo, o varios para una habilidad. */
+  selectedTrophies: number[];
   server: ServerStatus;
   toast: string | null;
   toastSeq: number;
@@ -95,10 +96,11 @@ interface GameStore {
   startTutorial(): void;
   nextTutorialStep(): void;
   toggleDie(dieId: string): void;
-  selectTrophy(index: number | null): void;
+  selectTrophy(index: number): void;
   tapSlot(slot: number): void;
   rerollRest(): void;
   activateAbility(abilityId: string, trophy?: GameSymbol): void;
+  undoAbility(abilityId: string): void;
   resolve(trophy?: GameSymbol): void;
   goHome(): void;
   resetAll(): void;
@@ -133,13 +135,19 @@ function damageMessage(
   after: CombatState | null,
 ): string | null {
   if (!after) return null;
-  const events = after.log.slice(before ? before.log.length : 0).filter((e) => e.type === 'damage');
+  const fresh = after.log.slice(before ? before.log.length : 0);
+  // El espacio de daño del SNAC se paga al resolver
+  const snac = fresh.find((e) => e.type === 'resolve' && e.damage);
+  if (snac?.type === 'resolve' && snac.damage) {
+    return translate(lang, 'combat.snacHit', { n: snac.damage });
+  }
+  const events = fresh.filter((e) => e.type === 'damage');
   if (events.length === 0) return null;
   const blocked = events.filter((e) => e.type === 'damage' && e.blockedBy !== null).length;
   const hits = events.length - blocked;
   const parts = [translate(lang, 'combat.whiteDie')];
   if (blocked) parts.push(translate(lang, 'combat.blocked', { n: blocked }));
-  if (hits) parts.push(translate(lang, 'combat.hit', { n: hits }));
+  if (hits) parts.push(translate(lang, 'combat.hit', { n: formatHp(hits * WHITE_DIE_DAMAGE) }));
   return parts.join(' · ');
 }
 
@@ -232,12 +240,12 @@ export const useGame = create<GameStore>()(
         try {
           next = applyGameAction(game, action, gameData);
         } catch (e) {
-          setState({ selected: [], selectedTrophy: null });
+          setState({ selected: [], selectedTrophies: [] });
           toast(errorText(e));
           return;
         }
         const nextSaved = { ...saved, actions: [...saved.actions, action] };
-        setState({ game: next, saved: nextSaved, selected: [], selectedTrophy: null });
+        setState({ game: next, saved: nextSaved, selected: [], selectedTrophies: [] });
         // Las lecciones de "hazlo tú" se cumplen al hacer la acción que piden
         if (lesson && completesLesson(lesson, action)) {
           setState({ guideSeen: [...getState().guideSeen, lesson.id] });
@@ -262,7 +270,7 @@ export const useGame = create<GameStore>()(
             tutorialCombat: next,
             tutorialActions: [...tutorialActions, action],
             selected: [],
-            selectedTrophy: null,
+            selectedTrophies: [],
             tutorialStep: advances ? tutorialStep + 1 : tutorialStep,
           });
           toast(damageMessage(getState().lang, tutorialCombat, next));
@@ -279,7 +287,7 @@ export const useGame = create<GameStore>()(
             void track('tutorial_complete');
           }
         } catch (e) {
-          setState({ selected: [], selectedTrophy: null });
+          setState({ selected: [], selectedTrophies: [] });
           toast(errorText(e));
         }
       }
@@ -304,7 +312,7 @@ export const useGame = create<GameStore>()(
         guideOn: false,
         guideSeen: [],
         selected: [],
-        selectedTrophy: null,
+        selectedTrophies: [],
         server: { state: 'idle' },
         toast: null,
         toastSeq: 0,
@@ -326,7 +334,7 @@ export const useGame = create<GameStore>()(
             screen: 'game',
             server: { state: 'idle' },
             selected: [],
-            selectedTrophy: null,
+            selectedTrophies: [],
           });
           void track('game_start', { guided: guideOn });
           if (guideOn) void track('tutorial_start', { mode: 'guided' });
@@ -362,7 +370,7 @@ export const useGame = create<GameStore>()(
             tutorialActions: [],
             tutorialStep: 0,
             selected: [],
-            selectedTrophy: null,
+            selectedTrophies: [],
           });
           void track('tutorial_start');
           void track('monster_seen', { monsterId: monster.id, mode: 'tutorial' });
@@ -373,10 +381,10 @@ export const useGame = create<GameStore>()(
           setState({ tutorialStep: getState().tutorialStep + 1 });
         },
 
+        // Dados y trofeos se seleccionan juntos: así ambos pueden activar una habilidad
         toggleDie(dieId) {
           const { selected } = getState();
           setState({
-            selectedTrophy: null,
             selected: selected.includes(dieId)
               ? selected.filter((id) => id !== dieId)
               : [...selected, dieId],
@@ -384,20 +392,25 @@ export const useGame = create<GameStore>()(
         },
 
         selectTrophy(index) {
-          const same = getState().selectedTrophy === index;
-          setState({ selectedTrophy: same ? null : index, selected: [] });
+          const { selectedTrophies } = getState();
+          setState({
+            selectedTrophies: selectedTrophies.includes(index)
+              ? selectedTrophies.filter((i) => i !== index)
+              : [...selectedTrophies, index],
+          });
         },
 
         tapSlot(slot) {
           const state = getState();
           const combat = currentCombat(state);
           if (!combat) return;
-          const { selected, selectedTrophy } = state;
+          const { selected, selectedTrophies } = state;
+          const picked = selected.length + selectedTrophies.length;
           if (combat.assignments[slot] !== null) {
             combatDispatch({ type: 'unassign', slot });
-          } else if (selectedTrophy !== null) {
-            combatDispatch({ type: 'trophy', index: selectedTrophy, slot });
-          } else if (selected.length === 1 && selected[0]) {
+          } else if (picked === 1 && selectedTrophies[0] !== undefined) {
+            combatDispatch({ type: 'trophy', index: selectedTrophies[0], slot });
+          } else if (picked === 1 && selected[0]) {
             combatDispatch({ type: 'assign', dieId: selected[0], slot });
           } else {
             toast(t('combat.tapDieFirst'));
@@ -424,7 +437,7 @@ export const useGame = create<GameStore>()(
           const ability = getAbility(abilityId);
           if (!ability || ability.effect.type === 'special') return;
           const need = ABILITY_INPUTS[ability.effect.type];
-          if (state.selected.length !== need) {
+          if (state.selected.length + state.selectedTrophies.length !== need) {
             toast(
               t('combat.needDice', {
                 name: ability.name,
@@ -434,7 +447,17 @@ export const useGame = create<GameStore>()(
             );
             return;
           }
-          combatDispatch({ type: 'ability', abilityId, dieIds: state.selected, trophy });
+          combatDispatch({
+            type: 'ability',
+            abilityId,
+            dieIds: state.selected,
+            trophies: state.selectedTrophies,
+            trophy,
+          });
+        },
+
+        undoAbility(abilityId) {
+          combatDispatch({ type: 'undo', abilityId });
         },
 
         resolve(trophy) {
@@ -442,7 +465,7 @@ export const useGame = create<GameStore>()(
         },
 
         goHome() {
-          setState({ screen: 'home', selected: [], selectedTrophy: null });
+          setState({ screen: 'home', selected: [], selectedTrophies: [] });
         },
 
         resetAll() {

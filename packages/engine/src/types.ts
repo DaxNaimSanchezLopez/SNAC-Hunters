@@ -5,7 +5,7 @@
 export type GameSymbol = 'Horn' | 'Wing' | 'Claw' | 'Tail';
 
 // RF-07.2: Slot de monstruo. 'all' acepta cualquier símbolo; 'damage' (corazón roto)
-// solo se cubre recibiendo daño (D-07).
+// cuenta como cubierto al resolver: cuesta 1 HPie salvo que lo cubra un corazón (D-07).
 export type Slot = GameSymbol | 'all' | 'damage';
 
 // RF-07.3: Tipos de dado (Dice-guide-V03)

@@ -1,9 +1,9 @@
 // RF-12: Expedición (run) — funciones puras sobre el estado entre combates.
 // Pueblo → salir → combates encadenados → volver al pueblo (por decisión, huida o KO).
 // Lo gastado en un combate sigue gastado el resto de la expedición; al volver al pueblo
-// se recuperan el HPie y los dados y se retiran todos los dados blancos (D-14, D-15).
+// se recuperan los dados y se retiran todos los dados blancos (D-14, D-15).
 
-import { CombatError, isRollable, replayCombat } from './combat.js';
+import { CombatError, isRollable, isValidHp, replayCombat } from './combat.js';
 import type { CombatAction, CombatSetup, CombatState } from './combat.js';
 import type { DiceTable, DieKind, Monster } from './types.js';
 
@@ -13,6 +13,8 @@ export type RunEnd = 'town' | 'flee' | 'ko';
 export interface RunSetup {
   readonly dice: readonly DieKind[];
   readonly maxHp: number;
+  /** HPie con el que sale (por defecto, el máximo): solo descansar lo recupera. */
+  readonly hp?: number;
 }
 
 export interface RunState {
@@ -33,7 +35,7 @@ export interface RunFight {
 }
 
 /**
- * Sale del pueblo con el HPie completo y todos los dados. Empezar una expedición nueva
+ * Sale del pueblo con todos los dados y el HPie que tenga. Empezar una expedición nueva
  * es también la recuperación en el pueblo: no se arrastra nada de la anterior.
  */
 export function startRun(setup: RunSetup): RunState {
@@ -44,8 +46,12 @@ export function startRun(setup: RunSetup): RunState {
   if (!Number.isInteger(setup.maxHp) || setup.maxHp < 1) {
     throw new CombatError(`HPie inválido: ${setup.maxHp}`);
   }
+  const hp = setup.hp ?? setup.maxHp;
+  if (!isValidHp(hp, setup.maxHp)) {
+    throw new CombatError(`HPie inválido: ${hp}`);
+  }
   return {
-    hp: setup.maxHp,
+    hp,
     maxHp: setup.maxHp,
     pool: [...setup.dice],
     fights: 0,

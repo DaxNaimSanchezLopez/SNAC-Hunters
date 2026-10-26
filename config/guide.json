@@ -1,104 +1,34 @@
 [
   {
-    "id": "town-welcome",
-    "phase": "town",
+    "id": "hunt-welcome",
+    "phase": "trail",
     "when": [
-      "firstVisit"
+      "firstHunt"
     ],
     "advance": "next",
     "es": {
       "title": "¡Bienvenido, aprendiz!",
-      "text": "Soy el Huntmaster. Esta es la versión digital del juego de mesa Attack of the SNACs. Cada ronda tiene dos fases: la EXPEDICIÓN, donde cazas SNACs con dados, y el PUEBLO, donde te haces más fuerte. Gana quien junte más puntos."
+      "text": "Soy el Huntmaster. Esta es la versión digital del juego de mesa Attack of the SNACs. Cada ronda empieza con la EXPEDICIÓN: sales a cazar SNACs con tus dados. Después vuelves al PUEBLO para hacerte más fuerte. Gana quien junte más puntos."
     },
     "en": {
       "title": "Welcome, apprentice!",
-      "text": "I'm the Huntmaster. This is the digital version of the board game Attack of the SNACs. Each round has two phases: the EXPEDITION, where you hunt SNACs with dice, and the TOWN, where you get stronger. The most points wins."
+      "text": "I'm the Huntmaster. This is the digital version of the board game Attack of the SNACs. Each round starts with the EXPEDITION: you head out to hunt SNACs with your dice. Then you go back to TOWN to get stronger. The most points wins."
     }
   },
   {
-    "id": "town-dice",
-    "phase": "town",
+    "id": "hunt-dice",
+    "phase": "trail",
     "when": [
-      "firstVisit"
+      "firstHunt"
     ],
     "advance": "next",
-    "highlight": "dice",
     "es": {
       "title": "Tus dados y tu vida",
-      "text": "Empiezas con 4 dados ROJOS (tienen los 4 símbolos y 2 corazones) y 1 dado especial VERDE (4 lupas y 2 comodines). Arriba a la derecha están tus 4 PV: si llegan a 0 quedas KO."
+      "text": "Sales con 4 dados ROJOS (tienen los 4 símbolos y 2 corazones) y 1 dado especial VERDE (4 lupas y 2 comodines). Arriba a la derecha están tus 4 corazones de HPie: si llegan a 0 quedas KO."
     },
     "en": {
       "title": "Your dice and your life",
-      "text": "You start with 4 RED dice (they have the 4 symbols and 2 hearts) and 1 special GREEN die (4 finders and 2 wilds). Top right are your 4 HP: if they reach 0 you're KO'd."
-    }
-  },
-  {
-    "id": "town-trophies",
-    "phase": "town",
-    "when": [
-      "firstVisit"
-    ],
-    "advance": "next",
-    "highlight": "trophies",
-    "es": {
-      "title": "Trofeos",
-      "text": "Cada trofeo es una parte de un SNAC y lleva un símbolo de dado. En combate lo puedes usar como si fuera un dado, y en el pueblo sirve como dinero. Solo caben los que marquen tus espacios; empiezas con 1."
-    },
-    "en": {
-      "title": "Trophies",
-      "text": "Each trophy is a piece of a SNAC and carries a dice symbol. In combat you can use it as if it were a die, and in town it works as money. You can only hold as many as your spaces allow; you start with 1."
-    }
-  },
-  {
-    "id": "town-cards",
-    "phase": "town",
-    "when": [
-      "firstVisit"
-    ],
-    "advance": "next",
-    "highlight": "cards",
-    "es": {
-      "title": "Objetos y destrezas",
-      "text": "También empiezas con un OBJETO: se usa una vez y se recarga al descansar. Las DESTREZAS se consiguen en el pueblo y se pueden usar con cada SNAC. Cada carta dice debajo qué hace."
-    },
-    "en": {
-      "title": "Items and skills",
-      "text": "You also start with an ITEM: it's used once and recharges when you rest. SKILLS are earned in town and can be used against every SNAC. Each card says underneath what it does."
-    }
-  },
-  {
-    "id": "town-actions",
-    "phase": "town",
-    "when": [
-      "firstVisit"
-    ],
-    "advance": "next",
-    "highlight": "actions",
-    "es": {
-      "title": "Acciones del pueblo",
-      "text": "En cada visita tienes 2 acciones: DESCANSAR (recargas objetos y ganas un trofeo), la MISIÓN DE ALDEANO (pagas 1 trofeo y eliges un objeto) o la MISIÓN DEL HUNTMASTER (pagas 2 trofeos y eliges una destreza). Úsalas ahora o guarda tus trofeos para pelear."
-    },
-    "en": {
-      "title": "Town actions",
-      "text": "Each visit gives you 2 actions: REST (recharge items and gain a trophy), the VILLAGER QUEST (pay 1 trophy, pick an item) or the HUNTMASTER QUEST (pay 2 trophies, pick a skill). Use them now, or keep your trophies for fighting."
-    }
-  },
-  {
-    "id": "town-leave",
-    "phase": "town",
-    "when": [
-      "firstVisit"
-    ],
-    "advance": "leave",
-    "highlight": "leave",
-    "position": "top",
-    "es": {
-      "title": "¡A cazar!",
-      "text": "Cuando estés listo, pulsa SALIR DE EXPEDICIÓN. Sales con todo tu HPie y todos tus dados."
-    },
-    "en": {
-      "title": "Let's hunt!",
-      "text": "When you're ready, tap LEAVE TOWN. You head out with full HP and all your dice."
+      "text": "You head out with 4 RED dice (they have the 4 symbols and 2 hearts) and 1 special GREEN die (4 finders and 2 wilds). Top right are your 4 HP hearts: if they reach 0 you're KO'd."
     }
   },
   {
@@ -153,11 +83,11 @@
     "highlight": "monster",
     "es": {
       "title": "Espacio de corazón roto",
-      "text": "Este SNAC tiene un espacio de daño: solo se cubre cuando un dado blanco te hace daño, y ese daño sí te cuesta un corazón o 1 PV."
+      "text": "Este SNAC tiene un espacio de corazón roto. Al resolver cuenta como cubierto, pero te hace 1 de daño. Si pones ahí un CORAZÓN de un dado rojo, anulas ese daño. Así, con sus otros 3 símbolos ya puedes DERROTARLO."
     },
     "en": {
       "title": "Broken-heart space",
-      "text": "This SNAC has a damage space: it's only filled when a white die hurts you, and that damage still costs you a heart or 1 HP."
+      "text": "This SNAC has a broken-heart space. When you resolve it counts as filled, but it deals you 1 damage. Put a HEART from a red die there to cancel that damage. So with its other 3 symbols you can already DEFEAT it."
     }
   },
   {
@@ -167,11 +97,11 @@
     "highlight": "dice",
     "es": {
       "title": "Tu tirada",
-      "text": "Al empezar se lanzan todos tus dados. El COMODÍN vale como cualquier símbolo. Los CORAZONES no cubren espacios, pero te protegen del daño."
+      "text": "Al empezar se lanzan todos tus dados. El COMODÍN vale como cualquier símbolo. Los CORAZONES no cubren símbolos, pero te protegen: bloquean el daño de un dado blanco o anulan el corazón roto de un SNAC."
     },
     "en": {
       "title": "Your roll",
-      "text": "At the start all your dice are rolled. A WILD counts as any symbol. HEARTS don't fill spaces, but they shield you from damage."
+      "text": "At the start all your dice are rolled. A WILD counts as any symbol. HEARTS don't fill symbol spaces, but they protect you: they block a white die's damage or cancel a SNAC's broken heart."
     }
   },
   {
@@ -189,6 +119,23 @@
     }
   },
   {
+    "id": "hunt-trophies",
+    "phase": "combat",
+    "when": [
+      "hasTrophies"
+    ],
+    "advance": "next",
+    "highlight": "trophies",
+    "es": {
+      "title": "Trofeos",
+      "text": "Cada trofeo es una parte de un SNAC y lleva un símbolo de dado. En combate lo puedes usar como si fuera un dado, y en el pueblo sirve como dinero. Solo caben los que marquen tus espacios; empiezas con 1."
+    },
+    "en": {
+      "title": "Trophies",
+      "text": "Each trophy is a piece of a SNAC and carries a dice symbol. In combat you can use it as if it were a die, and in town it works as money. You can only hold as many as your spaces allow; you start with 1."
+    }
+  },
+  {
     "id": "combat-trophy",
     "phase": "combat",
     "when": [
@@ -198,11 +145,28 @@
     "highlight": "trophies",
     "es": {
       "title": "Usa un trofeo",
-      "text": "Si te falta un símbolo, toca un trofeo y luego el espacio: cuenta como un dado. Solo se gasta si lo dejas puesto al resolver."
+      "text": "Si te falta un símbolo, toca un trofeo y luego el espacio: cuenta como un dado. También puedes seleccionarlo para activar una carta. Solo se gasta si lo dejas puesto al resolver."
     },
     "en": {
       "title": "Use a trophy",
-      "text": "Missing a symbol? Tap a trophy, then the space: it counts as a die. It's only spent if it's still placed when you resolve."
+      "text": "Missing a symbol? Tap a trophy, then the space: it counts as a die. You can also select it to activate a card. It's only spent if it's still placed when you resolve."
+    }
+  },
+  {
+    "id": "hunt-cards",
+    "phase": "combat",
+    "when": [
+      "hasAbilities"
+    ],
+    "advance": "next",
+    "highlight": "abilities",
+    "es": {
+      "title": "Objetos y destrezas",
+      "text": "Empiezas con un OBJETO: se usa una vez y se recarga al descansar en el pueblo. Las DESTREZAS se consiguen en el pueblo y se pueden usar con cada SNAC. Cada carta dice qué hace."
+    },
+    "en": {
+      "title": "Items and skills",
+      "text": "You start with an ITEM: it is used once and recharges when you rest in town. SKILLS are earned in town and can be used against every SNAC. Each card shows what it does."
     }
   },
   {
@@ -215,11 +179,11 @@
     "highlight": "abilities",
     "es": {
       "title": "Usa tus cartas",
-      "text": "Para activar una carta, selecciona los dados que pide (el comodín también sirve) y toca la carta. Por ejemplo, un objeto 1 → 2 convierte un símbolo en dos. Cada carta se usa una vez por SNAC."
+      "text": "Para activar una carta, selecciona los dados o trofeos que pide (el comodín también sirve) y toca la carta. Por ejemplo, un objeto 1 → 2 convierte un símbolo en dos. Cada carta se usa una vez por SNAC, y hasta resolver nada es definitivo: toca una carta usada para deshacerla."
     },
     "en": {
       "title": "Use your cards",
-      "text": "To activate a card, select the dice it asks for (a wild works too) and tap the card. For example, a 1 → 2 item turns one symbol into two. Each card is used once per SNAC."
+      "text": "To activate a card, select the dice or trophies it asks for (a wild works too) and tap the card. For example, a 1 → 2 item turns one symbol into two. Each card is used once per SNAC, and nothing is final until you resolve: tap a used card to undo it."
     }
   },
   {
@@ -246,11 +210,11 @@
     "highlight": "dice",
     "es": {
       "title": "El dado blanco",
-      "text": "Tiene 3 caras de daño, 2 en blanco y 1 comodín. El daño lo bloquea un CORAZÓN de tu reserva; si no tienes, pierdes 1 PV. Si sale en blanco, se queda en tu reserva, ¡también en los siguientes combates!"
+      "text": "Tiene 3 caras de daño, 2 en blanco y 1 comodín. Cada daño te quita MEDIO corazón directo, salvo que un CORAZÓN de tu reserva lo bloquee. Si sale en blanco, se queda en tu reserva, ¡también en los siguientes combates!"
     },
     "en": {
       "title": "The white die",
-      "text": "It has 3 damage faces, 2 blanks and 1 wild. A HEART in your pool blocks damage; without one you lose 1 HP. If it lands blank it stays in your pool, even for the next fights!"
+      "text": "It has 3 damage faces, 2 blanks and 1 wild. Each damage takes HALF a heart straight away, unless a HEART in your pool blocks it. If it lands blank it stays in your pool, even for the next fights!"
     }
   },
   {
@@ -263,11 +227,11 @@
     "highlight": "resolve",
     "es": {
       "title": "Cómo termina la caza",
-      "text": "El botón de abajo dice qué pasará: 4 espacios = DERROTAR (+1 punto y un trofeo), 2 o 3 = ESTUDIAR (ganas un trofeo), 1 = HUIR (vuelves al pueblo). Si tus PV llegan a 0 quedas KO: pierdes 1 punto y vuelves al pueblo."
+      "text": "El botón de abajo dice qué pasará: 4 espacios = DERROTAR (+1 punto y un trofeo), 2 o 3 = ESTUDIAR (ganas un trofeo), 1 = HUIR (vuelves al pueblo). El corazón roto de un SNAC cuenta como cubierto, pero te quita 1 corazón completo al resolver. Si tus PV llegan a 0 quedas KO: pierdes 1 punto y vuelves al pueblo."
     },
     "en": {
       "title": "How a hunt ends",
-      "text": "The button below shows what will happen: 4 spaces = DEFEAT (+1 point and a trophy), 2 or 3 = STUDY (you get a trophy), 1 = FLEE (back to town). If your HP hits 0 you're KO'd: you lose 1 point and go back to town."
+      "text": "The button below shows what will happen: 4 spaces = DEFEAT (+1 point and a trophy), 2 or 3 = STUDY (you get a trophy), 1 = FLEE (back to town). A SNAC's broken heart counts as filled, but costs you a full heart when you resolve. If your HP hits 0 you're KO'd: you lose 1 point and go back to town."
     }
   },
   {
@@ -311,14 +275,30 @@
       "returnVisit"
     ],
     "advance": "next",
-    "highlight": "actions",
     "es": {
       "title": "De vuelta en el pueblo",
-      "text": "Al volver recuperas tu HPie y tus dados, y se retiran los dados blancos. Tienes 2 acciones nuevas: descansa para recargar tus objetos o usa tus trofeos para comprar cartas."
+      "text": "Bienvenido al PUEBLO. Aquí recuperas tus dados y se retiran los dados blancos, pero tu HPie NO se recupera solo: para sanar hay que DESCANSAR."
     },
     "en": {
       "title": "Back in town",
-      "text": "Coming back restores your HP and dice, and white dice are removed. You get 2 new actions: rest to recharge your items, or spend trophies to buy cards."
+      "text": "Welcome to TOWN. Here you get your dice back and white dice are removed, but your HP does NOT come back on its own: you have to REST to heal."
+    }
+  },
+  {
+    "id": "town-actions",
+    "phase": "town",
+    "when": [
+      "returnVisit"
+    ],
+    "advance": "next",
+    "highlight": "actions",
+    "es": {
+      "title": "Acciones del pueblo",
+      "text": "En cada visita tienes solo 2 acciones: DESCANSAR (sanas todo tu HPie, recargas objetos y ganas un trofeo), la MISIÓN DE ALDEANO (pagas 1 trofeo y eliges un objeto) o la MISIÓN DEL HUNTMASTER (pagas 2 trofeos y eliges una destreza). Decide si te conviene curarte o comprar cartas."
+    },
+    "en": {
+      "title": "Town actions",
+      "text": "Each visit gives you only 2 actions: REST (heal all your HP, recharge items and gain a trophy), the VILLAGER QUEST (pay 1 trophy, pick an item) or the HUNTMASTER QUEST (pay 2 trophies, pick a skill). Decide whether healing or buying cards suits you best."
     }
   },
   {
@@ -348,11 +328,29 @@
     "highlight": "hud",
     "es": {
       "title": "Tu puntaje",
-      "text": "Puntaje final = puntos − KOs × 3 − expediciones. Cazar muchos SNACs en pocas expediciones y sin quedar KO da más puntaje. Puedes terminar la partida cuando quieras."
+      "text": "Puntaje final = puntos − KOs × 3 − expediciones terminadas. Cazar muchos SNACs en pocas expediciones y sin quedar KO da más puntaje. Puedes terminar la partida cuando quieras."
     },
     "en": {
       "title": "Your score",
-      "text": "Final score = points − KOs × 3 − runs. Hunting many SNACs in few runs without getting KO'd scores the most. You can end the game whenever you like."
+      "text": "Final score = points − KOs × 3 − finished runs. Hunting many SNACs in few runs without getting KO'd scores the most. You can end the game whenever you like."
+    }
+  },
+  {
+    "id": "town-leave",
+    "phase": "town",
+    "when": [
+      "returnVisit"
+    ],
+    "advance": "next",
+    "highlight": "leave",
+    "position": "top",
+    "es": {
+      "title": "¡A cazar!",
+      "text": "Cuando estés listo, pulsa SALIR DE EXPEDICIÓN. Sales con todos tus dados y con el HPie que tengas: solo DESCANSAR en el pueblo te cura."
+    },
+    "en": {
+      "title": "Let's hunt!",
+      "text": "When you're ready, tap LEAVE TOWN. You head out with all your dice and whatever HP you have: only RESTING in town heals you."
     }
   },
   {

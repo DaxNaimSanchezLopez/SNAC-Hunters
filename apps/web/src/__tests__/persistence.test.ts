@@ -21,7 +21,6 @@ describe('persistencia de la partida', () => {
   it('guarda solo seed + acciones y reanuda la partida tras recargar', async () => {
     const store = useGame.getState();
     store.newGame();
-    useGame.getState().act({ type: 'leave' });
     useGame.getState().act({ type: 'follow', index: 0 });
     const before = useGame.getState().game!;
     expect(before.phase).toBe('combat');
@@ -56,7 +55,7 @@ describe('persistencia de la partida', () => {
       KEY,
       JSON.stringify({
         state: {
-          saved: { seed: 'x', actions: [{ type: 'follow', index: 0 }] },
+          saved: { seed: 'x', actions: [{ type: 'rest' }] },
           history: [{ gameId: 'a', score: 5, points: 9, kos: 1, runs: 1, defeated: 9, at: 1 }],
           lang: 'en',
           langChosen: true,
@@ -74,14 +73,14 @@ describe('persistencia de la partida', () => {
 
   it('rebuild devuelve null con acciones ilegales', () => {
     expect(rebuild({ seed: 'x', actions: [{ type: 'continue' }] })).toBeNull();
-    expect(rebuild({ seed: 'x', actions: [] })?.phase).toBe('town');
+    // La partida empieza de expedición, no en el pueblo
+    expect(rebuild({ seed: 'x', actions: [] })?.phase).toBe('trail');
   });
 });
 
 describe('controles del combate', () => {
   it('relanzar conserva los dados seleccionados y relanza el resto', () => {
     useGame.getState().newGame();
-    useGame.getState().act({ type: 'leave' });
     useGame.getState().act({ type: 'follow', index: 0 });
     const combat = useGame.getState().game!.combat!;
     const keep = availableDice(combat).filter((d) => isRollable(d.kind))[0]!;
@@ -96,7 +95,6 @@ describe('controles del combate', () => {
 
   it('terminar la partida la guarda en el historial con su puntaje final', () => {
     useGame.getState().newGame();
-    useGame.getState().act({ type: 'leave' });
     useGame.getState().act({ type: 'return' });
     useGame.getState().act({ type: 'finish' });
     const s = useGame.getState();
@@ -122,31 +120,25 @@ describe('partida guiada (V0 = tutorial del juego de mesa)', () => {
     return s.guideOn ? activeLesson(s.game, s.guideSeen) : null;
   };
 
-  it('la primera partida es guiada y explica el pueblo antes de salir', () => {
+  it('la primera partida es guiada y empieza por la expedición, como el juego de mesa', () => {
     useGame.getState().newGame();
     expect(useGame.getState().guideOn).toBe(true);
+    expect(useGame.getState().game?.phase).toBe('trail');
     const seen: string[] = [];
     while (lessonNow()?.advance === 'next') {
       seen.push(lessonNow()!.id);
       useGame.getState().dismissLesson(lessonNow()!.id);
     }
-    expect(seen).toEqual([
-      'town-welcome',
-      'town-dice',
-      'town-trophies',
-      'town-cards',
-      'town-actions',
-    ]);
-    // Lección "hazlo tú": se cumple al salir del pueblo
-    expect(lessonNow()?.id).toBe('town-leave');
-    useGame.getState().act({ type: 'leave' });
-    expect(useGame.getState().guideSeen).toContain('town-leave');
-    expect(lessonNow()?.id).toBe('trail-hidden');
+    expect(seen).toEqual(['hunt-welcome', 'hunt-dice', 'trail-hidden']);
+    // Lección "hazlo tú": se cumple al seguir un rastro
+    expect(lessonNow()?.id).toBe('trail-follow');
+    useGame.getState().act({ type: 'follow', index: 0 });
+    expect(useGame.getState().guideSeen).toContain('trail-follow');
+    expect(lessonNow()?.id).toBe('combat-monster');
   });
 
   it('en combate explica el SNAC, los dados y cómo colocar uno', () => {
     useGame.getState().newGame(true);
-    useGame.getState().act({ type: 'leave' });
     useGame.getState().act({ type: 'follow', index: 0 });
     const ids: string[] = [];
     for (let i = 0; i < 3 && lessonNow()?.advance === 'next'; i++) {
@@ -164,7 +156,6 @@ describe('partida guiada (V0 = tutorial del juego de mesa)', () => {
         .filter((l) => l.phase !== 'town' || !l.when.includes('returnVisit'))
         .map((l) => l.id),
     });
-    useGame.getState().act({ type: 'leave' });
     useGame.getState().act({ type: 'return' });
     expect(lessonNow()?.id).toBe('town-return');
     for (let i = 0; i < 5 && lessonNow(); i++) useGame.getState().dismissLesson(lessonNow()!.id);

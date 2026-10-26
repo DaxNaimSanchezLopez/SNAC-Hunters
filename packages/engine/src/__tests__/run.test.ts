@@ -59,6 +59,9 @@ describe('startRun', () => {
     expect(() => startRun({ ...SETUP, dice: ['red', 'white'] })).toThrow(/blancos/);
     expect(() => startRun({ ...SETUP, maxHp: 0 })).toThrow(/HPie/);
     expect(() => startRun({ ...SETUP, maxHp: 1.5 })).toThrow(/HPie/);
+    expect(() => startRun({ ...SETUP, hp: 0 })).toThrow(/HPie/);
+    expect(() => startRun({ ...SETUP, hp: SETUP.maxHp + 1 })).toThrow(/HPie/);
+    expect(startRun({ ...SETUP, hp: 2 }).hp).toBe(2);
   });
 });
 
@@ -160,7 +163,7 @@ describe('dados blancos en la expedición', () => {
       fixedTable({ red: 'Wing', green: 'Claw', white: 'damage' }),
     );
     expect(second.dice.map((d) => d.kind)).toEqual(['red', 'green', 'white']);
-    expect(second.hp).toBe(3);
+    expect(second.hp).toBe(3.5);
     expect(remainingPool(second)).toEqual(['red', 'green']);
   });
 
@@ -215,8 +218,8 @@ describe('HPie y fin de la expedición', () => {
       { type: 'resolve', trophy: 'Claw' },
     ]);
     const next = endCombat(run, combat);
-    expect(next.hp).toBe(3);
-    expect(runCombatSetup(next).hp).toBe(3);
+    expect(next.hp).toBe(3.5);
+    expect(runCombatSetup(next).hp).toBe(3.5);
   });
 
   it('huir termina la expedición', () => {
@@ -231,7 +234,7 @@ describe('HPie y fin de la expedición', () => {
 
   it('KO termina la expedición con 0 HPie', () => {
     const table = fixedTable({ red: 'Claw', green: 'Claw', white: 'damage' });
-    const run = startRun({ ...SETUP, maxHp: 1 });
+    const run = startRun({ ...SETUP, maxHp: 1, hp: 0.5 });
     const combat = fight(run, GARDEN_SALAAD, table, [{ type: 'reroll', dieIds: ['d3'] }]);
     expect(combat.outcome).toBe('ko');
     expect(endCombat(run, combat)).toMatchObject({ hp: 0, status: 'ended', endedBy: 'ko' });
@@ -239,7 +242,7 @@ describe('HPie y fin de la expedición', () => {
 
   it('KO y derrota en la misma tirada: se gana el monstruo pero la expedición termina', () => {
     const table = fixedTable({ red: 'Claw', green: 'wild', white: 'damage' });
-    const run = startRun({ ...SETUP, maxHp: 1 });
+    const run = startRun({ ...SETUP, maxHp: 1, hp: 0.5 });
     const combat = fight(run, GARDEN_SALAAD, table, [
       { type: 'assign', dieId: 'd0', slot: 0 },
       { type: 'assign', dieId: 'd1', slot: 1 },

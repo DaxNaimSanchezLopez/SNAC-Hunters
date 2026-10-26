@@ -10,7 +10,7 @@ export const guide: readonly GuideLesson[] = loadGuide(rawGuide);
 type Condition = GuideLesson['when'][number];
 
 const CONDITIONS: Record<Condition, (g: GameState) => boolean> = {
-  firstVisit: (g) => g.runs === 0,
+  firstHunt: (g) => g.runs === 1 && g.run?.fights === 0,
   returnVisit: (g) => g.runs > 0,
   offer: (g) => g.offer !== null,
   damageSlot: (g) => g.combat?.monster.slots.includes('damage') ?? false,

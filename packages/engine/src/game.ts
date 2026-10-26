@@ -119,10 +119,14 @@ export function readyAbilities(state: GameState, data: GameData): Ability[] {
   ];
 }
 
-/** Puntaje final V0: puntos − KOs × 3 − expediciones (los pesos vienen de config/). */
+/**
+ * Puntaje final V0: puntos − KOs × 3 − expediciones (los pesos vienen de config/).
+ * Solo cuentan las expediciones terminadas: la partida empieza en 0, no en −1.
+ */
 export function finalScore(state: GameState, config: GameConfig): number {
   const { koWeight, runWeight } = config.scoring;
-  return state.points - state.kos * koWeight - state.runs * runWeight;
+  const runs = state.run ? state.runs - 1 : state.runs;
+  return state.points - state.kos * koWeight - runs * runWeight;
 }
 
 function newTrail(data: GameData, rng: SeededRng): [string, string] {
@@ -138,8 +142,17 @@ function gainTrophy(state: GameState, data: GameData, symbol: GameSymbol): GameS
   return { ...state, pendingTrophy: symbol };
 }
 
-/** Empieza una partida en el pueblo con lo que indica el manual (p. 7). */
+/**
+ * Empieza una partida con lo que indica el manual (p. 7). Como en el juego de mesa, la ronda
+ * arranca con la fase de exploración: el cazador sale directo de expedición y el pueblo
+ * llega después (revisión del equipo, 2026-10-25).
+ */
 export function newGame(data: GameData, seed: string): GameState {
+  return leave(setupGame(data, seed), data);
+}
+
+/** Personaje recién preparado, aún en el pueblo (antes de la primera expedición). */
+function setupGame(data: GameData, seed: string): GameState {
   const { player, town } = data.config;
   const rng = new SeededRng(seed);
   const trophies = Array.from({ length: player.startingTrophies }, () => randomTrophy(rng));
@@ -179,7 +192,7 @@ function spendTownAction(state: GameState): void {
   if (state.townActions <= 0) fail('No te quedan acciones en el pueblo');
 }
 
-/** DESCANSAR (manual p. 14): recarga todos los objetos y gana un trofeo al azar. */
+/** DESCANSAR (manual p. 14): sana por completo, recarga todos los objetos y gana un trofeo. */
 function rest(state: GameState, data: GameData): GameState {
   spendTownAction(state);
   const rng = new SeededRng(state.rngState);
@@ -188,6 +201,7 @@ function rest(state: GameState, data: GameData): GameState {
     {
       ...state,
       rngState: rng.currentState,
+      hp: state.maxHp,
       items: state.items.map((i) => ({ ...i, ready: true })),
       townActions: state.townActions - 1,
     },
@@ -276,7 +290,7 @@ function pick(
   };
 }
 
-/** Salir del pueblo: empieza la expedición con el HPie completo y todos los dados. */
+/** Salir del pueblo: empieza la expedición con todos los dados y el HPie que se tenga. */
 function leave(state: GameState, data: GameData): GameState {
   if (state.offer) fail('Primero elige una de las cartas ofrecidas');
   const rng = new SeededRng(state.rngState);
@@ -285,8 +299,7 @@ function leave(state: GameState, data: GameData): GameState {
     ...state,
     rngState: rng.currentState,
     phase: 'trail',
-    run: startRun({ dice: state.dice, maxHp: state.maxHp }),
-    hp: state.maxHp,
+    run: startRun({ dice: state.dice, maxHp: state.maxHp, hp: state.hp }),
     runs: state.runs + 1,
     trail,
   };
@@ -370,13 +383,16 @@ function next(state: GameState, data: GameData): GameState {
   return { ...state, rngState: rng.currentState, phase: 'trail', combat: null, trail };
 }
 
-/** Volver al pueblo: se recuperan el HPie y los dados, y se retiran los blancos. */
+/**
+ * Volver al pueblo: se recuperan los dados y se retiran los blancos. El HPie no se recupera
+ * solo: hay que descansar (D-21), salvo tras un KO, que lo recupera todo (manual p. 11).
+ */
 function goToTown(state: GameState, data: GameData): GameState {
   return {
     ...state,
     phase: 'town',
     run: null,
-    hp: state.maxHp,
+    hp: state.run?.endedBy === 'ko' ? state.maxHp : state.hp,
     combat: null,
     trail: null,
     townActions: data.config.town.actionsPerVisit,

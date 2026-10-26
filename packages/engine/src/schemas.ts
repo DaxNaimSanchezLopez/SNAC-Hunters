@@ -136,7 +136,7 @@ export const GuideSchema = z
       when: z
         .array(
           z.enum([
-            'firstVisit',
+            'firstHunt',
             'returnVisit',
             'offer',
             'damageSlot',

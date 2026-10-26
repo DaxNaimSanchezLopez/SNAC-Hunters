@@ -36,9 +36,13 @@ export type CombatAction =
       readonly type: 'ability';
       readonly abilityId: string;
       readonly dieIds: readonly string[];
+      /** Trofeos del inventario (índices) que se usan como símbolos para activarla. */
+      readonly trophies?: readonly number[];
       /** Solo para habilidades de "tres iguales": el trofeo que se gana (cualquiera). */
       readonly trophy?: GameSymbol;
     }
+  /** Hasta resolver nada es definitivo: deshace una habilidad usada en este monstruo. */
+  | { readonly type: 'undo'; readonly abilityId: string }
   | { readonly type: 'resolve'; readonly trophy?: GameSymbol };
 
 export type CombatEvent =
@@ -67,7 +71,14 @@ export type CombatEvent =
       readonly dieIds: readonly string[];
       readonly created: readonly string[];
     }
-  | { readonly type: 'resolve'; readonly outcome: Outcome; readonly trophy: GameSymbol | null };
+  | { readonly type: 'undo'; readonly abilityId: string }
+  | {
+      readonly type: 'resolve';
+      readonly outcome: Outcome;
+      readonly trophy: GameSymbol | null;
+      /** HPie perdido por los espacios de daño del monstruo que no cubrió un corazón. */
+      readonly damage?: number;
+    };
 
 export interface CombatState {
   readonly monster: Monster;
@@ -120,11 +131,11 @@ export function isRollable(kind: DieSource): kind is DieKind {
 /**
  * RF-11.1: ¿Puede esta cara cubrir este slot?
  * - Un símbolo cubre su mismo slot o un slot 'all'.
- * - El comodín cubre cualquier slot de símbolo, nunca un corazón ni un slot 'damage' (RNF-04).
- * - Los slots 'damage' solo se cubren recibiendo daño (D-07), no asignando a mano.
+ * - El comodín cubre cualquier slot de símbolo, nunca un slot 'damage' (RNF-04).
+ * - Un slot 'damage' solo lo cubre un corazón del dado rojo, que anula ese daño (D-07).
  */
 export function faceMatchesSlot(face: Face, slot: Slot): boolean {
-  if (slot === 'damage') return false;
+  if (slot === 'damage') return face === 'heart';
   if (face === 'wild') return true;
   if (slot === 'all') return isSymbol(face);
   return face === slot;
@@ -150,13 +161,26 @@ export function coveredSlots(state: CombatState): number {
   return state.assignments.filter((a) => a !== null).length;
 }
 
-/** RF-11.5: Resultado que daría resolver ahora mismo (null si aún no hay símbolos). */
+/**
+ * Espacios de daño del monstruo sin corazón: al resolver cuentan como cubiertos, pero cada
+ * uno cuesta 1 HPie (manual p. 11: "puedes elegir gastar un HPie o el dado").
+ */
+export function pendingDamage(state: CombatState): number {
+  return state.monster.slots.filter((s, i) => s === 'damage' && state.assignments[i] === null)
+    .length;
+}
+
+/**
+ * RF-11.5: Resultado que daría resolver ahora mismo (null si aún no hay símbolos).
+ * Los espacios de daño libres cuentan como cubiertos (D-07), pero hace falta al menos un
+ * dado o trofeo colocado para resolver.
+ */
 export function previewOutcome(state: CombatState): Exclude<Outcome, 'ko'> | null {
-  const covered = coveredSlots(state);
+  if (coveredSlots(state) === 0) return null;
+  const covered = coveredSlots(state) + pendingDamage(state);
   if (covered >= 4) return 'defeat';
   if (covered >= 2) return 'study';
-  if (covered === 1) return 'flee';
-  return null;
+  return 'flee';
 }
 
 /** Slots libres que esta cara podría cubrir — la UI lo usa para resaltar, sin calcular reglas. */
@@ -182,12 +206,20 @@ export function faceActivates(face: Face, ability: Ability): boolean {
   return face === ability.effect.symbol || face === 'wild';
 }
 
+/** Daño de cada corazón roto del dado blanco: medio corazón (revisión del equipo, D-08). */
+export const WHITE_DIE_DAMAGE = 0.5;
+
+/** El HPie va en medios corazones: positivo, múltiplo de 0.5 y sin pasar del máximo. */
+export function isValidHp(hp: number, maxHp: number): boolean {
+  return Number.isInteger(hp * 2) && hp > 0 && hp <= maxHp;
+}
+
 /**
  * RF-11.3, RF-11.4: Resuelve las caras de daño recién lanzadas.
- * Cada corazón roto:
- *  1. Si el monstruo tiene un slot 'damage' libre, el dado lo cubre (D-07).
- *  2. Un corazón disponible en la reserva lo bloquea (escudo); si no hay, se pierde 1 HPie.
- * Los corazones lanzados en la misma tirada también cuentan como escudo (daño y escudo simultáneos).
+ * Cada corazón roto del dado blanco hace daño directo (no cubre el espacio de daño del
+ * monstruo, D-07): un corazón disponible en la reserva lo bloquea (escudo); si no hay, se
+ * pierde medio corazón de HPie. Los corazones lanzados en la misma tirada también cuentan
+ * como escudo.
  */
 function applyDamage(state: CombatState, rolledIds: readonly string[]): CombatState {
   let next = state;
@@ -195,39 +227,26 @@ function applyDamage(state: CombatState, rolledIds: readonly string[]): CombatSt
     const die = getDie(next, id);
     if (die.face !== 'damage') continue;
 
-    const slotIdx = next.monster.slots.findIndex(
-      (s, i) => s === 'damage' && next.assignments[i] === null,
-    );
-    const assignments = [...next.assignments];
-    const spent = [...next.spent];
-    if (slotIdx >= 0) assignments[slotIdx] = id;
-    else spent.push(id);
-
+    const spent = [...next.spent, id];
     const shield = next.dice.find(
-      (d) => d.face === 'heart' && !assignments.includes(d.id) && !spent.includes(d.id),
+      (d) => d.face === 'heart' && !next.assignments.includes(d.id) && !spent.includes(d.id),
     );
     if (shield) spent.push(shield.id);
-    const hp = shield ? next.hp : next.hp - 1;
+    const hp = shield ? next.hp : next.hp - WHITE_DIE_DAMAGE;
 
     next = {
       ...next,
       hp,
-      assignments,
       spent,
       log: [
         ...next.log,
-        {
-          type: 'damage',
-          dieId: id,
-          blockedBy: shield ? shield.id : null,
-          coveredSlot: slotIdx >= 0 ? slotIdx : null,
-        },
+        { type: 'damage', dieId: id, blockedBy: shield ? shield.id : null, coveredSlot: null },
       ],
     };
 
     // RF-11.6: KO. Si en ese momento el monstruo queda derrotado, se conservan los beneficios.
     if (hp <= 0) {
-      const defeated = coveredSlots(next) === 4;
+      const defeated = previewOutcome(next) === 'defeat';
       const trophy = defeated ? (next.monster.trophies[0] ?? null) : null;
       const outcome: Outcome = defeated ? 'defeat' : 'ko';
       return {
@@ -252,7 +271,7 @@ export function startCombat(
   table: DiceTable,
 ): CombatState {
   if (setup.dice.length === 0) throw new CombatError('La reserva de dados está vacía');
-  if (!Number.isInteger(setup.hp) || setup.hp < 1 || setup.hp > setup.maxHp) {
+  if (!isValidHp(setup.hp, setup.maxHp)) {
     throw new CombatError(`HPie inválido: ${setup.hp}`);
   }
   const rng = new SeededRng(seed);
@@ -379,9 +398,6 @@ function unassign(state: CombatState, slot: number): CombatState {
     throw new CombatError(`Slot inválido: ${slot}`);
   const dieId = state.assignments[slot];
   if (dieId === null || dieId === undefined) throw new CombatError(`El slot ${slot} está vacío`);
-  if (state.monster.slots[slot] === 'damage') {
-    throw new CombatError('El daño recibido no se puede deshacer');
-  }
   const assignments = [...state.assignments];
   assignments[slot] = null;
   const die = getDie(state, dieId);
@@ -397,15 +413,17 @@ function unassign(state: CombatState, slot: number): CombatState {
 }
 
 /**
- * RF-14: Activa una habilidad consumiendo símbolos de la reserva (el comodín cuenta como
- * cualquier símbolo). Los símbolos consumidos quedan gastados y los creados aparecen como
- * dados nuevos que no se pueden relanzar. "Tres iguales" derrota al monstruo de inmediato,
- * ignorando sus espacios (incluido el de daño), y el trofeo puede ser cualquiera.
+ * RF-14: Activa una habilidad consumiendo símbolos de la reserva o trofeos del inventario
+ * (el comodín cuenta como cualquier símbolo). Los símbolos consumidos quedan gastados y los
+ * creados aparecen como dados nuevos que no se pueden relanzar. "Tres iguales" derrota al
+ * monstruo de inmediato, ignorando sus espacios (incluido el de daño), y el trofeo puede
+ * ser cualquiera.
  */
 function useAbility(
   state: CombatState,
   abilityId: string,
   dieIds: readonly string[],
+  trophyIndexes: readonly number[],
   trophy: GameSymbol | undefined,
 ): CombatState {
   const ability = state.abilities.find((a) => a.id === abilityId);
@@ -416,7 +434,12 @@ function useAbility(
     throw new CombatError(`Ya usaste ${ability.name} con este monstruo`);
   }
   const need = ABILITY_INPUTS[effect.type];
-  if (dieIds.length !== need || new Set(dieIds).size !== need) {
+  const inputs = dieIds.length + trophyIndexes.length;
+  if (
+    inputs !== need ||
+    new Set(dieIds).size !== dieIds.length ||
+    new Set(trophyIndexes).size !== trophyIndexes.length
+  ) {
     throw new CombatError(`${ability.name} necesita ${need} símbolo(s) ${effect.symbol}`);
   }
   const available = new Set(availableDice(state).map((d) => d.id));
@@ -427,9 +450,25 @@ function useAbility(
       throw new CombatError(`La cara "${die.face}" no activa ${ability.name}`);
     }
   }
+  for (const index of trophyIndexes) {
+    const symbol = Number.isInteger(index) ? state.trophies[index] : undefined;
+    if (symbol === undefined) throw new CombatError(`No tienes el trofeo ${index}`);
+    if (!faceActivates(symbol, ability)) {
+      throw new CombatError(`El trofeo "${symbol}" no activa ${ability.name}`);
+    }
+  }
   if (effect.type === 'triple' && (trophy === undefined || !isSymbol(trophy))) {
     throw new CombatError('Elige un trofeo');
   }
+
+  // Los trofeos usados pasan a ser dados gastados; deshacer la habilidad los devuelve
+  const paid: Die[] = trophyIndexes.map((index, i) => ({
+    id: `d${state.serial + i}`,
+    kind: 'trophy',
+    face: state.trophies[index] as GameSymbol,
+  }));
+  const serial = state.serial + paid.length;
+  const consumed = [...dieIds, ...paid.map((d) => d.id)];
 
   const faces: Face[] =
     effect.type === 'double'
@@ -440,19 +479,20 @@ function useAbility(
           ? ['wild', 'wild', 'wild']
           : [];
   const created = faces.map((face, i) => ({
-    id: `d${state.serial + i}`,
+    id: `d${serial + i}`,
     kind: 'token' as const,
     face,
   }));
   const next: CombatState = {
     ...state,
-    dice: [...state.dice, ...created],
-    spent: [...state.spent, ...dieIds],
+    dice: [...state.dice, ...paid, ...created],
+    spent: [...state.spent, ...consumed],
+    trophies: state.trophies.filter((_, i) => !trophyIndexes.includes(i)),
     usedAbilities: [...state.usedAbilities, abilityId],
-    serial: state.serial + created.length,
+    serial: serial + created.length,
     log: [
       ...state.log,
-      { type: 'ability', abilityId, dieIds: [...dieIds], created: created.map((d) => d.id) },
+      { type: 'ability', abilityId, dieIds: consumed, created: created.map((d) => d.id) },
     ],
   };
   if (effect.type !== 'triple') return next;
@@ -466,7 +506,41 @@ function useAbility(
   };
 }
 
-/** RF-11.5: Derrotar (4 slots), Estudiar (2–3) o Huir (1). */
+/**
+ * Hasta resolver nada es definitivo (manual p. 11): deshace una habilidad. Los símbolos
+ * que creó desaparecen (si estaban en el monstruo, se retiran) y los dados y trofeos que
+ * consumió vuelven a la reserva y al inventario.
+ */
+function undoAbility(state: CombatState, abilityId: string): CombatState {
+  if (!state.usedAbilities.includes(abilityId)) {
+    throw new CombatError(`No has usado "${abilityId}" con este monstruo`);
+  }
+  const entry = [...state.log]
+    .reverse()
+    .find((e) => e.type === 'ability' && e.abilityId === abilityId);
+  if (entry?.type !== 'ability') throw new CombatError(`No has usado "${abilityId}"`);
+  if (entry.created.some((id) => state.spent.includes(id))) {
+    throw new CombatError('Sus símbolos activaron otra habilidad: deshaz esa primero');
+  }
+  const created = new Set(entry.created);
+  const consumed = new Set(entry.dieIds);
+  const returned = state.dice.filter((d) => consumed.has(d.id) && d.kind === 'trophy');
+  const removed = new Set([...created, ...returned.map((d) => d.id)]);
+  return {
+    ...state,
+    dice: state.dice.filter((d) => !removed.has(d.id)),
+    assignments: state.assignments.map((id) => (id !== null && created.has(id) ? null : id)),
+    spent: state.spent.filter((id) => !consumed.has(id)),
+    trophies: [...state.trophies, ...returned.map((d) => d.face as GameSymbol)],
+    usedAbilities: state.usedAbilities.filter((id) => id !== abilityId),
+    log: [...state.log, { type: 'undo', abilityId }],
+  };
+}
+
+/**
+ * RF-11.5: Derrotar (4 espacios), Estudiar (2–3) o Huir (1). Cada espacio de daño sin
+ * corazón cuesta 1 HPie al resolver; si eso deja KO, solo derrotar conserva los beneficios.
+ */
 function resolve(state: CombatState, trophy: GameSymbol | undefined): CombatState {
   const outcome = previewOutcome(state);
   if (outcome === null) throw new CombatError('Necesitas al menos un símbolo para resolver');
@@ -478,12 +552,22 @@ function resolve(state: CombatState, trophy: GameSymbol | undefined): CombatStat
     }
     chosen = trophy;
   }
+  const damage = pendingDamage(state);
+  const hp = Math.max(0, state.hp - damage);
+  const ko = hp === 0;
+  const final: Outcome = ko && outcome !== 'defeat' ? 'ko' : outcome;
+  const won = final === 'ko' ? null : chosen;
   return {
     ...state,
+    hp,
+    ko,
     status: 'resolved',
-    outcome,
-    trophy: chosen,
-    log: [...state.log, { type: 'resolve', outcome, trophy: chosen }],
+    outcome: final,
+    trophy: won,
+    log: [
+      ...state.log,
+      { type: 'resolve', outcome: final, trophy: won, ...(damage > 0 ? { damage } : {}) },
+    ],
   };
 }
 
@@ -504,7 +588,15 @@ export function applyAction(
     case 'trophy':
       return placeTrophy(state, action.index, action.slot);
     case 'ability':
-      return useAbility(state, action.abilityId, action.dieIds, action.trophy);
+      return useAbility(
+        state,
+        action.abilityId,
+        action.dieIds,
+        action.trophies ?? [],
+        action.trophy,
+      );
+    case 'undo':
+      return undoAbility(state, action.abilityId);
     case 'resolve':
       return resolve(state, action.trophy);
     default:

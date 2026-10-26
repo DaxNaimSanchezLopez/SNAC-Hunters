@@ -160,7 +160,7 @@ describe('loadGuide', () => {
   const lesson = {
     id: 'town-welcome',
     phase: 'town',
-    when: ['firstVisit'],
+    when: ['firstHunt'],
     advance: 'next',
     es: { title: 'Hola', text: 'Texto' },
     en: { title: 'Hi', text: 'Text' },

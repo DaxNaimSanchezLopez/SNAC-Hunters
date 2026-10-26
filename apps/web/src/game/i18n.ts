@@ -50,13 +50,13 @@ const es = {
   'town.emptyItems': 'Sin objetos',
   'town.emptySkills': 'Sin destrezas',
   'town.rest': 'Descansar',
-  'town.restText': 'Recarga tus objetos y gana un trofeo al azar.',
+  'town.restText': 'Sana tu HPie, recarga tus objetos y gana un trofeo al azar.',
   'town.buyItem': 'Misión de aldeano',
   'town.buyItemText': 'Paga {n} trofeo: elige 1 de 3 objetos.',
   'town.buySkill': 'Misión del Huntmaster',
   'town.buySkillText': 'Paga {n} trofeos: elige 1 de 3 destrezas.',
   'town.leave': 'Salir de expedición',
-  'town.leaveText': 'HPie y dados al máximo',
+  'town.leaveText': 'Todos tus dados · HPie {hp}/{max}',
   'town.finish': 'Terminar partida',
   'town.offerTitle': 'Elige una carta',
   'town.offerItem': 'Objeto: un uso, se recarga al descansar.',
@@ -65,7 +65,8 @@ const es = {
   'town.decline': 'No quiero ninguna',
   'town.back': 'Atrás',
   'town.spent': 'Gastado',
-  'town.welcomeBack': 'De vuelta en el pueblo: recuperaste tu HPie y tus dados.',
+  'town.welcomeBack':
+    'De vuelta en el pueblo: recuperaste tus dados. Descansa para recuperar tu HPie.',
 
   'trail.title': 'Sendero de Sherbert Forest',
   'trail.subtitle': 'Expedición {run} · Combate {fight}',
@@ -88,10 +89,13 @@ const es = {
   'combat.noDice': 'No te quedan dados en la reserva.',
   'combat.spent': 'Gastados:',
   'combat.trophies': 'Trofeos',
-  'combat.trophiesHint': 'Toca un trofeo y luego un espacio para usarlo como dado.',
+  'combat.trophiesHint':
+    'Toca un trofeo y luego un espacio para usarlo como dado, o selecciónalo para activar una carta.',
   'combat.abilities': 'Habilidades',
-  'combat.abilityHint': 'Selecciona los símbolos y toca la carta.',
+  'combat.abilityHint':
+    'Selecciona los símbolos (dados o trofeos) y toca la carta. Toca una carta usada para deshacerla.',
   'combat.used': 'Usada',
+  'combat.undo': 'Deshacer',
   'combat.reroll': 'Relanzar el resto',
   'combat.rerollWhite': 'Solo dado blanco',
   'combat.rerollHint': '+1 dado blanco',
@@ -111,6 +115,7 @@ const es = {
   'combat.whiteDie': '¡Dado blanco!',
   'combat.blocked': '{n} daño bloqueado por corazón',
   'combat.hit': '-{n} HPie',
+  'combat.snacHit': '¡El corazón roto del SNAC! -{n} HPie',
   'combat.understood': 'Entendido',
 
   'outcome.defeat': 'Derrotar',
@@ -161,7 +166,7 @@ const es = {
   'face.damage': 'Daño',
   'face.blank': 'En blanco',
   'slot.all': 'Cualquiera de los 4 símbolos',
-  'slot.damage': 'Recibir daño',
+  'slot.damage': 'Corazón roto: cuenta como cubierto pero cuesta 1 HPie (un corazón lo anula)',
   'slot.label': 'Espacio {n}: {slot}',
   'slot.covered': ' (cubierto)',
   'die.label': 'Dado {kind}: {face}',
@@ -230,13 +235,13 @@ const en: Record<MessageKey, string> = {
   'town.emptyItems': 'No items',
   'town.emptySkills': 'No skills',
   'town.rest': 'Rest',
-  'town.restText': 'Recharge your items and gain a random trophy.',
+  'town.restText': 'Heal your HP, recharge your items and gain a random trophy.',
   'town.buyItem': 'Villager quest',
   'town.buyItemText': 'Pay {n} trophy: pick 1 of 3 items.',
   'town.buySkill': 'Huntmaster quest',
   'town.buySkillText': 'Pay {n} trophies: pick 1 of 3 skills.',
   'town.leave': 'Leave town',
-  'town.leaveText': 'Full HP and dice',
+  'town.leaveText': 'All your dice · HP {hp}/{max}',
   'town.finish': 'End game',
   'town.offerTitle': 'Pick a card',
   'town.offerItem': 'Item: single use, recharges when you rest.',
@@ -245,7 +250,7 @@ const en: Record<MessageKey, string> = {
   'town.decline': "I don't want any",
   'town.back': 'Back',
   'town.spent': 'Spent',
-  'town.welcomeBack': 'Back in town: your HP and dice are restored.',
+  'town.welcomeBack': 'Back in town: your dice are restored. Rest to recover your HP.',
 
   'trail.title': 'Sherbert Forest trail',
   'trail.subtitle': 'Run {run} · Fight {fight}',
@@ -268,10 +273,13 @@ const en: Record<MessageKey, string> = {
   'combat.noDice': 'No dice left in your pool.',
   'combat.spent': 'Spent:',
   'combat.trophies': 'Trophies',
-  'combat.trophiesHint': 'Tap a trophy, then a space, to use it as a die.',
+  'combat.trophiesHint':
+    'Tap a trophy, then a space, to use it as a die, or select it to activate a card.',
   'combat.abilities': 'Abilities',
-  'combat.abilityHint': 'Select the symbols, then tap the card.',
+  'combat.abilityHint':
+    'Select the symbols (dice or trophies), then tap the card. Tap a used card to undo it.',
   'combat.used': 'Used',
+  'combat.undo': 'Undo',
   'combat.reroll': 'Re-roll the rest',
   'combat.rerollWhite': 'White die only',
   'combat.rerollHint': '+1 white die',
@@ -291,6 +299,7 @@ const en: Record<MessageKey, string> = {
   'combat.whiteDie': 'White die!',
   'combat.blocked': '{n} damage blocked by a heart',
   'combat.hit': '-{n} HP',
+  'combat.snacHit': "The SNAC's broken heart! -{n} HP",
   'combat.understood': 'Got it',
 
   'outcome.defeat': 'Defeat',
@@ -341,7 +350,7 @@ const en: Record<MessageKey, string> = {
   'face.damage': 'Damage',
   'face.blank': 'Blank',
   'slot.all': 'Any of the 4 symbols',
-  'slot.damage': 'Take damage',
+  'slot.damage': 'Broken heart: counts as filled but costs 1 HP (a heart cancels it)',
   'slot.label': 'Space {n}: {slot}',
   'slot.covered': ' (filled)',
   'die.label': '{kind} die: {face}',
@@ -382,6 +391,13 @@ export function translate(lang: Lang, key: MessageKey, vars: Vars = {}): string 
 export type Translate = (key: MessageKey, vars?: Vars) => string;
 
 /** Nombre del símbolo de dado (Horn → Hacha / Axe). */
+/** HPie en medios corazones: 3.5 → "3½", 0.5 → "½". */
+export function formatHp(hp: number): string {
+  const whole = Math.floor(hp);
+  if (hp === whole) return String(whole);
+  return whole === 0 ? '½' : `${whole}½`;
+}
+
 export function faceName(t: Translate, face: Face): string {
   return t(`face.${face}` as MessageKey);
 }

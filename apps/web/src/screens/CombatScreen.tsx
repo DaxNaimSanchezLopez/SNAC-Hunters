@@ -4,6 +4,7 @@ import {
   availableDice,
   canRerollAny,
   isRollable,
+  pendingDamage,
   previewOutcome,
   slotsForFace,
   validSlotsFor,
@@ -39,13 +40,14 @@ export function CombatScreen() {
     screen,
     game,
     selected,
-    selectedTrophy,
+    selectedTrophies,
     tutorialStep,
     toggleDie,
     selectTrophy,
     tapSlot,
     rerollRest,
     activateAbility,
+    undoAbility,
     resolve,
     nextTutorialStep,
     goHome,
@@ -67,12 +69,19 @@ export function CombatScreen() {
   const rerollCount = pool.filter((d) => isRollable(d.kind) && !selected.includes(d.id)).length;
   const whiteOnly = !canRerollAny(combat);
 
-  const selectedTrophySymbol =
-    selectedTrophy !== null ? (combat.trophies[selectedTrophy] ?? null) : null;
+  const snacDamage = pendingDamage(combat);
+  const covered = combat.assignments.filter(Boolean).length + (preview ? snacDamage : 0);
+
+  // Con una sola pieza elegida (dado o trofeo) se iluminan los espacios donde cabe
+  const picked = selected.length + selectedTrophies.length;
+  const trophySymbol =
+    picked === 1 && selectedTrophies[0] !== undefined
+      ? (combat.trophies[selectedTrophies[0]] ?? null)
+      : null;
   const lit =
-    selectedTrophySymbol !== null
-      ? slotsForFace(combat, selectedTrophySymbol)
-      : selected.length === 1 && selected[0]
+    trophySymbol !== null
+      ? slotsForFace(combat, trophySymbol)
+      : picked === 1 && selected[0]
         ? validSlotsFor(combat, selected[0])
         : [];
 
@@ -183,7 +192,7 @@ export function CombatScreen() {
               <TrophyToken
                 key={`${s}-${i}`}
                 symbol={s}
-                selected={selectedTrophy === i}
+                selected={selectedTrophies.includes(i)}
                 onClick={() => selectTrophy(i)}
               />
             ))}
@@ -208,8 +217,8 @@ export function CombatScreen() {
                   ability={a}
                   compact
                   dimmed={used}
-                  badge={used ? t('combat.used') : undefined}
-                  onClick={used ? undefined : () => onAbility(a)}
+                  badge={used ? t('combat.undo') : undefined}
+                  onClick={used ? () => undoAbility(a.id) : () => onAbility(a)}
                 />
               );
             })}
@@ -239,7 +248,8 @@ export function CombatScreen() {
             {preview ? outcomeName(t, preview) : t('combat.resolve')}
             <span className="block font-sans text-xs">
               {preview
-                ? t('combat.spaces', { n: combat.assignments.filter(Boolean).length })
+                ? t('combat.spaces', { n: covered }) +
+                  (snacDamage > 0 ? ` · ${t('combat.hit', { n: snacDamage })}` : '')
                 : t('combat.resolveHint')}
             </span>
           </Button>

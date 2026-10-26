@@ -89,9 +89,14 @@
 
 **Contexto:** El manual dice "Si lanzas un (corazón roto), puedes elegir entre gastar un HPie o el dado". El brief dice "algunos monstruos requieren que el jugador reciba daño".
 
-**Decisión:** Una cara `damage` del dado blanco cubre automáticamente el primer slot `damage` libre. El daño **se sigue pagando**, con un corazón (escudo) o con 1 HPie. Un `wild` nunca cubre un slot de daño. El slot de daño no se puede desasignar.
+**Decisión (revisada el 2026-10-25 con la revisión del equipo de V0):** El espacio de corazón roto del monstruo y el daño del dado blanco son cosas distintas.
+- El daño del dado blanco es **directo**: quita 1 HPie (o lo bloquea un corazón de la reserva, D-08) y nunca cubre el espacio del monstruo.
+- El espacio de corazón roto **cuenta como cubierto al resolver**, pero cuesta 1 HPie, en cualquier resultado (derrotar, estudiar o huir). Por eso un monstruo con 3 símbolos y un corazón roto se puede **derrotar** con esos 3 símbolos, pagando el daño (manual p. 11: "el ♥ se incluye en la cantidad de símbolos coincidentes").
+- Un **corazón de dado rojo** se puede colocar en ese espacio y anula el daño. El comodín no lo cubre. El corazón se puede retirar antes de resolver.
+- Hace falta al menos un dado o trofeo colocado para resolver: el espacio de daño solo no basta para huir.
+- Si el daño del SNAC deja KO al resolver, derrotar conserva los beneficios (D-10); estudiar o huir terminan en KO sin trofeo.
 
-**Pendiente de validar con el cliente.**
+**Antes:** el daño del dado blanco cubría el espacio automáticamente y no se podía derrotar sin él.
 
 ---
 
@@ -99,7 +104,7 @@
 
 **Contexto:** "Puedes gastar un dado corazón para anular daño". Los corazones no sirven para nada más (el comodín no imita corazones).
 
-**Decisión:** Al resolver cada cara de daño, si hay un `heart` en la reserva se gasta como escudo; si no, se pierde 1 HPie. Los corazones lanzados en la **misma tirada** también cuentan (daño y escudo simultáneos). Se procesan en orden de id de dado, lo que es determinista.
+**Decisión:** Al resolver cada cara de daño, si hay un `heart` en la reserva se gasta como escudo; si no, se pierde **medio corazón** de HPie (revisión del equipo, 2026-10-25; constante `WHITE_DIE_DAMAGE`). El HPie se lleva en medios corazones y la barra los dibuja. El corazón roto del monstruo (D-07) sí cuesta un corazón completo. Los corazones lanzados en la **misma tirada** también cuentan (daño y escudo simultáneos). Se procesan en orden de id de dado, lo que es determinista.
 
 **Alternativa descartada:** pedir al jugador que elija. Agrega un paso de UI sin decisión real y complica el tutorial.
 
@@ -107,7 +112,7 @@
 
 ## D-09 — Umbrales de resolución
 
-**Decisión:** 4 slots = derrotar, 2–3 = estudiar ("dos símbolos cualesquiera", manual p. 9), 1 = huir. No se puede resolver con 0 slots: el jugador debe relanzar o arriesgarse al KO.
+**Decisión:** 4 slots = derrotar, 2–3 = estudiar ("dos símbolos cualesquiera", manual p. 9), 1 = huir. Los espacios de corazón roto libres cuentan como cubiertos (D-07). No se puede resolver sin ningún dado o trofeo colocado: el jugador debe relanzar o arriesgarse al KO.
 
 ---
 
@@ -187,7 +192,7 @@
 
 **Requisito:** RF-13 · **Fuente:** feedback V0, sección 2; manual p. 10
 
-**Decisión:** Un trofeo se coloca directamente en un espacio del monstruo con el símbolo que lleva (`{ type: 'trophy', index, slot }`). Si se retira, vuelve al inventario; solo se gasta si sigue colocado al resolver. En el pueblo, los trofeos son la moneda para comprar habilidades (D-21). La capacidad base es de 2 espacios (manual p. 7).
+**Decisión:** Un trofeo se coloca directamente en un espacio del monstruo con el símbolo que lleva (`{ type: 'trophy', index, slot }`). Si se retira, vuelve al inventario; solo se gasta si sigue colocado al resolver. También sirve como símbolo para **activar una habilidad** (`{ type: 'ability', dieIds, trophies }`), sola o combinada con dados; ahí se gasta, salvo que se deshaga la habilidad (D-20). En el pueblo, los trofeos son la moneda para comprar habilidades (D-21). La capacidad base es de 2 espacios (manual p. 7).
 
 ---
 
@@ -213,6 +218,8 @@
 
 - Los objetos tienen un uso y se recargan al descansar; las destrezas se usan una vez por monstruo.
 - El comodín cuenta como cualquier símbolo para activar habilidades.
+- Los trofeos del inventario también activan habilidades (D-18).
+- Hasta resolver nada es definitivo (manual p. 11): una habilidad usada se puede **deshacer** (`{ type: 'undo', abilityId }`). Sus símbolos creados desaparecen (y se retiran del monstruo si estaban colocados) y vuelven los dados y trofeos que consumió. No se deshace si sus símbolos activaron otra habilidad (primero hay que deshacer esa), ni "tres iguales", que derrota al instante.
 - Los símbolos consumidos quedan gastados toda la expedición; los creados no se relanzan y desaparecen al terminar el combate.
 - El frasco con "+" de las cartas 1 → 2 y 1 → comodín se interpreta como +1 espacio para trofeos (manual p. 22).
 
@@ -225,15 +232,15 @@
 **Requisito:** RF-15 · **Fuente:** feedback V0, secciones 1 y 4; manual p. 14–15
 
 **Decisión:**
-- **Al volver al pueblo** se recuperan automáticamente el HPie y los dados, y se retiran los blancos (feedback, sección 1).
+- **Al volver al pueblo** se recuperan los dados y se retiran los blancos (feedback, sección 1). El HPie **no** se recupera solo: hay que descansar, y como solo hay 2 acciones por visita, curarse compite con comprar cartas (revisión del equipo, 2026-10-25). La excepción es el KO, que recupera todo el HPie (manual p. 11).
 - Cada visita da **2 acciones** (manual p. 14):
-  - **Descansar**: recarga todos los objetos y da un trofeo al azar.
+  - **Descansar**: sana todo el HPie, recarga todos los objetos y da un trofeo al azar (manual p. 14).
   - **Misión de aldeano**: paga 1 trofeo y elige 1 de 3 objetos.
   - **Misión del Huntmaster**: paga 2 trofeos y elige 1 de 3 destrezas.
 - Se pueden tener máximo 3 objetos y 3 destrezas; con 3, la carta nueva reemplaza a una. Se puede rechazar la oferta, pero el pago no se devuelve.
 - Todos los números están en `config/game.json` (`town`).
 
-**Pendiente de validar con el cliente:** el feedback dice "descansar (recuperar PV y dados)", mientras que la sección 1 dice que eso ocurre al volver al pueblo. Se implementó la sección 1, y descansar quedó como en el manual.
+**Resuelto (2026-10-25):** el feedback decía "descansar (recuperar PV y dados)" y la sección 1 hablaba de recuperarlos al volver. Quedó así: los dados se recuperan al volver y el HPie solo al descansar, como en el manual.
 
 ---
 
@@ -241,7 +248,7 @@
 
 **Fuente:** manual p. 7
 
-**Decisión:** La partida empieza en el pueblo con 4 HPie, 4 dados rojos y 1 verde, 1 trofeo al azar, 1 objeto al azar y 2 espacios para trofeos. Un trofeo al azar equivale a tirar el dado de trofeo: cada símbolo con probabilidad 1/4.
+**Decisión:** El personaje empieza con 4 HPie, 4 dados rojos y 1 verde, 1 trofeo al azar, 1 objeto al azar y 2 espacios para trofeos. La partida **arranca con la expedición** (la caza de monstruos), como la ronda del juego de mesa, que empieza por la fase de exploración (manual p. 8): `newGame` ya deja al cazador en el sendero, con la primera expedición en curso. El pueblo llega al volver (revisión del equipo, 2026-10-25). Un trofeo al azar equivale a tirar el dado de trofeo: cada símbolo con probabilidad 1/4.
 
 ---
 
@@ -251,7 +258,7 @@
 
 **Decisión:** `puntaje final = puntos − KOs × 3 − expediciones`, con los pesos en `config/game.json` (`scoring.koWeight`, `scoring.runWeight`).
 - Los puntos incluyen +1 por monstruo derrotado y −1 por KO (sección 2), así que un KO cuesta 4 en total. Se aplicó la fórmula tal cual; el cliente invita a proponer otra.
-- Una expedición cuenta al salir del pueblo.
+- Solo restan las expediciones **terminadas**: la que está en curso no cuenta, así que la partida empieza con puntaje 0 y no −1 (revisión del equipo, 2026-10-25). El contador "Exped." de la barra sí incluye la expedición en curso.
 - V0 no tiene condición de derrota (llega en V01): el jugador termina la partida desde el pueblo y ve la pantalla de puntaje.
 
 ---
@@ -294,8 +301,8 @@ El riesgo de D-11 (seeds elegidas por el cliente) sigue igual.
 
 **Decisión:** El Huntmaster da 23 lecciones contextuales (`config/guide.json`, ES/EN). Cada una se muestra una sola vez, cuando la partida está en su fase y se cumplen sus condiciones; por ejemplo, el dado blanco se explica cuando aparece el primero.
 - **Lecciones "Entendido":** oscurecen la pantalla e iluminan la parte que explican.
-- **Lecciones "hazlo tú":** salir del pueblo, seguir un rastro, colocar un dado, relanzar. Dejan jugar y se cumplen al hacer la acción.
-- **Recorrido:** pueblo y fases del juego → dados y PV → trofeos → cartas → acciones del pueblo → sendero y tipos → monstruo y espacios → tirada → colocar → trofeo como dado → cartas → relanzar → dado blanco → resolver → dados gastados → regreso al pueblo → puntaje.
+- **Lecciones "hazlo tú":** seguir un rastro, colocar un dado, relanzar. Dejan jugar y se cumplen al hacer la acción.
+- **Recorrido:** la partida empieza cazando, igual que el juego de mesa: fases del juego → dados y PV → sendero y tipos → monstruo y espacios → tirada → colocar → trofeos → cartas → relanzar → dado blanco → resolver → dados gastados → llegada al pueblo → acciones del pueblo → puntaje → salir de nuevo.
 - **Cuándo se activa:** la primera partida siempre es guiada, y "Aprender a jugar" empieza otra guiada. La guía se puede saltar.
 - **Tutorial anterior:** sigue disponible como "Práctica de combate".
 - **Analítica:** `tutorial_start` y `tutorial_complete` (con `mode: 'guided'`) siguen midiendo el onboarding.

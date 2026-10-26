@@ -67,11 +67,11 @@
     "id": "damage",
     "es": {
       "title": "El dado blanco",
-      "text": "Tiene 3 caras de daño, 2 en blanco y 1 comodín. El daño lo bloquea un CORAZÓN de tu reserva; si no tienes, pierdes 1 de tus 4 PV. Los blancos que salen en blanco se quedan en tu reserva: el riesgo crece."
+      "text": "Tiene 3 caras de daño, 2 en blanco y 1 comodín. Cada daño te quita MEDIO corazón, salvo que lo bloquee un CORAZÓN de tu reserva. Los blancos que salen en blanco se quedan en tu reserva: el riesgo crece."
     },
     "en": {
       "title": "The white die",
-      "text": "It has 3 damage faces, 2 blanks and 1 wild. A HEART in your pool blocks damage; without one you lose 1 of your 4 HP. White dice that land blank stay in your pool, so the risk keeps growing."
+      "text": "It has 3 damage faces, 2 blanks and 1 wild. Each damage takes HALF a heart, unless a HEART in your pool blocks it. White dice that land blank stay in your pool, so the risk keeps growing."
     },
     "highlight": "hp",
     "advance": "next"

@@ -36,8 +36,14 @@ const es = {
   'hud.kos': 'KOs',
   'hud.runs': 'Exped.',
   'hud.score': 'Puntaje',
-  'hud.home': '← Inicio',
+  'hud.home': 'Inicio',
   'hud.homeLabel': 'Volver al inicio',
+
+  'setup.title': 'Elige tu cazador',
+  'setup.subtitle': 'Tu color decide tu dado especial.',
+  'setup.die': 'Dado {color}',
+  'setup.faces': '4 caras de {symbol} + 2 comodines',
+  'setup.hint': 'Además llevas 4 dados rojos. Después sales directo a cazar.',
 
   'town.title': 'Pueblo',
   'town.actions': 'Acciones: {n}/{max}',
@@ -116,6 +122,12 @@ const es = {
   'combat.blocked': '{n} daño bloqueado por corazón',
   'combat.hit': '-{n} HPie',
   'combat.snacHit': '¡El corazón roto del SNAC! -{n} HPie',
+  'combat.pending': 'Daño pendiente',
+  'combat.pendingHint':
+    'Lo recibes al relanzar o al resolver. Para cubrirlo, toca un corazón de tu reserva y luego el daño.',
+  'combat.covered': 'Daño cubierto por un corazón (toca para quitarlo)',
+  'combat.uncovered': 'Daño sin cubrir',
+  'combat.pickHeart': 'Primero toca UN corazón de tu reserva y luego el daño',
   'combat.understood': 'Entendido',
 
   'outcome.defeat': 'Derrotar',
@@ -151,9 +163,9 @@ const es = {
   'over.new': 'Nueva partida',
 
   'server.pending': 'Validando en el servidor (re-simulación)…',
-  'server.ok': '✓ Validado por el servidor',
-  'server.rejected': '✗ El servidor rechazó la partida',
-  'server.offline': '⚠ Guardado local — API no disponible',
+  'server.ok': 'Validado por el servidor',
+  'server.rejected': 'El servidor rechazó la partida',
+  'server.offline': 'Guardado local: API no disponible',
   'server.disabled': 'Validación en servidor desactivada (feature toggle)',
   'server.score': 'Servidor: {score} pts',
 
@@ -221,8 +233,14 @@ const en: Record<MessageKey, string> = {
   'hud.kos': 'KOs',
   'hud.runs': 'Runs',
   'hud.score': 'Score',
-  'hud.home': '← Home',
+  'hud.home': 'Home',
   'hud.homeLabel': 'Back to home',
+
+  'setup.title': 'Choose your hunter',
+  'setup.subtitle': 'Your color decides your special die.',
+  'setup.die': '{color} die',
+  'setup.faces': '4 {symbol} faces + 2 wilds',
+  'setup.hint': 'You also carry 4 red dice. Then you head straight out to hunt.',
 
   'town.title': 'Town',
   'town.actions': 'Actions: {n}/{max}',
@@ -300,6 +318,12 @@ const en: Record<MessageKey, string> = {
   'combat.blocked': '{n} damage blocked by a heart',
   'combat.hit': '-{n} HP',
   'combat.snacHit': "The SNAC's broken heart! -{n} HP",
+  'combat.pending': 'Pending damage',
+  'combat.pendingHint':
+    'You take it when you re-roll or resolve. To cover it, tap a heart in your pool, then the damage.',
+  'combat.covered': 'Damage covered by a heart (tap to remove it)',
+  'combat.uncovered': 'Uncovered damage',
+  'combat.pickHeart': 'First tap ONE heart in your pool, then the damage',
   'combat.understood': 'Got it',
 
   'outcome.defeat': 'Defeat',
@@ -335,9 +359,9 @@ const en: Record<MessageKey, string> = {
   'over.new': 'New game',
 
   'server.pending': 'Validating on the server (re-simulation)…',
-  'server.ok': '✓ Validated by the server',
-  'server.rejected': '✗ The server rejected the game',
-  'server.offline': '⚠ Saved locally — API unavailable',
+  'server.ok': 'Validated by the server',
+  'server.rejected': 'The server rejected the game',
+  'server.offline': 'Saved locally: API unavailable',
   'server.disabled': 'Server validation turned off (feature toggle)',
   'server.score': 'Server: {score} pts',
 
@@ -391,13 +415,6 @@ export function translate(lang: Lang, key: MessageKey, vars: Vars = {}): string 
 export type Translate = (key: MessageKey, vars?: Vars) => string;
 
 /** Nombre del símbolo de dado (Horn → Hacha / Axe). */
-/** HPie en medios corazones: 3.5 → "3½", 0.5 → "½". */
-export function formatHp(hp: number): string {
-  const whole = Math.floor(hp);
-  if (hp === whole) return String(whole);
-  return whole === 0 ? '½' : `${whole}½`;
-}
-
 export function faceName(t: Translate, face: Face): string {
   return t(`face.${face}` as MessageKey);
 }

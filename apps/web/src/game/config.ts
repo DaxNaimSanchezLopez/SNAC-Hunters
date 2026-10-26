@@ -24,7 +24,8 @@ export const gameData: GameData = { config: gameConfig, monsters, abilities, dic
 
 /** Setup del tutorial: un combate suelto con los dados iniciales. */
 export const playerSetup: CombatSetup = {
-  dice: gameConfig.player.startingDice,
+  // La práctica usa el cazador verde (dado especial de lupas)
+  dice: [...gameConfig.player.startingDice, 'green'],
   hp: gameConfig.player.startingHp,
   maxHp: gameConfig.player.maxHp,
 };

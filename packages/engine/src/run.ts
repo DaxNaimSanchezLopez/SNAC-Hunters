@@ -20,7 +20,7 @@ export interface RunSetup {
 export interface RunState {
   readonly hp: number;
   readonly maxHp: number;
-  /** Dados disponibles para el próximo combate, incluidos los blancos que quedaron en blanco. */
+  /** Dados del personaje disponibles para el próximo combate (sin dados blancos). */
   readonly pool: readonly DieKind[];
   /** Combates ya resueltos en esta expedición. */
   readonly fights: number;
@@ -76,8 +76,8 @@ export function runCombatSetup(run: RunState): CombatSetup {
  * Dados que siguen en la reserva al terminar un combate:
  * - Los usados en el monstruo, los corazones que bloquearon daño y los blancos que
  *   hicieron daño quedan gastados.
- * - Un blanco que no salió en blanco ya se activó (daño o comodín) y sale de la reserva.
- * - Un blanco que salió en blanco se queda, así que el riesgo crece en cada combate.
+ * - Los dados blancos no pasan al siguiente monstruo, ni siquiera los que salieron en blanco
+ *   (revisión del equipo, D-15): cada combate empieza solo con los dados del personaje.
  * - Los símbolos que consume una habilidad también quedan gastados.
  */
 export function remainingPool(combat: CombatState): DieKind[] {
@@ -86,7 +86,7 @@ export function remainingPool(combat: CombatState): DieKind[] {
     isRollable(d.kind) &&
     !combat.spent.includes(d.id) &&
     !combat.assignments.includes(d.id) &&
-    (d.kind !== 'white' || d.face === 'blank')
+    d.kind !== 'white'
       ? [d.kind]
       : [],
   );

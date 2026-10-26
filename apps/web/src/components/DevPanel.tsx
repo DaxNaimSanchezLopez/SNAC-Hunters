@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Icon } from './Icon';
 import { allEvents, summarize } from '../game/analytics';
 import type { LocalSummary } from '../game/analytics';
 import { fetchServerStats } from '../game/api';
@@ -54,8 +55,9 @@ export function DevPanel() {
                 type="button"
                 className="min-h-[48px] px-3 font-bold"
                 onClick={() => setOpen(false)}
+                aria-label="Cerrar"
               >
-                ✕
+                <Icon name="close" className="h-6 w-6" />
               </button>
             </div>
 

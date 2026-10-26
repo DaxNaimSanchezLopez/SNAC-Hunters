@@ -126,7 +126,7 @@ export const CONFIG: GameConfig = {
   player: {
     maxHp: 4,
     startingHp: 4,
-    startingDice: ['red', 'red', 'red', 'red', 'green'],
+    startingDice: ['red', 'red', 'red', 'red'],
     trophySlots: 2,
     startingTrophies: 1,
     startingItems: 1,

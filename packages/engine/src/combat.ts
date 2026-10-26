@@ -43,6 +43,9 @@ export type CombatAction =
     }
   /** Hasta resolver nada es definitivo: deshace una habilidad usada en este monstruo. */
   | { readonly type: 'undo'; readonly abilityId: string }
+  /** Un corazón de la reserva cubre el daño pendiente de un dado blanco (D-08). */
+  | { readonly type: 'block'; readonly dieId: string; readonly damageId: string }
+  | { readonly type: 'unblock'; readonly damageId: string }
   | { readonly type: 'resolve'; readonly trophy?: GameSymbol };
 
 export type CombatEvent =
@@ -80,6 +83,12 @@ export type CombatEvent =
       readonly damage?: number;
     };
 
+/** Corazón elegido para cubrir el daño de un dado blanco. */
+export interface Block {
+  readonly damage: string;
+  readonly heart: string;
+}
+
 export interface CombatState {
   readonly monster: Monster;
   readonly hp: number;
@@ -90,6 +99,8 @@ export interface CombatState {
   /** Dados fuera de juego: corazones usados como escudo, dados de daño que ya hirieron
    * y símbolos consumidos por una habilidad. */
   readonly spent: readonly string[];
+  /** Corazones puestos sobre daño pendiente; se gastan al relanzar o resolver. */
+  readonly blocks: readonly Block[];
   /** Trofeos del inventario que aún no se colocaron en el monstruo. */
   readonly trophies: readonly GameSymbol[];
   /** Habilidades disponibles en este combate. */
@@ -152,9 +163,30 @@ function getDie(state: CombatState, dieId: string): Die {
   return die;
 }
 
-/** Dados en la reserva: ni asignados a un slot ni gastados. */
+/**
+ * Dados en la reserva: ni asignados a un slot, ni gastados, ni cubriendo daño. El daño
+ * pendiente de los blancos no está en la reserva: se ve aparte (`pendingHits`).
+ */
 export function availableDice(state: CombatState): Die[] {
-  return state.dice.filter((d) => !state.assignments.includes(d.id) && !state.spent.includes(d.id));
+  return state.dice.filter(
+    (d) =>
+      d.face !== 'damage' &&
+      !state.assignments.includes(d.id) &&
+      !state.spent.includes(d.id) &&
+      !state.blocks.some((b) => b.heart === d.id),
+  );
+}
+
+/**
+ * D-08: Daño de los dados blancos que aún no se paga. Se recibe al relanzar o al resolver;
+ * mientras tanto el jugador decide si lo cubre con un corazón o usa ese dado para otra cosa.
+ */
+export function pendingHits(
+  state: CombatState,
+): { readonly die: Die; readonly heart: string | null }[] {
+  return state.dice
+    .filter((d) => d.face === 'damage' && !state.spent.includes(d.id))
+    .map((die) => ({ die, heart: state.blocks.find((b) => b.damage === die.id)?.heart ?? null }));
 }
 
 export function coveredSlots(state: CombatState): number {
@@ -206,61 +238,71 @@ export function faceActivates(face: Face, ability: Ability): boolean {
   return face === ability.effect.symbol || face === 'wild';
 }
 
-/** Daño de cada corazón roto del dado blanco: medio corazón (revisión del equipo, D-08). */
-export const WHITE_DIE_DAMAGE = 0.5;
-
-/** El HPie va en medios corazones: positivo, múltiplo de 0.5 y sin pasar del máximo. */
+/** HPie con el que se puede pelear: entero, al menos 1 y sin pasar del máximo. */
 export function isValidHp(hp: number, maxHp: number): boolean {
-  return Number.isInteger(hp * 2) && hp > 0 && hp <= maxHp;
+  return Number.isInteger(hp) && hp >= 1 && hp <= maxHp;
 }
 
 /**
- * RF-11.3, RF-11.4: Resuelve las caras de daño recién lanzadas.
- * Cada corazón roto del dado blanco hace daño directo (no cubre el espacio de daño del
- * monstruo, D-07): un corazón disponible en la reserva lo bloquea (escudo); si no hay, se
- * pierde medio corazón de HPie. Los corazones lanzados en la misma tirada también cuentan
- * como escudo.
+ * RF-11.3, RF-11.4 (D-08): Paga el daño pendiente de los dados blancos. Pasa al relanzar o al
+ * resolver, nunca al lanzar: hasta entonces el jugador decide. Cada corazón roto hace daño
+ * directo (no cubre el espacio de daño del monstruo, D-07); si tiene un corazón encima, ese
+ * corazón se gasta y no se pierde HPie; si no, se pierde 1 HPie. El dado de daño se gasta.
  */
-function applyDamage(state: CombatState, rolledIds: readonly string[]): CombatState {
-  let next = state;
-  for (const id of rolledIds) {
-    const die = getDie(next, id);
-    if (die.face !== 'damage') continue;
+function takeWhiteDamage(state: CombatState): CombatState {
+  const hits = pendingHits(state);
+  if (hits.length === 0) return state;
+  const unblocked = hits.filter((h) => h.heart === null).length;
+  return {
+    ...state,
+    hp: Math.max(0, state.hp - unblocked),
+    spent: [...state.spent, ...hits.flatMap((h) => (h.heart ? [h.die.id, h.heart] : [h.die.id]))],
+    blocks: [],
+    log: [
+      ...state.log,
+      ...hits.map((h): CombatEvent => ({
+        type: 'damage',
+        dieId: h.die.id,
+        blockedBy: h.heart,
+        coveredSlot: null,
+      })),
+    ],
+  };
+}
 
-    const spent = [...next.spent, id];
-    const shield = next.dice.find(
-      (d) => d.face === 'heart' && !next.assignments.includes(d.id) && !spent.includes(d.id),
-    );
-    if (shield) spent.push(shield.id);
-    const hp = shield ? next.hp : next.hp - WHITE_DIE_DAMAGE;
+/** RF-11.6: KO al relanzar. Si el monstruo ya quedaba derrotado, se conservan los beneficios. */
+function knockOut(state: CombatState): CombatState {
+  const defeated = previewOutcome(state) === 'defeat';
+  const trophy = defeated ? (state.monster.trophies[0] ?? null) : null;
+  const outcome: Outcome = defeated ? 'defeat' : 'ko';
+  return {
+    ...state,
+    hp: 0,
+    ko: true,
+    status: 'resolved',
+    outcome,
+    trophy,
+    log: [...state.log, { type: 'resolve', outcome, trophy }],
+  };
+}
 
-    next = {
-      ...next,
-      hp,
-      spent,
-      log: [
-        ...next.log,
-        { type: 'damage', dieId: id, blockedBy: shield ? shield.id : null, coveredSlot: null },
-      ],
-    };
-
-    // RF-11.6: KO. Si en ese momento el monstruo queda derrotado, se conservan los beneficios.
-    if (hp <= 0) {
-      const defeated = previewOutcome(next) === 'defeat';
-      const trophy = defeated ? (next.monster.trophies[0] ?? null) : null;
-      const outcome: Outcome = defeated ? 'defeat' : 'ko';
-      return {
-        ...next,
-        hp: 0,
-        ko: true,
-        status: 'resolved',
-        outcome,
-        trophy,
-        log: [...next.log, { type: 'resolve', outcome, trophy }],
-      };
-    }
+/** Pone un corazón de la reserva sobre el daño pendiente de un dado blanco. */
+function block(state: CombatState, heartId: string, damageId: string): CombatState {
+  const heart = availableDice(state).find((d) => d.id === heartId);
+  if (!heart || heart.face !== 'heart') {
+    throw new CombatError('Elige un corazón de tu reserva para cubrir el daño');
   }
-  return next;
+  const hit = pendingHits(state).find((h) => h.die.id === damageId);
+  if (!hit) throw new CombatError('No hay daño pendiente en ese dado');
+  if (hit.heart) throw new CombatError('Ese daño ya está cubierto');
+  return { ...state, blocks: [...state.blocks, { damage: damageId, heart: heartId }] };
+}
+
+function unblock(state: CombatState, damageId: string): CombatState {
+  if (!state.blocks.some((b) => b.damage === damageId)) {
+    throw new CombatError('Ese daño no tiene corazón');
+  }
+  return { ...state, blocks: state.blocks.filter((b) => b.damage !== damageId) };
 }
 
 /** RF-11.2: Inicia un combate lanzando todos los dados de la reserva. */
@@ -281,13 +323,14 @@ export function startCombat(
     face: rollFace(kind, rng, table),
   }));
   const ids = dice.map((d) => d.id);
-  const state: CombatState = {
+  return {
     monster,
     hp: setup.hp,
     maxHp: setup.maxHp,
     dice,
     assignments: [null, null, null, null],
     spent: [],
+    blocks: [],
     trophies: [...(setup.trophies ?? [])],
     // Las destrezas de dado especial son pasivas: no se activan en combate
     abilities: (setup.abilities ?? []).filter((a) => a.effect.type !== 'special'),
@@ -301,7 +344,6 @@ export function startCombat(
     trophy: null,
     log: [{ type: 'roll', dieIds: ids, addedWhite: null }],
   };
-  return applyDamage(state, ids);
 }
 
 /** ¿Queda algún dado físico en la reserva que se pueda relanzar? */
@@ -311,8 +353,9 @@ export function canRerollAny(state: CombatState): boolean {
 
 /**
  * RF-11.3: Relanza los dados elegidos; cada relanzamiento añade un dado de daño blanco.
- * Sin dados que relanzar (todos gastados o asignados) se puede "empujar la suerte" solo con
- * el dado blanco, para que el combate nunca quede trabado (D-19).
+ * Antes de lanzar se paga el daño pendiente (D-08). Sin dados que relanzar (todos gastados
+ * o asignados) se puede "empujar la suerte" solo con el dado blanco, para que el combate
+ * nunca quede trabado (D-19).
  */
 function reroll(state: CombatState, dieIds: readonly string[], table: DiceTable): CombatState {
   if (dieIds.length === 0 && canRerollAny(state)) {
@@ -327,28 +370,31 @@ function reroll(state: CombatState, dieIds: readonly string[], table: DiceTable)
     if (!isRollable(die.kind)) throw new CombatError('Los trofeos y símbolos no se relanzan');
   }
 
-  const rng = new SeededRng(state.rngState);
+  // Relanzar es una decisión: primero se recibe el daño pendiente
+  const paid = takeWhiteDamage(state);
+  if (paid.hp <= 0) return knockOut(paid);
+
+  const rng = new SeededRng(paid.rngState);
   const selected = new Set(dieIds);
   // Orden determinista: el de la reserva, no el del input
-  const rerolled = state.dice.map((d) =>
+  const rerolled = paid.dice.map((d) =>
     selected.has(d.id) && isRollable(d.kind) ? { ...d, face: rollFace(d.kind, rng, table) } : d,
   );
   const white: Die = {
-    id: `d${state.serial}`,
+    id: `d${paid.serial}`,
     kind: 'white',
     face: rollFace('white', rng, table),
   };
-  const rolledIds = [...state.dice.filter((d) => selected.has(d.id)).map((d) => d.id), white.id];
+  const rolledIds = [...paid.dice.filter((d) => selected.has(d.id)).map((d) => d.id), white.id];
 
-  const next: CombatState = {
-    ...state,
+  return {
+    ...paid,
     dice: [...rerolled, white],
-    serial: state.serial + 1,
+    serial: paid.serial + 1,
     rngState: rng.currentState,
-    rerolls: state.rerolls + 1,
-    log: [...state.log, { type: 'roll', dieIds: rolledIds, addedWhite: white.id }],
+    rerolls: paid.rerolls + 1,
+    log: [...paid.log, { type: 'roll', dieIds: rolledIds, addedWhite: white.id }],
   };
-  return applyDamage(next, rolledIds);
 }
 
 function checkSlot(state: CombatState, slot: number): Slot {
@@ -538,8 +584,9 @@ function undoAbility(state: CombatState, abilityId: string): CombatState {
 }
 
 /**
- * RF-11.5: Derrotar (4 espacios), Estudiar (2–3) o Huir (1). Cada espacio de daño sin
- * corazón cuesta 1 HPie al resolver; si eso deja KO, solo derrotar conserva los beneficios.
+ * RF-11.5: Derrotar (4 espacios), Estudiar (2–3) o Huir (1). Al resolver se paga el daño
+ * pendiente de los dados blancos (D-08) y cada espacio de daño del monstruo sin corazón
+ * (D-07), 1 HPie cada uno; si eso deja KO, solo derrotar conserva los beneficios.
  */
 function resolve(state: CombatState, trophy: GameSymbol | undefined): CombatState {
   const outcome = previewOutcome(state);
@@ -552,20 +599,21 @@ function resolve(state: CombatState, trophy: GameSymbol | undefined): CombatStat
     }
     chosen = trophy;
   }
+  const paid = takeWhiteDamage(state);
   const damage = pendingDamage(state);
-  const hp = Math.max(0, state.hp - damage);
+  const hp = Math.max(0, paid.hp - damage);
   const ko = hp === 0;
   const final: Outcome = ko && outcome !== 'defeat' ? 'ko' : outcome;
   const won = final === 'ko' ? null : chosen;
   return {
-    ...state,
+    ...paid,
     hp,
     ko,
     status: 'resolved',
     outcome: final,
     trophy: won,
     log: [
-      ...state.log,
+      ...paid.log,
       { type: 'resolve', outcome: final, trophy: won, ...(damage > 0 ? { damage } : {}) },
     ],
   };
@@ -597,6 +645,10 @@ export function applyAction(
       );
     case 'undo':
       return undoAbility(state, action.abilityId);
+    case 'block':
+      return block(state, action.dieId, action.damageId);
+    case 'unblock':
+      return unblock(state, action.damageId);
     case 'resolve':
       return resolve(state, action.trophy);
     default:

@@ -38,9 +38,14 @@ function run(state: GameState, actions: readonly GameAction[], data = DATA): Gam
   return actions.reduce((s, a) => applyGameAction(s, a, data), state);
 }
 
+/** Partida recién empezada con el cazador verde (dado especial de lupas). */
+function begin(data: GameData, seed: string): GameState {
+  return applyGameAction(newGame(data, seed), { type: 'start', die: 'green' }, data);
+}
+
 /** El personaje en el pueblo antes de su primera expedición, para probar el pueblo. */
 function townGame(data: GameData, seed: string): GameState {
-  return { ...newGame(data, seed), phase: 'town', run: null, trail: null, runs: 0 };
+  return { ...begin(data, seed), phase: 'town', run: null, trail: null, runs: 0 };
 }
 
 /** Estado de partida (en el pueblo) con valores arbitrarios para probar casos concretos. */
@@ -49,8 +54,23 @@ function withState(patch: Partial<GameState>, data = DATA): GameState {
 }
 
 describe('nueva partida', () => {
-  it('empieza de expedición (la caza va primero) con HPie completo, dados, 1 trofeo y 1 objeto', () => {
+  it('primero se elige el color del cazador: su dado especial', () => {
     const g = newGame(DATA, 'seed-1');
+    expect(g).toMatchObject({ phase: 'setup', dice: ['red', 'red', 'red', 'red'], runs: 0 });
+    expect(() => applyGameAction(g, { type: 'follow', index: 0 }, DATA)).toThrow(/fase/);
+    expect(() =>
+      applyGameAction(g, { type: 'start', die: 'white' } as unknown as GameAction, DATA),
+    ).toThrow(/no es un dado especial/);
+    for (const die of ['orange', 'blue', 'purple', 'green'] as const) {
+      const s = applyGameAction(g, { type: 'start', die }, DATA);
+      expect(s.dice).toEqual(['red', 'red', 'red', 'red', die]);
+    }
+    const s = applyGameAction(g, { type: 'start', die: 'blue' }, DATA);
+    expect(() => applyGameAction(s, { type: 'start', die: 'blue' }, DATA)).toThrow(/fase/);
+  });
+
+  it('después empieza de expedición (la caza va primero) con HPie completo, dados, 1 trofeo y 1 objeto', () => {
+    const g = begin(DATA, 'seed-1');
     expect(g).toMatchObject({
       phase: 'trail',
       hp: 4,
@@ -398,6 +418,8 @@ function autoplay(data: GameData, seed: string, choices: readonly number[]): Gam
     s = applyGameAction(s, a, data);
     actions.push(a);
   };
+  const colors = ['orange', 'blue', 'purple', 'green'] as const;
+  act({ type: 'start', die: colors[(choices[0] ?? 0) % colors.length]! });
   for (const c of choices) {
     if (s.phase === 'over') break;
     if (s.pendingTrophy !== null) act({ type: 'keep', discard: c % 2 === 0 ? 0 : null });

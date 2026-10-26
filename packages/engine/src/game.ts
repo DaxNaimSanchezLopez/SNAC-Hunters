@@ -10,7 +10,7 @@ import { canHunt, endCombat, runCombatSetup, startRun } from './run.js';
 import type { RunState } from './run.js';
 import { SeededRng } from './rng.js';
 import type { GameConfig } from './schemas.js';
-import type { Ability, DiceTable, DieKind, GameSymbol, Monster } from './types.js';
+import type { Ability, DiceTable, DieKind, GameSymbol, Monster, SpecialDieKind } from './types.js';
 
 /** Todo lo que viene de config/: reglas, monstruos, habilidades y caras de los dados. */
 export interface GameData {
@@ -20,7 +20,8 @@ export interface GameData {
   readonly dice: DiceTable;
 }
 
-export type GamePhase = 'town' | 'trail' | 'combat' | 'aftermath' | 'over';
+/** 'setup' = elegir el color del cazador (su dado especial) antes de la primera expedición. */
+export type GamePhase = 'setup' | 'town' | 'trail' | 'combat' | 'aftermath' | 'over';
 
 export interface OwnedItem {
   readonly id: string;
@@ -59,6 +60,7 @@ export interface GameState {
 }
 
 export type GameAction =
+  | { readonly type: 'start'; readonly die: SpecialDieKind }
   | { readonly type: 'rest' }
   | { readonly type: 'buy'; readonly kind: Ability['kind']; readonly pay: readonly number[] }
   | { readonly type: 'pick'; readonly abilityId: string | null; readonly replace?: string }
@@ -142,17 +144,15 @@ function gainTrophy(state: GameState, data: GameData, symbol: GameSymbol): GameS
   return { ...state, pendingTrophy: symbol };
 }
 
+const SPECIAL_DICE: readonly SpecialDieKind[] = ['orange', 'blue', 'purple', 'green'];
+
 /**
- * Empieza una partida con lo que indica el manual (p. 7). Como en el juego de mesa, la ronda
- * arranca con la fase de exploración: el cazador sale directo de expedición y el pueblo
- * llega después (revisión del equipo, 2026-10-25).
+ * Empieza una partida con lo que indica el manual (p. 7): 4 dados estándar, 1 trofeo y
+ * 1 objeto al azar. Primero se elige el color del cazador, que da su dado especial
+ * (`start`); después la ronda arranca con la expedición, como en el juego de mesa, y el
+ * pueblo llega al volver (revisión del equipo, 2026-10-25).
  */
 export function newGame(data: GameData, seed: string): GameState {
-  return leave(setupGame(data, seed), data);
-}
-
-/** Personaje recién preparado, aún en el pueblo (antes de la primera expedición). */
-function setupGame(data: GameData, seed: string): GameState {
   const { player, town } = data.config;
   const rng = new SeededRng(seed);
   const trophies = Array.from({ length: player.startingTrophies }, () => randomTrophy(rng));
@@ -161,7 +161,7 @@ function setupGame(data: GameData, seed: string): GameState {
   return {
     seed,
     rngState: rng.currentState,
-    phase: 'town',
+    phase: 'setup',
     hp: player.maxHp,
     maxHp: player.maxHp,
     dice: [...player.startingDice],
@@ -399,6 +399,12 @@ function goToTown(state: GameState, data: GameData): GameState {
   };
 }
 
+/** Elige el color del cazador: su dado especial se suma a los dados y sale de expedición. */
+function start(state: GameState, data: GameData, die: SpecialDieKind): GameState {
+  if (!SPECIAL_DICE.includes(die)) fail(`"${die}" no es un dado especial`);
+  return leave({ ...state, dice: [...state.dice, die] }, data);
+}
+
 /** Aplica una acción de la partida. Lanza CombatError si no es válida en el estado actual. */
 export function applyGameAction(state: GameState, action: GameAction, data: GameData): GameState {
   if (state.phase === 'over') fail('La partida terminó');
@@ -406,6 +412,9 @@ export function applyGameAction(state: GameState, action: GameAction, data: Game
     fail('Primero decide qué trofeo conservar');
   }
   switch (action.type) {
+    case 'start':
+      requirePhase(state, 'setup');
+      return start(state, data, action.die);
     case 'rest':
       requirePhase(state, 'town');
       return rest(state, data);

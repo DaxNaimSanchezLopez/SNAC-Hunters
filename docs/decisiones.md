@@ -100,13 +100,17 @@
 
 ---
 
-## D-08 — Los corazones bloquean el daño automáticamente
+## D-08 — El daño del dado blanco queda pendiente y el jugador elige si lo cubre
 
 **Contexto:** "Puedes gastar un dado corazón para anular daño". Los corazones no sirven para nada más (el comodín no imita corazones).
 
-**Decisión:** Al resolver cada cara de daño, si hay un `heart` en la reserva se gasta como escudo; si no, se pierde **medio corazón** de HPie (revisión del equipo, 2026-10-25; constante `WHITE_DIE_DAMAGE`). El HPie se lleva en medios corazones y la barra los dibuja. El corazón roto del monstruo (D-07) sí cuesta un corazón completo. Los corazones lanzados en la **misma tirada** también cuentan (daño y escudo simultáneos). Se procesan en orden de id de dado, lo que es determinista.
+**Decisión (revisión del equipo, 2026-10-25):** El daño del dado blanco **no se recibe al lanzar**: queda pendiente hasta que el jugador decide **relanzar** o **resolver** (derrotar, estudiar o huir). Hasta entonces puede:
+- Cubrirlo con un corazón de un dado rojo (`{ type: 'block', dieId, damageId }`; se quita con `unblock`). Al relanzar o resolver, ese corazón se gasta y no se pierde HPie.
+- O dejarlo sin cubrir y usar el corazón de otra forma: relanzarlo para buscar otro símbolo o ponerlo en el corazón roto del SNAC (D-07). Entonces el daño cuesta 1 HPie.
 
-**Alternativa descartada:** pedir al jugador que elija. Agrega un paso de UI sin decisión real y complica el tutorial.
+El dado de daño se gasta al recibirse y nunca se relanza. Si el daño recibido al relanzar deja KO, el combate termina antes de lanzar (si el monstruo ya quedaba derrotado se conservan los beneficios, D-10).
+
+**Antes:** el primer corazón disponible bloqueaba el daño automáticamente al lanzar, sin dejar elegir.
 
 ---
 
@@ -166,7 +170,9 @@
 
 **Fuente:** feedback del cliente, sección 2; manual p. 10 y FAQ
 
-**Decisión:** Un blanco que sale en blanco se queda en la reserva y se lanza en los combates siguientes, así que el riesgo se acumula. Uno que no sale en blanco "se activa": si es daño, hiere y se gasta en ese momento (como antes); si es comodín, puede usarse en el monstruo y, se use o no, sale de la reserva al terminar el combate. D-13 sigue vigente dentro de un combate: los blancos en blanco o comodín pueden relanzarse.
+**Decisión (revisada el 2026-10-25 con la revisión del equipo):** Los dados blancos **no pasan al siguiente monstruo**: al terminar cada combate se retiran todos, también los que salieron en blanco. Dentro de un combate sí se acumulan: un blanco en blanco se queda en la reserva y puede relanzarse (D-13), y cada relanzamiento agrega otro. El daño se paga como dice D-08 y un comodín blanco puede usarse en el monstruo.
+
+**Antes:** los blancos en blanco se quedaban en la reserva para los combates siguientes de la expedición.
 
 ---
 
@@ -248,7 +254,7 @@
 
 **Fuente:** manual p. 7
 
-**Decisión:** El personaje empieza con 4 HPie, 4 dados rojos y 1 verde, 1 trofeo al azar, 1 objeto al azar y 2 espacios para trofeos. La partida **arranca con la expedición** (la caza de monstruos), como la ronda del juego de mesa, que empieza por la fase de exploración (manual p. 8): `newGame` ya deja al cazador en el sendero, con la primera expedición en curso. El pueblo llega al volver (revisión del equipo, 2026-10-25). Un trofeo al azar equivale a tirar el dado de trofeo: cada símbolo con probabilidad 1/4.
+**Decisión:** El personaje empieza con 4 HPie, 4 dados rojos, 1 trofeo al azar, 1 objeto al azar y 2 espacios para trofeos. Lo primero es **elegir el color del cazador** (fase `setup`, acción `{ type: 'start', die }`): como en el juego de mesa, cada color trae su dado especial, naranja (hachas), azul (flechas), morado (anzuelos) o verde (lupas), y no siempre es el verde (revisión del equipo, 2026-10-25). Después la partida **arranca con la expedición** (la caza de monstruos), como la ronda del juego de mesa, que empieza por la fase de exploración (manual p. 8): `newGame` ya deja al cazador en el sendero, con la primera expedición en curso. El pueblo llega al volver (revisión del equipo, 2026-10-25). Un trofeo al azar equivale a tirar el dado de trofeo: cada símbolo con probabilidad 1/4.
 
 ---
 
@@ -301,8 +307,8 @@ El riesgo de D-11 (seeds elegidas por el cliente) sigue igual.
 
 **Decisión:** El Huntmaster da 23 lecciones contextuales (`config/guide.json`, ES/EN). Cada una se muestra una sola vez, cuando la partida está en su fase y se cumplen sus condiciones; por ejemplo, el dado blanco se explica cuando aparece el primero.
 - **Lecciones "Entendido":** oscurecen la pantalla e iluminan la parte que explican.
-- **Lecciones "hazlo tú":** seguir un rastro, colocar un dado, relanzar. Dejan jugar y se cumplen al hacer la acción.
-- **Recorrido:** la partida empieza cazando, igual que el juego de mesa: fases del juego → dados y PV → sendero y tipos → monstruo y espacios → tirada → colocar → trofeos → cartas → relanzar → dado blanco → resolver → dados gastados → llegada al pueblo → acciones del pueblo → puntaje → salir de nuevo.
+- **Lecciones "hazlo tú":** elegir color, seguir un rastro, colocar un dado, relanzar. Dejan jugar y se cumplen al hacer la acción.
+- **Recorrido:** la partida empieza eligiendo color y cazando, igual que el juego de mesa: fases del juego → elegir color (hazlo tú) → dados y PV → sendero y tipos → monstruo y espacios → tirada → colocar → trofeos → cartas → relanzar → dado blanco → resolver → dados gastados → llegada al pueblo → acciones del pueblo → puntaje → salir de nuevo.
 - **Cuándo se activa:** la primera partida siempre es guiada, y "Aprender a jugar" empieza otra guiada. La guía se puede saltar.
 - **Tutorial anterior:** sigue disponible como "Práctica de combate".
 - **Analítica:** `tutorial_start` y `tutorial_complete` (con `mode: 'guided'`) siguen midiendo el onboarding.

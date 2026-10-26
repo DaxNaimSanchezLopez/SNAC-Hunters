@@ -5,7 +5,7 @@ import { Button } from '../components/Button';
 import { Hud } from '../components/Hud';
 import { MonsterPortrait } from '../components/MonsterCard';
 import { TrophyToken } from '../components/Trophy';
-import { formatHp, typeName } from '../game/i18n';
+import { typeName } from '../game/i18n';
 import type { MessageKey } from '../game/i18n';
 import { useGame } from '../game/store';
 import { useT } from '../game/useT';
@@ -64,7 +64,7 @@ export function ResultScreen() {
       <Hud game={game} />
       <OutcomeCard combat={combat}>
         <p data-guide-target="status" className="mt-2 text-sm text-bark/80">
-          {t('result.status', { hp: formatHp(game.hp), max: game.maxHp, dice: run.pool.length })}
+          {t('result.status', { hp: game.hp, max: game.maxHp, dice: run.pool.length })}
         </p>
         {ended && run.endedBy !== 'town' && (
           <p className="mt-2 rounded-xl border-2 border-black bg-orange-200 px-3 py-2 text-sm font-bold">

@@ -8,7 +8,7 @@ import { Hud } from '../components/Hud';
 import { Modal } from '../components/Modal';
 import { TrophySlot, TrophyToken } from '../components/Trophy';
 import { gameConfig, gameData, getAbility } from '../game/config';
-import { formatHp, kindName } from '../game/i18n';
+import { kindName } from '../game/i18n';
 import { useGame } from '../game/store';
 import { useT } from '../game/useT';
 
@@ -49,13 +49,8 @@ export function TownScreen({ game }: { game: GameState }) {
   }
 
   return (
-    <div
-      className="min-h-[100dvh] bg-cover bg-top"
-      style={{
-        backgroundImage:
-          'linear-gradient(rgba(20,10,0,.35),rgba(20,10,0,.75)),url(/assets/bg/town.jpg)',
-      }}
-    >
+    // El fondo del pueblo lo pone App en toda la ventana, no solo en la columna del juego
+    <div className="min-h-[100dvh]">
       <div className="flex flex-col gap-3 px-3 pb-8 pt-3">
         <Hud game={game} />
 
@@ -151,7 +146,7 @@ export function TownScreen({ game }: { game: GameState }) {
         >
           {t('town.leave')}
           <span className="block font-sans text-xs">
-            {t('town.leaveText', { hp: formatHp(game.hp), max: game.maxHp })}
+            {t('town.leaveText', { hp: game.hp, max: game.maxHp })}
           </span>
         </Button>
         <Button variant="secondary" onClick={() => act({ type: 'finish' })}>

@@ -10,6 +10,7 @@ import { CombatScreen } from './screens/CombatScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { OverScreen } from './screens/OverScreen';
 import { ResultScreen, TutorialResultScreen } from './screens/ResultScreen';
+import { SetupScreen } from './screens/SetupScreen';
 import { TownScreen } from './screens/TownScreen';
 import { TrailScreen } from './screens/TrailScreen';
 
@@ -18,6 +19,8 @@ function GameScreens() {
   const game = useGame((s) => s.game);
   if (!game) return <HomeScreen />;
   switch (game.phase) {
+    case 'setup':
+      return <SetupScreen game={game} />;
     case 'town':
       return <TownScreen game={game} />;
     case 'trail':
@@ -34,6 +37,9 @@ function GameScreens() {
 export function App() {
   const t = useT();
   const { hydrated, screen, toast, toastSeq, clearToast, tutorialCombat, lang } = useGame();
+  // El fondo cubre toda la ventana (en escritorio la columna del juego es angosta)
+  const phase = useGame((s) => s.game?.phase);
+  const inTown = screen === 'game' && phase === 'town';
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -58,10 +64,11 @@ export function App() {
 
   return (
     <div
-      className="min-h-[100dvh] bg-bark bg-cover bg-center font-sans"
+      className={`min-h-[100dvh] bg-bark bg-cover font-sans ${inTown ? 'bg-top' : 'bg-center'}`}
       style={{
-        backgroundImage:
-          'linear-gradient(rgba(20,10,0,.25),rgba(20,10,0,.55)),url(/assets/bg/sherbert-forest.png)',
+        backgroundImage: inTown
+          ? 'linear-gradient(rgba(20,10,0,.35),rgba(20,10,0,.75)),url(/assets/bg/town.jpg)'
+          : 'linear-gradient(rgba(20,10,0,.25),rgba(20,10,0,.55)),url(/assets/bg/sherbert-forest.png)',
       }}
     >
       <main className="mx-auto max-w-md">

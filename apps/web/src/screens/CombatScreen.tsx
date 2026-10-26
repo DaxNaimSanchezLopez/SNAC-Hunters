@@ -5,6 +5,7 @@ import {
   canRerollAny,
   isRollable,
   pendingDamage,
+  pendingHits,
   previewOutcome,
   slotsForFace,
   validSlotsFor,
@@ -13,9 +14,10 @@ import type { Ability, GameSymbol } from '@snac-hunters/engine';
 import { AbilityCard } from '../components/AbilityCard';
 import { Button } from '../components/Button';
 import { Coach } from '../components/Coach';
-import { DieView } from '../components/DieView';
+import { DieView, FaceIcon } from '../components/DieView';
 import { HpBar } from '../components/HpBar';
 import { Hud } from '../components/Hud';
+import { Icon } from '../components/Icon';
 import { Modal } from '../components/Modal';
 import { MonsterCard } from '../components/MonsterCard';
 import { TrophyToken } from '../components/Trophy';
@@ -45,6 +47,7 @@ export function CombatScreen() {
     toggleDie,
     selectTrophy,
     tapSlot,
+    tapDamage,
     rerollRest,
     activateAbility,
     undoAbility,
@@ -70,6 +73,9 @@ export function CombatScreen() {
   const whiteOnly = !canRerollAny(combat);
 
   const snacDamage = pendingDamage(combat);
+  // Daño de los blancos: se recibe al relanzar o resolver, salvo el que tenga corazón encima
+  const hits = pendingHits(combat);
+  const whiteHits = hits.filter((h) => h.heart === null).length;
   const covered = combat.assignments.filter(Boolean).length + (preview ? snacDamage : 0);
 
   // Con una sola pieza elegida (dado o trofeo) se iluminan los espacios donde cabe
@@ -90,8 +96,15 @@ export function CombatScreen() {
     else setChoosing({ kind: 'resolve' });
   }
 
+  // Con un corazón elegido se iluminan los daños que puede cubrir
+  const heartPicked =
+    picked === 1 && selected[0] !== undefined
+      ? pool.find((d) => d.id === selected[0])?.face === 'heart'
+      : false;
+
   function onAbility(ability: Ability) {
-    if (ability.effect.type === 'triple' && selected.length === 3) {
+    // Los símbolos pueden ser dados o trofeos: cuentan los dos
+    if (ability.effect.type === 'triple' && picked === 3) {
       setChoosing({ kind: 'ability', id: ability.id });
     } else {
       activateAbility(ability.id);
@@ -120,7 +133,10 @@ export function CombatScreen() {
             className="min-h-[48px] rounded-xl bg-black/40 px-3 text-sm font-bold text-white"
             aria-label={t('hud.homeLabel')}
           >
-            {t('hud.home')}
+            <span className="flex items-center gap-1">
+              <Icon name="back" className="h-5 w-5" />
+              {t('hud.home')}
+            </span>
           </button>
           <span className="rounded-full bg-black/40 px-3 py-1 font-comic text-white">
             {t('combat.tutorial')}
@@ -169,6 +185,37 @@ export function CombatScreen() {
           </AnimatePresence>
           {pool.length === 0 && <p className="text-sm text-white/70">{t('combat.noDice')}</p>}
         </div>
+        {hits.length > 0 && (
+          <div
+            data-guide-target="pending"
+            className="mt-3 rounded-2xl border-2 border-dashed border-red-300 bg-red-950/40 p-2"
+          >
+            <p className="text-xs font-bold text-red-100">{t('combat.pending')}</p>
+            <p className="mb-2 text-[11px] leading-tight text-white/75">
+              {t('combat.pendingHint')}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {hits.map(({ die, heart }) => (
+                <button
+                  key={die.id}
+                  type="button"
+                  onClick={() => tapDamage(die.id)}
+                  aria-label={heart ? t('combat.covered') : t('combat.uncovered')}
+                  className={`relative min-h-[48px] min-w-[48px] rounded-xl ${
+                    heartPicked && !heart ? 'ring-4 ring-yellow-300' : ''
+                  }`}
+                >
+                  <DieView die={die} />
+                  {heart && (
+                    <span className="absolute -right-2 -top-2 grid h-7 w-7 place-items-center rounded-lg border-2 border-black bg-die-red">
+                      <FaceIcon face="heart" className="h-4 w-4" />
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
         {spent.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-1">
             <span className="mr-1 text-xs text-white/70">{t('combat.spent')}</span>
@@ -237,7 +284,10 @@ export function CombatScreen() {
             className={highlight === 'reroll' ? 'ring-4 ring-yellow-300' : ''}
           >
             {whiteOnly ? t('combat.rerollWhite') : `${t('combat.reroll')} (${rerollCount})`}
-            <span className="block font-sans text-xs">{t('combat.rerollHint')}</span>
+            <span className="block font-sans text-xs">
+              {t('combat.rerollHint')}
+              {whiteHits > 0 ? ` · ${t('combat.hit', { n: whiteHits })}` : ''}
+            </span>
           </Button>
           <Button
             onClick={onResolve}
@@ -249,7 +299,9 @@ export function CombatScreen() {
             <span className="block font-sans text-xs">
               {preview
                 ? t('combat.spaces', { n: covered }) +
-                  (snacDamage > 0 ? ` · ${t('combat.hit', { n: snacDamage })}` : '')
+                  (snacDamage + whiteHits > 0
+                    ? ` · ${t('combat.hit', { n: snacDamage + whiteHits })}`
+                    : '')
                 : t('combat.resolveHint')}
             </span>
           </Button>

@@ -21,6 +21,7 @@ describe('persistencia de la partida', () => {
   it('guarda solo seed + acciones y reanuda la partida tras recargar', async () => {
     const store = useGame.getState();
     store.newGame();
+    useGame.getState().act({ type: 'start', die: 'green' });
     useGame.getState().act({ type: 'follow', index: 0 });
     const before = useGame.getState().game!;
     expect(before.phase).toBe('combat');
@@ -73,14 +74,16 @@ describe('persistencia de la partida', () => {
 
   it('rebuild devuelve null con acciones ilegales', () => {
     expect(rebuild({ seed: 'x', actions: [{ type: 'continue' }] })).toBeNull();
-    // La partida empieza de expedición, no en el pueblo
-    expect(rebuild({ seed: 'x', actions: [] })?.phase).toBe('trail');
+    // La partida empieza eligiendo color y después sale de expedición, no al pueblo
+    expect(rebuild({ seed: 'x', actions: [] })?.phase).toBe('setup');
+    expect(rebuild({ seed: 'x', actions: [{ type: 'start', die: 'blue' }] })?.phase).toBe('trail');
   });
 });
 
 describe('controles del combate', () => {
   it('relanzar conserva los dados seleccionados y relanza el resto', () => {
     useGame.getState().newGame();
+    useGame.getState().act({ type: 'start', die: 'green' });
     useGame.getState().act({ type: 'follow', index: 0 });
     const combat = useGame.getState().game!.combat!;
     const keep = availableDice(combat).filter((d) => isRollable(d.kind))[0]!;
@@ -95,6 +98,7 @@ describe('controles del combate', () => {
 
   it('terminar la partida la guarda en el historial con su puntaje final', () => {
     useGame.getState().newGame();
+    useGame.getState().act({ type: 'start', die: 'green' });
     useGame.getState().act({ type: 'return' });
     useGame.getState().act({ type: 'finish' });
     const s = useGame.getState();
@@ -104,6 +108,7 @@ describe('controles del combate', () => {
 
   it('una acción inválida muestra un aviso y no cambia la partida', () => {
     useGame.getState().newGame();
+    useGame.getState().act({ type: 'start', die: 'green' });
     const before = useGame.getState().game;
     useGame.getState().act({ type: 'continue' });
     expect(useGame.getState().game).toBe(before);
@@ -123,13 +128,21 @@ describe('partida guiada (V0 = tutorial del juego de mesa)', () => {
   it('la primera partida es guiada y empieza por la expedición, como el juego de mesa', () => {
     useGame.getState().newGame();
     expect(useGame.getState().guideOn).toBe(true);
-    expect(useGame.getState().game?.phase).toBe('trail');
+    expect(useGame.getState().game?.phase).toBe('setup');
+    expect(lessonNow()?.id).toBe('hunt-welcome');
+    useGame.getState().dismissLesson('hunt-welcome');
+    // Lección "hazlo tú": elegir el color del cazador
+    expect(lessonNow()?.id).toBe('setup-color');
+    useGame.getState().act({ type: 'start', die: 'orange' });
+    expect(useGame.getState().guideSeen).toContain('setup-color');
+    expect(useGame.getState().game).toMatchObject({ phase: 'trail' });
+    expect(useGame.getState().game?.dice).toContain('orange');
     const seen: string[] = [];
     while (lessonNow()?.advance === 'next') {
       seen.push(lessonNow()!.id);
       useGame.getState().dismissLesson(lessonNow()!.id);
     }
-    expect(seen).toEqual(['hunt-welcome', 'hunt-dice', 'trail-hidden']);
+    expect(seen).toEqual(['hunt-dice', 'trail-hidden']);
     // Lección "hazlo tú": se cumple al seguir un rastro
     expect(lessonNow()?.id).toBe('trail-follow');
     useGame.getState().act({ type: 'follow', index: 0 });
@@ -139,6 +152,7 @@ describe('partida guiada (V0 = tutorial del juego de mesa)', () => {
 
   it('en combate explica el SNAC, los dados y cómo colocar uno', () => {
     useGame.getState().newGame(true);
+    useGame.getState().act({ type: 'start', die: 'green' });
     useGame.getState().act({ type: 'follow', index: 0 });
     const ids: string[] = [];
     for (let i = 0; i < 3 && lessonNow()?.advance === 'next'; i++) {
@@ -151,6 +165,7 @@ describe('partida guiada (V0 = tutorial del juego de mesa)', () => {
 
   it('al volver al pueblo explica la recuperación y el puntaje; la última lección cierra la guía', () => {
     useGame.getState().newGame(true);
+    useGame.getState().act({ type: 'start', die: 'green' });
     useGame.setState({
       guideSeen: guide
         .filter((l) => l.phase !== 'town' || !l.when.includes('returnVisit'))

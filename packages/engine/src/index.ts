@@ -51,15 +51,22 @@ export {
   slotsForFace,
   faceActivates,
   pendingDamage,
+  pendingHits,
   isRollable,
   isValidHp,
-  WHITE_DIE_DAMAGE,
   canRerollAny,
   ABILITY_INPUTS,
   pickEncounterPair,
   CombatError,
 } from './combat.js';
-export type { CombatState, CombatAction, CombatEvent, CombatSetup, Outcome } from './combat.js';
+export type {
+  Block,
+  CombatState,
+  CombatAction,
+  CombatEvent,
+  CombatSetup,
+  Outcome,
+} from './combat.js';
 
 // RF-12: Expedición (run)
 export {

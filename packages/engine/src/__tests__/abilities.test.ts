@@ -306,12 +306,14 @@ describe('sin dados que relanzar', () => {
     expect(() => applyAction(s0, { type: 'reroll', dieIds: [] }, table)).toThrow(
       /al menos un dado/,
     );
-    // El corazón bloquea el daño del primer blanco y ambos se gastan
+    // El corazón cubre el daño del primer blanco; al seguir, ambos se gastan
     const s1 = applyAction(s0, { type: 'reroll', dieIds: ['d0'] }, table);
-    expect(availableDice(s1)).toEqual([]);
-    expect(canRerollAny(s1)).toBe(false);
-    const s2 = applyAction(s1, { type: 'reroll', dieIds: [] }, table);
-    expect(s2.dice).toHaveLength(3);
-    expect(s2.hp).toBe(3.5);
+    const s2 = applyAction(s1, { type: 'block', dieId: 'd0', damageId: 'd1' }, table);
+    expect(availableDice(s2)).toEqual([]);
+    expect(canRerollAny(s2)).toBe(false);
+    const s3 = applyAction(s2, { type: 'reroll', dieIds: [] }, table);
+    expect(s3.dice).toHaveLength(3);
+    expect(s3.hp).toBe(4);
+    expect(s3.spent).toEqual(['d1', 'd0']);
   });
 });

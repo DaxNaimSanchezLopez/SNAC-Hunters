@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
+import { Icon } from './Icon';
 import { activeLesson, guide } from '../game/guide';
 import { useGame } from '../game/store';
 import { useT } from '../game/useT';
@@ -70,7 +71,10 @@ export function GuideCoach() {
               </button>
             ) : (
               <div className="mt-2 flex items-center justify-between">
-                <span className="text-xs font-bold text-bark/70">👉 {t('guide.doIt')}</span>
+                <span className="flex items-center gap-1 text-xs font-bold text-bark/70">
+                  <Icon name="tap" className="h-5 w-5 animate-bounce" />
+                  {t('guide.doIt')}
+                </span>
                 <button
                   type="button"
                   onClick={() => dismissLesson(lesson.id)}

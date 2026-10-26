@@ -132,7 +132,7 @@ export const GuideSchema = z
   .array(
     z.object({
       id: z.string().min(1),
-      phase: z.enum(['town', 'trail', 'combat', 'aftermath']),
+      phase: z.enum(['setup', 'town', 'trail', 'combat', 'aftermath']),
       when: z
         .array(
           z.enum([
@@ -150,7 +150,7 @@ export const GuideSchema = z
         )
         .default([]),
       // 'next' = botón "Entendido"; si no, la lección se cumple al hacer esa acción
-      advance: z.enum(['next', 'leave', 'follow', 'assign', 'reroll', 'resolve']),
+      advance: z.enum(['next', 'start', 'leave', 'follow', 'assign', 'reroll', 'resolve']),
       highlight: z
         .enum([
           'hud',
@@ -165,6 +165,8 @@ export const GuideSchema = z
           'reroll',
           'resolve',
           'status',
+          'colors',
+          'pending',
         ])
         .optional(),
       position: z.enum(['top', 'bottom']).default('bottom'),

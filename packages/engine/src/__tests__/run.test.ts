@@ -114,6 +114,7 @@ describe('dados gastados toda la expedición', () => {
     const run = startRun(SETUP);
     const combat = fight(run, GARDEN_SALAAD, shieldTable, [
       { type: 'reroll', dieIds: ['d0'] },
+      { type: 'block', dieId: 'd0', damageId: 'd5' },
       { type: 'assign', dieId: 'd4', slot: 0 },
       { type: 'resolve' },
     ]);
@@ -142,7 +143,7 @@ describe('dados gastados toda la expedición', () => {
 });
 
 describe('dados blancos en la expedición', () => {
-  it('un blanco que sale en blanco se queda en la reserva para el siguiente combate', () => {
+  it('los blancos no pasan al siguiente monstruo, ni los que salieron en blanco', () => {
     const table = fixedTable({ red: 'Claw', green: 'Claw', white: 'blank' });
     const run = startRun(SETUP);
     const combat = fight(run, GARDEN_SALAAD, table, [
@@ -152,22 +153,14 @@ describe('dados blancos en la expedición', () => {
       { type: 'assign', dieId: 'd2', slot: 3 },
       { type: 'resolve', trophy: 'Claw' },
     ]);
+    expect(availableDice(combat).some((d) => d.kind === 'white')).toBe(true);
     const next = endCombat(run, combat);
-    expect(next.pool).toEqual(['red', 'green', 'white']);
-
-    // El siguiente combate lanza también el blanco; si sale daño, hiere y se gasta
-    const second = startCombat(
-      BEEHOLDER,
-      runCombatSetup(next),
-      2,
-      fixedTable({ red: 'Wing', green: 'Claw', white: 'damage' }),
-    );
-    expect(second.dice.map((d) => d.kind)).toEqual(['red', 'green', 'white']);
-    expect(second.hp).toBe(3.5);
-    expect(remainingPool(second)).toEqual(['red', 'green']);
+    expect(next.pool).toEqual(['red', 'green']);
+    const second = startCombat(BEEHOLDER, runCombatSetup(next), 2, table);
+    expect(second.dice.map((d) => d.kind)).toEqual(['red', 'green']);
   });
 
-  it('los blancos en blanco se acumulan: cada relanzamiento añade otro', () => {
+  it('dentro del combate los blancos en blanco se acumulan; al terminar se retiran', () => {
     const table = fixedTable({ red: 'Claw', green: 'Claw', white: 'blank' });
     const run = startRun(SETUP);
     const combat = fight(run, GARDEN_SALAAD, table, [
@@ -178,7 +171,8 @@ describe('dados blancos en la expedición', () => {
       { type: 'assign', dieId: 'd1', slot: 1 },
       { type: 'resolve', trophy: 'Claw' },
     ]);
-    expect(remainingPool(combat)).toEqual(['red', 'red', 'green', 'white', 'white', 'white']);
+    expect(availableDice(combat).filter((d) => d.kind === 'white')).toHaveLength(3);
+    expect(remainingPool(combat)).toEqual(['red', 'red', 'green']);
   });
 
   it('un blanco que salió comodín ya se activó: sale de la reserva aunque no se use', () => {
@@ -218,8 +212,8 @@ describe('HPie y fin de la expedición', () => {
       { type: 'resolve', trophy: 'Claw' },
     ]);
     const next = endCombat(run, combat);
-    expect(next.hp).toBe(3.5);
-    expect(runCombatSetup(next).hp).toBe(3.5);
+    expect(next.hp).toBe(3);
+    expect(runCombatSetup(next).hp).toBe(3);
   });
 
   it('huir termina la expedición', () => {
@@ -234,23 +228,28 @@ describe('HPie y fin de la expedición', () => {
 
   it('KO termina la expedición con 0 HPie', () => {
     const table = fixedTable({ red: 'Claw', green: 'Claw', white: 'damage' });
-    const run = startRun({ ...SETUP, maxHp: 1, hp: 0.5 });
-    const combat = fight(run, GARDEN_SALAAD, table, [{ type: 'reroll', dieIds: ['d3'] }]);
+    const run = startRun({ ...SETUP, maxHp: 1 });
+    // El daño del primer relanzamiento se recibe al relanzar otra vez
+    const combat = fight(run, GARDEN_SALAAD, table, [
+      { type: 'reroll', dieIds: ['d3'] },
+      { type: 'reroll', dieIds: ['d3'] },
+    ]);
     expect(combat.outcome).toBe('ko');
     expect(endCombat(run, combat)).toMatchObject({ hp: 0, status: 'ended', endedBy: 'ko' });
   });
 
   it('KO y derrota en la misma tirada: se gana el monstruo pero la expedición termina', () => {
     const table = fixedTable({ red: 'Claw', green: 'wild', white: 'damage' });
-    const run = startRun({ ...SETUP, maxHp: 1, hp: 0.5 });
+    const run = startRun({ ...SETUP, maxHp: 1 });
     const combat = fight(run, GARDEN_SALAAD, table, [
       { type: 'assign', dieId: 'd0', slot: 0 },
       { type: 'assign', dieId: 'd1', slot: 1 },
       { type: 'assign', dieId: 'd4', slot: 2 },
       { type: 'assign', dieId: 'd2', slot: 3 },
     ]);
-    // Aún no se resuelve: forzamos el KO con un relanzamiento del único dado libre
-    const ko = applyAction(combat, { type: 'reroll', dieIds: ['d3'] }, table);
+    // Aún no se resuelve: forzamos el KO relanzando dos veces el único dado libre
+    const hurt = applyAction(combat, { type: 'reroll', dieIds: ['d3'] }, table);
+    const ko = applyAction(hurt, { type: 'reroll', dieIds: ['d3'] }, table);
     expect(ko).toMatchObject({ outcome: 'defeat', ko: true });
     expect(endCombat(run, ko)).toMatchObject({ status: 'ended', endedBy: 'ko' });
   });

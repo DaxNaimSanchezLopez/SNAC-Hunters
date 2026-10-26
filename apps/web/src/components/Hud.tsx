@@ -4,6 +4,7 @@ import { gameConfig } from '../game/config';
 import { useGame } from '../game/store';
 import { useT } from '../game/useT';
 import { HpBar } from './HpBar';
+import { Icon } from './Icon';
 
 /** Barra superior de la partida: inicio, puntaje en vivo y HPie. */
 export function Hud({ game, glowHp = false }: { game: GameState; glowHp?: boolean }) {
@@ -17,7 +18,7 @@ export function Hud({ game, glowHp = false }: { game: GameState; glowHp?: boolea
         className="min-h-[48px] min-w-[48px] shrink-0 rounded-xl bg-black/40 text-xl font-bold text-white"
         aria-label={t('hud.homeLabel')}
       >
-        ←
+        <Icon name="back" className="mx-auto h-6 w-6" />
       </button>
       <dl
         data-guide-target="hud"

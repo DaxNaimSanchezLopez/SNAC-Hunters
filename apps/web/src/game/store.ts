@@ -15,7 +15,6 @@ import {
   newGame,
   replayGame,
   startCombat,
-  WHITE_DIE_DAMAGE,
 } from '@snac-hunters/engine';
 import type {
   CombatAction,
@@ -37,7 +36,7 @@ import {
   tutorialSteps,
 } from './config';
 import { activeLesson, completesLesson, guide } from './guide';
-import { faceName, formatHp, translate } from './i18n';
+import { faceName, translate } from './i18n';
 import type { Lang, MessageKey, Vars } from './i18n';
 import { idbStorage } from './persistence';
 
@@ -98,6 +97,8 @@ interface GameStore {
   toggleDie(dieId: string): void;
   selectTrophy(index: number): void;
   tapSlot(slot: number): void;
+  /** Daño pendiente de un dado blanco: lo cubre con el corazón elegido o le quita el corazón. */
+  tapDamage(damageId: string): void;
   rerollRest(): void;
   activateAbility(abilityId: string, trophy?: GameSymbol): void;
   undoAbility(abilityId: string): void;
@@ -137,18 +138,22 @@ function damageMessage(
   if (!after) return null;
   const fresh = after.log.slice(before ? before.log.length : 0);
   // El espacio de daño del SNAC se paga al resolver
+  const parts: string[] = [];
+  // El daño de los blancos se recibe al relanzar o resolver
+  const events = fresh.filter((e) => e.type === 'damage');
+  if (events.length > 0) {
+    const blocked = events.filter((e) => e.type === 'damage' && e.blockedBy !== null).length;
+    const hits = events.length - blocked;
+    parts.push(translate(lang, 'combat.whiteDie'));
+    if (blocked) parts.push(translate(lang, 'combat.blocked', { n: blocked }));
+    if (hits) parts.push(translate(lang, 'combat.hit', { n: hits }));
+  }
+  // El espacio de daño del SNAC se paga al resolver
   const snac = fresh.find((e) => e.type === 'resolve' && e.damage);
   if (snac?.type === 'resolve' && snac.damage) {
-    return translate(lang, 'combat.snacHit', { n: snac.damage });
+    parts.push(translate(lang, 'combat.snacHit', { n: snac.damage }));
   }
-  const events = fresh.filter((e) => e.type === 'damage');
-  if (events.length === 0) return null;
-  const blocked = events.filter((e) => e.type === 'damage' && e.blockedBy !== null).length;
-  const hits = events.length - blocked;
-  const parts = [translate(lang, 'combat.whiteDie')];
-  if (blocked) parts.push(translate(lang, 'combat.blocked', { n: blocked }));
-  if (hits) parts.push(translate(lang, 'combat.hit', { n: formatHp(hits * WHITE_DIE_DAMAGE) }));
-  return parts.join(' · ');
+  return parts.length > 0 ? parts.join(' · ') : null;
 }
 
 function rolledFaces(combat: CombatState): string[] {
@@ -398,6 +403,22 @@ export const useGame = create<GameStore>()(
               ? selectedTrophies.filter((i) => i !== index)
               : [...selectedTrophies, index],
           });
+        },
+
+        tapDamage(damageId) {
+          const state = getState();
+          const combat = currentCombat(state);
+          if (!combat) return;
+          if (combat.blocks.some((b) => b.damage === damageId)) {
+            combatDispatch({ type: 'unblock', damageId });
+            return;
+          }
+          const heart = state.selected.length === 1 ? state.selected[0] : undefined;
+          if (heart && state.selectedTrophies.length === 0) {
+            combatDispatch({ type: 'block', dieId: heart, damageId });
+          } else {
+            toast(t('combat.pickHeart'));
+          }
         },
 
         tapSlot(slot) {

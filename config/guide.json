@@ -1,10 +1,8 @@
 [
   {
     "id": "hunt-welcome",
-    "phase": "trail",
-    "when": [
-      "firstHunt"
-    ],
+    "phase": "setup",
+    "when": [],
     "advance": "next",
     "es": {
       "title": "¡Bienvenido, aprendiz!",
@@ -16,6 +14,21 @@
     }
   },
   {
+    "id": "setup-color",
+    "phase": "setup",
+    "when": [],
+    "advance": "start",
+    "highlight": "colors",
+    "es": {
+      "title": "Elige tu color",
+      "text": "Como en el juego de mesa, cada cazador tiene un color, y ese color te da tu DADO ESPECIAL: 4 caras de su símbolo y 2 comodines. Naranja = hachas, azul = flechas, morado = anzuelos y verde = lupas. Toca uno para empezar."
+    },
+    "en": {
+      "title": "Choose your color",
+      "text": "Just like the board game, each hunter has a color, and that color gives you your SPECIAL DIE: 4 faces of its symbol and 2 wilds. Orange = axes, blue = arrows, purple = hooks and green = finders. Tap one to start."
+    }
+  },
+  {
     "id": "hunt-dice",
     "phase": "trail",
     "when": [
@@ -24,11 +37,11 @@
     "advance": "next",
     "es": {
       "title": "Tus dados y tu vida",
-      "text": "Sales con 4 dados ROJOS (tienen los 4 símbolos y 2 corazones) y 1 dado especial VERDE (4 lupas y 2 comodines). Arriba a la derecha están tus 4 corazones de HPie: si llegan a 0 quedas KO."
+      "text": "Sales con 4 dados ROJOS (tienen los 4 símbolos y 2 corazones) y el dado especial de tu color. Arriba a la derecha están tus 4 corazones de HPie: si llegan a 0 quedas KO."
     },
     "en": {
       "title": "Your dice and your life",
-      "text": "You head out with 4 RED dice (they have the 4 symbols and 2 hearts) and 1 special GREEN die (4 finders and 2 wilds). Top right are your 4 HP hearts: if they reach 0 you're KO'd."
+      "text": "You head out with 4 RED dice (they have the 4 symbols and 2 hearts) and the special die of your color. Top right are your 4 HP hearts: if they reach 0 you're KO'd."
     }
   },
   {
@@ -97,11 +110,11 @@
     "highlight": "dice",
     "es": {
       "title": "Tu tirada",
-      "text": "Al empezar se lanzan todos tus dados. El COMODÍN vale como cualquier símbolo. Los CORAZONES no cubren símbolos, pero te protegen: bloquean el daño de un dado blanco o anulan el corazón roto de un SNAC."
+      "text": "Al empezar se lanzan todos tus dados. El COMODÍN vale como cualquier símbolo. Los CORAZONES no cubren símbolos, pero te protegen: cubren el daño de un dado blanco o el corazón roto de un SNAC."
     },
     "en": {
       "title": "Your roll",
-      "text": "At the start all your dice are rolled. A WILD counts as any symbol. HEARTS don't fill symbol spaces, but they protect you: they block a white die's damage or cancel a SNAC's broken heart."
+      "text": "At the start all your dice are rolled. A WILD counts as any symbol. HEARTS don't fill symbol spaces, but they protect you: they cover a white die's damage or a SNAC's broken heart."
     }
   },
   {
@@ -210,11 +223,11 @@
     "highlight": "dice",
     "es": {
       "title": "El dado blanco",
-      "text": "Tiene 3 caras de daño, 2 en blanco y 1 comodín. Cada daño te quita MEDIO corazón directo, salvo que un CORAZÓN de tu reserva lo bloquee. Si sale en blanco, se queda en tu reserva, ¡también en los siguientes combates!"
+      "text": "Tiene 3 caras de daño, 2 en blanco y 1 comodín. El daño queda PENDIENTE: lo recibes al volver a relanzar o al resolver. Antes puedes cubrirlo con un CORAZÓN (toca el corazón y luego el daño), o relanzar ese corazón para buscar otro símbolo y aceptar el daño. Los dados blancos se retiran al terminar con el SNAC."
     },
     "en": {
       "title": "The white die",
-      "text": "It has 3 damage faces, 2 blanks and 1 wild. Each damage takes HALF a heart straight away, unless a HEART in your pool blocks it. If it lands blank it stays in your pool, even for the next fights!"
+      "text": "It has 3 damage faces, 2 blanks and 1 wild. Damage stays PENDING: you take it when you re-roll again or resolve. Before that you can cover it with a HEART (tap the heart, then the damage), or re-roll that heart for another symbol and accept the damage. White dice are removed once you finish with the SNAC."
     }
   },
   {
@@ -227,11 +240,11 @@
     "highlight": "resolve",
     "es": {
       "title": "Cómo termina la caza",
-      "text": "El botón de abajo dice qué pasará: 4 espacios = DERROTAR (+1 punto y un trofeo), 2 o 3 = ESTUDIAR (ganas un trofeo), 1 = HUIR (vuelves al pueblo). El corazón roto de un SNAC cuenta como cubierto, pero te quita 1 corazón completo al resolver. Si tus PV llegan a 0 quedas KO: pierdes 1 punto y vuelves al pueblo."
+      "text": "El botón de abajo dice qué pasará: 4 espacios = DERROTAR (+1 punto y un trofeo), 2 o 3 = ESTUDIAR (ganas un trofeo), 1 = HUIR (vuelves al pueblo). El corazón roto de un SNAC cuenta como cubierto, pero te quita 1 corazón al resolver. Si tus PV llegan a 0 quedas KO: pierdes 1 punto y vuelves al pueblo."
     },
     "en": {
       "title": "How a hunt ends",
-      "text": "The button below shows what will happen: 4 spaces = DEFEAT (+1 point and a trophy), 2 or 3 = STUDY (you get a trophy), 1 = FLEE (back to town). A SNAC's broken heart counts as filled, but costs you a full heart when you resolve. If your HP hits 0 you're KO'd: you lose 1 point and go back to town."
+      "text": "The button below shows what will happen: 4 spaces = DEFEAT (+1 point and a trophy), 2 or 3 = STUDY (you get a trophy), 1 = FLEE (back to town). A SNAC's broken heart counts as filled, but costs you 1 heart when you resolve. If your HP hits 0 you're KO'd: you lose 1 point and go back to town."
     }
   },
   {
@@ -244,11 +257,11 @@
     "highlight": "status",
     "es": {
       "title": "Dados gastados",
-      "text": "Los dados que usaste en el SNAC quedan GASTADOS hasta que vuelvas al pueblo, y tu HPie tampoco se recupera. Puedes SEGUIR CAZANDO con lo que te queda o VOLVER AL PUEBLO a tiempo."
+      "text": "Los dados que usaste en el SNAC quedan GASTADOS hasta que vuelvas al pueblo, los dados blancos se retiran y tu HPie no se recupera. Puedes SEGUIR CAZANDO con lo que te queda o VOLVER AL PUEBLO a tiempo."
     },
     "en": {
       "title": "Spent dice",
-      "text": "The dice you used on the SNAC stay SPENT until you return to town, and your HP doesn't recover either. You can KEEP HUNTING with what's left or HEAD BACK TO TOWN in time."
+      "text": "The dice you used on the SNAC stay SPENT until you return to town, white dice are removed and your HP doesn't recover. You can KEEP HUNTING with what's left or HEAD BACK TO TOWN in time."
     }
   },
   {

@@ -35,6 +35,7 @@ function playHonestly(seed: string): { actions: GameAction[]; final: GameState }
     s = applyGameAction(s, a, gameData);
     actions.push(a);
   };
+  act({ type: 'start', die: 'green' });
   act({ type: 'follow', index: 0 });
   for (let guard = 0; s.phase === 'combat' && guard < 30; guard++) {
     const combat = s.combat!;
@@ -99,6 +100,7 @@ describe('POST /games', () => {
 
   it('rechaza un cliente tramposo que inventa una jugada ilegal', async () => {
     const actions = [
+      { type: 'start', die: 'green' },
       { type: 'follow', index: 0 },
       { type: 'combat', action: { type: 'assign', dieId: 'd0', slot: 0 } },
       { type: 'combat', action: { type: 'assign', dieId: 'd0', slot: 1 } },
@@ -110,11 +112,13 @@ describe('POST /games', () => {
 
   it('rechaza usar un trofeo o una habilidad que no se tiene', async () => {
     const steal = [
+      { type: 'start', die: 'green' },
       { type: 'follow', index: 0 },
       { type: 'combat', action: { type: 'trophy', index: 7, slot: 0 } },
     ];
     expect((await post('/games', { seed: 'x', actions: steal })).statusCode).toBe(422);
     const ability = [
+      { type: 'start', die: 'green' },
       { type: 'follow', index: 0 },
       {
         type: 'combat',

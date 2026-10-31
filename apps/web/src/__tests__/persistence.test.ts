@@ -8,13 +8,20 @@ import { activeLesson, guide } from '../game/guide';
 import { translate } from '../game/i18n';
 import type { MessageKey } from '../game/i18n';
 import { idbStorage } from '../game/persistence';
-import { rebuild, useGame } from '../game/store';
+import { rebuild, topOf, useGame } from '../game/store';
 
 const KEY = 'snac-hunters:v2';
 
 beforeEach(async () => {
   await idbStorage.removeItem(KEY);
-  useGame.setState({ screen: 'home', saved: null, game: null, history: [], lang: 'es' });
+  useGame.setState({
+    screen: 'home',
+    saved: null,
+    game: null,
+    history: [],
+    topScores: [],
+    lang: 'es',
+  });
 });
 
 describe('persistencia de la partida', () => {
@@ -36,6 +43,7 @@ describe('persistencia de la partida', () => {
       'lang',
       'langChosen',
       'saved',
+      'topScores',
       'tutorialDone',
     ]);
 
@@ -103,7 +111,26 @@ describe('controles del combate', () => {
     useGame.getState().act({ type: 'finish' });
     const s = useGame.getState();
     expect(s.game?.phase).toBe('over');
-    expect(s.history[0]).toMatchObject({ runs: 1, score: -1 });
+    expect(s.history[0]).toMatchObject({ runs: 1, score: -5 });
+    expect(s.topScores[0]).toEqual(s.history[0]);
+  });
+
+  it('menú principal: la partida sigue abierta; empezar otra desde el pueblo guarda su puntaje', () => {
+    useGame.getState().newGame();
+    useGame.getState().act({ type: 'start', die: 'green' });
+    useGame.getState().act({ type: 'return' });
+    useGame.getState().goHome();
+    expect(useGame.getState().game?.phase).toBe('town');
+    useGame.getState().newGame();
+    const s = useGame.getState();
+    expect(s.game?.phase).toBe('setup');
+    expect(s.topScores).toHaveLength(1);
+    expect(
+      topOf([
+        ...s.topScores,
+        ...[3, 9, -2, 7].map((score, at) => ({ ...s.topScores[0]!, score, at })),
+      ]).map((g) => g.score),
+    ).toEqual([9, 7, 3]);
   });
 
   it('una acción inválida muestra un aviso y no cambia la partida', () => {
@@ -163,18 +190,36 @@ describe('partida guiada (V0 = tutorial del juego de mesa)', () => {
     expect(ids).toContain('combat-dice');
   });
 
-  it('al volver al pueblo explica la recuperación y el puntaje; la última lección cierra la guía', () => {
+  it('el pueblo se enseña por partes: el Huntmaster y el puntaje llegan en la segunda visita', () => {
+    const dismissAll = () => {
+      for (let i = 0; i < 8 && lessonNow()?.advance === 'next'; i++) {
+        useGame.getState().dismissLesson(lessonNow()!.id);
+      }
+    };
     useGame.getState().newGame(true);
-    useGame.getState().act({ type: 'start', die: 'green' });
+    useGame.getState().act({ type: 'start', die: 'green', guided: true });
     useGame.setState({
-      guideSeen: guide
-        .filter((l) => l.phase !== 'town' || !l.when.includes('returnVisit'))
-        .map((l) => l.id),
+      guideSeen: guide.filter((l) => l.phase !== 'town').map((l) => l.id),
     });
     useGame.getState().act({ type: 'return' });
     expect(lessonNow()?.id).toBe('town-return');
-    for (let i = 0; i < 5 && lessonNow(); i++) useGame.getState().dismissLesson(lessonNow()!.id);
+    dismissAll();
+    // Primera visita: solo 2 opciones y la guía sigue activa
+    expect(useGame.getState().guideOn).toBe(true);
+    expect(useGame.getState().guideSeen).not.toContain('town-huntmaster');
+    useGame.getState().act({ type: 'rest' });
+    useGame.getState().act({ type: 'buy', kind: 'item', pay: [0] });
+    dismissAll();
+    useGame.getState().act({ type: 'pick', abilityId: useGame.getState().game!.offer!.ids[0]! });
+    useGame.getState().act({ type: 'leave' });
+    expect(useGame.getState().game?.phase).toBe('trail');
+    useGame.getState().act({ type: 'return' });
+    expect(lessonNow()?.id).toBe('town-huntmaster');
+    dismissAll();
     expect(useGame.getState()).toMatchObject({ guideOn: false, tutorialDone: true });
+    expect(useGame.getState().guideSeen).toEqual(
+      expect.arrayContaining(['town-huntmaster', 'town-score', 'guide-done']),
+    );
   });
 
   it('después de terminar una partida, la nueva ya no es guiada; se puede saltar la guía', () => {

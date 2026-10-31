@@ -14,6 +14,7 @@ import type { CombatAction, CombatState } from '../combat.js';
 import {
   canHunt,
   endCombat,
+  hasHuntingDice,
   remainingPool,
   replayRun,
   returnToTown,
@@ -124,7 +125,7 @@ describe('dados gastados toda la expedición', () => {
     expect(remainingPool(combat)).toEqual(['red', 'red', 'red']);
   });
 
-  it('sin dados no se puede cazar: hay que volver al pueblo', () => {
+  it('sin dados se puede seguir cazando: solo se lanzarán dados blancos', () => {
     const run = startRun({ dice: ['red', 'red', 'red', 'green'], maxHp: 4 });
     const combat = fight(run, GARDEN_SALAAD, table, [
       { type: 'assign', dieId: 'd0', slot: 0 },
@@ -136,14 +137,18 @@ describe('dados gastados toda la expedición', () => {
     const next = endCombat(run, combat);
     expect(next.pool).toEqual([]);
     expect(next.status).toBe('active');
-    expect(canHunt(next)).toBe(false);
-    expect(() => runCombatSetup(next)).toThrow(/No quedan dados/);
+    expect(canHunt(next)).toBe(true);
+    expect(hasHuntingDice(next)).toBe(false);
+    const empty = startCombat(BEEHOLDER, runCombatSetup(next), 2, table);
+    expect(empty.dice).toEqual([]);
+    const pushed = applyAction(empty, { type: 'reroll', dieIds: [] }, table);
+    expect(pushed.dice.map((d) => d.kind)).toEqual(['white']);
     expect(returnToTown(next)).toMatchObject({ status: 'ended', endedBy: 'town' });
   });
 });
 
 describe('dados blancos en la expedición', () => {
-  it('los blancos no pasan al siguiente monstruo, ni los que salieron en blanco', () => {
+  it('los blancos sin resolver pasan al siguiente monstruo hasta volver al pueblo', () => {
     const table = fixedTable({ red: 'Claw', green: 'Claw', white: 'blank' });
     const run = startRun(SETUP);
     const combat = fight(run, GARDEN_SALAAD, table, [
@@ -155,12 +160,12 @@ describe('dados blancos en la expedición', () => {
     ]);
     expect(availableDice(combat).some((d) => d.kind === 'white')).toBe(true);
     const next = endCombat(run, combat);
-    expect(next.pool).toEqual(['red', 'green']);
+    expect(next.pool).toEqual(['red', 'green', 'white']);
     const second = startCombat(BEEHOLDER, runCombatSetup(next), 2, table);
-    expect(second.dice.map((d) => d.kind)).toEqual(['red', 'green']);
+    expect(second.dice.map((d) => d.kind)).toEqual(['red', 'green', 'white']);
   });
 
-  it('dentro del combate los blancos en blanco se acumulan; al terminar se retiran', () => {
+  it('los blancos en blanco se acumulan de un combate a otro', () => {
     const table = fixedTable({ red: 'Claw', green: 'Claw', white: 'blank' });
     const run = startRun(SETUP);
     const combat = fight(run, GARDEN_SALAAD, table, [
@@ -172,10 +177,10 @@ describe('dados blancos en la expedición', () => {
       { type: 'resolve', trophy: 'Claw' },
     ]);
     expect(availableDice(combat).filter((d) => d.kind === 'white')).toHaveLength(3);
-    expect(remainingPool(combat)).toEqual(['red', 'red', 'green']);
+    expect(remainingPool(combat)).toEqual(['red', 'red', 'green', 'white', 'white', 'white']);
   });
 
-  it('un blanco que salió comodín ya se activó: sale de la reserva aunque no se use', () => {
+  it('un blanco comodín se resuelve al usarlo en el monstruo; si no se usa, sigue en la reserva', () => {
     const table = fixedTable({ red: 'Claw', green: 'Claw', white: 'wild' });
     const run = startRun(SETUP);
     const combat = fight(run, GARDEN_SALAAD, table, [
@@ -185,7 +190,14 @@ describe('dados blancos en la expedición', () => {
       { type: 'resolve', trophy: 'Claw' },
     ]);
     expect(combat.dice.find((d) => d.id === 'd5')).toMatchObject({ kind: 'white', face: 'wild' });
-    expect(remainingPool(combat)).toEqual(['red', 'red', 'green']);
+    expect(remainingPool(combat)).toEqual(['red', 'red', 'green', 'white']);
+    const used = fight(run, GARDEN_SALAAD, table, [
+      { type: 'reroll', dieIds: ['d4'] },
+      { type: 'assign', dieId: 'd5', slot: 0 },
+      { type: 'assign', dieId: 'd1', slot: 1 },
+      { type: 'resolve', trophy: 'Claw' },
+    ]);
+    expect(remainingPool(used)).toEqual(['red', 'red', 'red', 'green']);
   });
 
   it('el comodín blanco usado en el monstruo se gasta como cualquier dado', () => {

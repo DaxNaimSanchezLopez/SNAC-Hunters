@@ -1,7 +1,9 @@
 // Partida guiada: V0 es el tutorial del juego de mesa (feedback del cliente), así que la
 // primera partida explica cada parte del juego justo cuando aparece. Los textos y las
 // condiciones viven en config/guide.json; aquí solo se decide qué lección toca mostrar.
-import { coveredSlots, loadGuide } from '@snac-hunters/engine';
+// Feedback del cliente (2026-10-27): cada parte aparece cuando el jugador la necesita, no
+// todas en el primer combate.
+import { availableDice, canActivate, coveredSlots, loadGuide } from '@snac-hunters/engine';
 import type { GameAction, GameState, GuideLesson } from '@snac-hunters/engine';
 import rawGuide from '@snac-hunters/config/guide.json';
 
@@ -10,6 +12,17 @@ export const guide: readonly GuideLesson[] = loadGuide(rawGuide);
 type Condition = GuideLesson['when'][number];
 
 const CONDITIONS: Record<Condition, (g: GameState) => boolean> = {
+  // Trofeos: a partir del segundo combate, cuando ya se entiende lo básico
+  laterFight: (g) => g.fights > 0,
+  abilityReady: ({ combat }) =>
+    combat ? combat.abilities.some((a) => canActivate(combat, a)) : false,
+  canHeal: (g) =>
+    g.combat
+      ? g.combat.hp < g.combat.maxHp && availableDice(g.combat).some((d) => d.face === 'heart')
+      : false,
+  tempWild: (g) => (g.combat ? availableDice(g.combat).some((d) => d.kind === 'token') : false),
+  // La misión del Huntmaster se abre en la segunda visita de la partida guiada
+  skillUnlocked: (g) => g.guided && g.townVisits >= 2,
   firstHunt: (g) => g.runs === 1 && g.run?.fights === 0,
   returnVisit: (g) => g.runs > 0,
   offer: (g) => g.offer !== null,

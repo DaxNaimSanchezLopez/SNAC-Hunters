@@ -55,6 +55,9 @@ export {
   isRollable,
   isValidHp,
   canRerollAny,
+  canActivate,
+  canUndo,
+  autoFillPlan,
   ABILITY_INPUTS,
   pickEncounterPair,
   CombatError,
@@ -72,6 +75,7 @@ export type {
 export {
   startRun,
   canHunt,
+  hasHuntingDice,
   runCombatSetup,
   remainingPool,
   endCombat,
@@ -89,5 +93,15 @@ export {
   trophyCapacity,
   readyAbilities,
   findAbility,
+  townOptions,
+  canLeaveTown,
 } from './game.js';
-export type { GameData, GameState, GameAction, GamePhase, OwnedItem } from './game.js';
+export type {
+  GameData,
+  GameState,
+  GameAction,
+  GamePhase,
+  OwnedItem,
+  TownOption,
+  TownOptionState,
+} from './game.js';

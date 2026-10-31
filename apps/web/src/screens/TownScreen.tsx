@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { trophyCapacity } from '@snac-hunters/engine';
-import type { Ability, DieKind, GameState } from '@snac-hunters/engine';
+import { canLeaveTown, townOptions, trophyCapacity } from '@snac-hunters/engine';
+import type { Ability, DieKind, GameState, TownOptionState } from '@snac-hunters/engine';
 import { AbilityCard } from '../components/AbilityCard';
 import { Button } from '../components/Button';
 import { Hud } from '../components/Hud';
+import { Icon } from '../components/Icon';
 import { Modal } from '../components/Modal';
 import { TrophySlot, TrophyToken } from '../components/Trophy';
 import { gameConfig, gameData, getAbility } from '../game/config';
@@ -29,12 +30,15 @@ function owned(ids: readonly string[]): Ability[] {
 export function TownScreen({ game }: { game: GameState }) {
   const t = useT();
   const act = useGame((s) => s.act);
+  const goHome = useGame((s) => s.goHome);
   const [pay, setPay] = useState<number[]>([]);
   const { town } = gameConfig;
   const capacity = trophyCapacity(game, gameData);
   const items = owned(game.items.map((i) => i.id));
   const skills = owned(game.skills);
-  const noActions = game.townActions <= 0;
+  // El engine decide qué opción está abierta, usada o disponible
+  const options = townOptions(game, gameData);
+  const canLeave = canLeaveTown(game, gameData);
 
   function togglePay(i: number) {
     setPay((p) => (p.includes(i) ? p.filter((x) => x !== i) : [...p, i]));
@@ -97,26 +101,30 @@ export function TownScreen({ game }: { game: GameState }) {
           </div>
         </section>
 
-        <div data-guide-target="actions" className="grid grid-cols-3 gap-2 rounded-2xl">
+        {/* Partida guiada: solo se muestran las opciones ya desbloqueadas */}
+        <div
+          data-guide-target="actions"
+          className={`grid gap-2 rounded-2xl ${options.skill.unlocked ? 'grid-cols-3' : 'grid-cols-2'}`}
+        >
           <TownSign
             img="/assets/town/rest.png"
             title={t('town.rest')}
             text={t('town.restText')}
-            disabled={noActions}
+            status={options.rest}
             onClick={() => act({ type: 'rest' })}
           />
           <TownSign
             img="/assets/town/villager.png"
             title={t('town.buyItem')}
             text={t('town.buyItemText', { n: town.itemCost })}
-            disabled={noActions || game.trophies.length < town.itemCost}
+            status={options.item}
             onClick={() => buy('item')}
           />
           <TownSign
             img="/assets/town/huntmaster.png"
             title={t('town.buySkill')}
             text={t('town.buySkillText', { n: town.skillCost })}
-            disabled={noActions || game.trophies.length < town.skillCost}
+            status={options.skill}
             onClick={() => buy('skill')}
           />
         </div>
@@ -142,15 +150,19 @@ export function TownScreen({ game }: { game: GameState }) {
         <Button
           data-guide-target="leave"
           onClick={() => act({ type: 'leave' })}
+          disabled={!canLeave}
           className="text-xl"
         >
           {t('town.leave')}
           <span className="block font-sans text-xs">
-            {t('town.leaveText', { hp: game.hp, max: game.maxHp })}
+            {canLeave
+              ? t('town.leaveText', { hp: game.hp, max: game.maxHp })
+              : t('town.leaveLocked', { n: game.townActions })}
           </span>
         </Button>
-        <Button variant="secondary" onClick={() => act({ type: 'finish' })}>
-          {t('town.finish')}
+        {/* Feedback 2026-10-27: no termina la partida, se puede volver a ella desde el menú */}
+        <Button variant="secondary" onClick={goHome}>
+          {t('town.mainMenu')}
         </Button>
       </div>
 
@@ -163,17 +175,28 @@ function TownSign(props: {
   img: string;
   title: string;
   text: string;
-  disabled: boolean;
+  status: TownOptionState;
   onClick: () => void;
 }) {
+  const t = useT();
+  const { unlocked, used, available } = props.status;
+  if (!unlocked) return null;
   return (
     <motion.button
       type="button"
       whileTap={{ scale: 0.95 }}
       onClick={props.onClick}
-      disabled={props.disabled}
-      className="flex min-h-[48px] flex-col items-center rounded-2xl border-[3px] border-black bg-sherbet p-2 text-center shadow-[0_4px_0_#000] disabled:opacity-45"
+      disabled={!available}
+      className={`relative flex min-h-[48px] flex-col items-center rounded-2xl border-[3px] border-black p-2 text-center shadow-[0_4px_0_#000] disabled:opacity-45 ${
+        used ? 'bg-gray-300 grayscale' : 'bg-sherbet'
+      }`}
     >
+      {used && (
+        <span className="absolute right-1 top-1 flex items-center gap-0.5 rounded-full border-2 border-black bg-white px-1.5 text-[10px] font-bold uppercase">
+          <Icon name="check" className="h-3 w-3" />
+          {t('town.used')}
+        </span>
+      )}
       <img src={props.img} alt="" className="h-16 object-contain" draggable={false} />
       <span className="mt-1 font-comic text-sm leading-tight text-bark">{props.title}</span>
       <span className="text-[11px] leading-tight text-bark/75">{props.text}</span>
@@ -202,7 +225,10 @@ function CardRow(props: {
   );
 }
 
-/** Cartas robadas tras pagar: se elige una (o ninguna). Con 3 del mismo tipo, hay que reemplazar. */
+/**
+ * Cartas robadas tras pagar: hay que quedarse con una (feedback 2026-10-27). Con 3 del mismo
+ * tipo, la nueva reemplaza a otra.
+ */
 function Offer({ game }: { game: GameState }) {
   const t = useT();
   const act = useGame((s) => s.act);
@@ -237,13 +263,11 @@ function Offer({ game }: { game: GameState }) {
               <AbilityCard key={a.id} ability={a} onClick={() => choose(a.id)} />
             ))}
       </div>
-      <Button
-        variant="secondary"
-        className="mt-3 w-full"
-        onClick={() => (chosen ? setChosen(null) : act({ type: 'pick', abilityId: null }))}
-      >
-        {chosen ? t('town.back') : t('town.decline')}
-      </Button>
+      {chosen && (
+        <Button variant="secondary" className="mt-3 w-full" onClick={() => setChosen(null)}>
+          {t('town.back')}
+        </Button>
+      )}
     </Modal>
   );
 }

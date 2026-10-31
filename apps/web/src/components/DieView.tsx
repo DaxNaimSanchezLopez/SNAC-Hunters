@@ -13,7 +13,8 @@ const KIND_BG: Record<DieSource, string> = {
   white: 'bg-die-white',
   // Trofeo colocado como dado y símbolo creado por una habilidad: no se relanzan
   trophy: 'bg-yellow-200',
-  token: 'bg-white border-dashed',
+  // Feedback 2026-10-27: los símbolos de habilidad son temporales y se ven dorados
+  token: 'bg-gradient-to-br from-yellow-200 via-amber-300 to-amber-500 border-amber-800',
 };
 
 export function FaceIcon({ face, className = 'h-8 w-8' }: { face: Face; className?: string }) {
@@ -51,6 +52,7 @@ export const DieView = forwardRef<HTMLDivElement, Props>(function DieView(
   const t = useT();
   const size = small ? 'h-10 w-10' : 'h-14 w-14';
   const white = die.kind === 'white';
+  const temporary = die.kind === 'token';
   return (
     // Un div con rol de botón: dentro de un espacio del monstruo (que ya es botón) no se anida
     // un <button>, y en la reserva sigue siendo accesible con teclado
@@ -67,6 +69,7 @@ export const DieView = forwardRef<HTMLDivElement, Props>(function DieView(
       }}
       aria-pressed={onClick ? selected : undefined}
       aria-label={t('die.label', { kind: kindName(t, die.kind), face: faceName(t, die.face) })}
+      title={temporary ? t('combat.tempWild') : undefined}
       layout
       initial={white ? WHITE_ENTER : ROLL_ENTER}
       animate={{

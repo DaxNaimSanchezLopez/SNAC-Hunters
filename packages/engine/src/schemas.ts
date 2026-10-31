@@ -79,13 +79,16 @@ export const GameConfigSchema = z
       offerSize: z.number().int().min(1),
       maxItems: z.number().int().min(1),
       maxSkills: z.number().int().min(1),
+      // Partida guiada: opciones del pueblo en la primera visita (se suma una por regreso)
+      guidedStartOptions: z.number().int().min(1).max(3).default(2),
     }),
     tutorial: z.object({
       monsterId: z.string().min(1),
       seed: z.string().min(1),
     }),
     features: z.record(z.string(), z.boolean()),
-    // Puntos por resultado (cada monstruo derrotado vale 1, cada KO -1 según el reglamento)
+    // Puntos por resultado. Feedback del cliente (2026-10-27): escala ×10 para poder ajustar
+    // las penalizaciones con más precisión (un KO cuesta menos que una expedición)
     scoring: z.object({
       defeat: z.number().int(),
       study: z.number().int(),
@@ -146,6 +149,11 @@ export const GuideSchema = z
             'covered',
             'runActive',
             'runEnded',
+            'laterFight',
+            'abilityReady',
+            'canHeal',
+            'tempWild',
+            'skillUnlocked',
           ]),
         )
         .default([]),
@@ -167,6 +175,7 @@ export const GuideSchema = z
           'status',
           'colors',
           'pending',
+          'hp',
         ])
         .optional(),
       position: z.enum(['top', 'bottom']).default('bottom'),

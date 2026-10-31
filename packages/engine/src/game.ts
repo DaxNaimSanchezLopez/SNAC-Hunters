@@ -44,6 +44,12 @@ export interface GameState {
   readonly skills: readonly string[];
   /** Acciones que quedan en esta visita al pueblo. */
   readonly townActions: number;
+  /** Opciones del pueblo ya usadas en esta visita: cada una, una vez por visita. */
+  readonly townUsed: readonly TownOption[];
+  /** Visitas al pueblo (volver de una expedición cuenta como una). */
+  readonly townVisits: number;
+  /** Partida guiada: el pueblo desbloquea sus opciones poco a poco. */
+  readonly guided: boolean;
   /** Cartas ofrecidas tras pagar en el tablero de misiones; hay que elegir una. */
   readonly offer: { readonly kind: Ability['kind']; readonly ids: readonly string[] } | null;
   /** Ids de los dos monstruos del sendero; la UI solo muestra su tipo (monstruos ocultos). */
@@ -59,11 +65,16 @@ export interface GameState {
   readonly outcomes: Readonly<Partial<Record<Outcome, number>>>;
 }
 
+/** Opciones del pueblo: descansar, misión de aldeano (objeto) y del Huntmaster (destreza). */
+export type TownOption = 'rest' | Ability['kind'];
+
+const TOWN_OPTIONS: readonly TownOption[] = ['rest', 'item', 'skill'];
+
 export type GameAction =
-  | { readonly type: 'start'; readonly die: SpecialDieKind }
+  | { readonly type: 'start'; readonly die: SpecialDieKind; readonly guided?: boolean }
   | { readonly type: 'rest' }
   | { readonly type: 'buy'; readonly kind: Ability['kind']; readonly pay: readonly number[] }
-  | { readonly type: 'pick'; readonly abilityId: string | null; readonly replace?: string }
+  | { readonly type: 'pick'; readonly abilityId: string; readonly replace?: string }
   | { readonly type: 'leave' }
   | { readonly type: 'follow'; readonly index: number }
   | { readonly type: 'combat'; readonly action: CombatAction }
@@ -170,6 +181,9 @@ export function newGame(data: GameData, seed: string): GameState {
     items,
     skills: [],
     townActions: town.actionsPerVisit,
+    townUsed: [],
+    townVisits: 0,
+    guided: false,
     offer: null,
     trail: null,
     combat: null,
@@ -187,23 +201,78 @@ function requirePhase(state: GameState, ...phases: GamePhase[]): void {
   if (!phases.includes(state.phase)) fail(`Acción no disponible en la fase "${state.phase}"`);
 }
 
-function spendTownAction(state: GameState): void {
+/** Cartas de ese tipo que aún se pueden robar (las que no se tienen). */
+function buyable(state: GameState, data: GameData, kind: Ability['kind']): Ability[] {
+  const owned = ownedIds(state);
+  return data.abilities.filter((a) => a.kind === kind && !owned.includes(a.id));
+}
+
+export interface TownOptionState {
+  /** En la partida guiada las opciones aparecen una a una con cada regreso al pueblo. */
+  readonly unlocked: boolean;
+  /** Ya se eligió en esta visita (se muestra en gris). */
+  readonly used: boolean;
+  /** Se puede elegir ahora mismo. */
+  readonly available: boolean;
+}
+
+/**
+ * Estado de cada opción del pueblo (feedback del cliente, 2026-10-27): cada opción se usa
+ * una vez por visita, y en la partida guiada se empieza con 2 opciones y se suma una más en
+ * cada regreso, para que el Huntmaster no quite poder al jugador al principio.
+ */
+export function townOptions(state: GameState, data: GameData): Record<TownOption, TownOptionState> {
+  const { town } = data.config;
+  const open = state.guided
+    ? town.guidedStartOptions + Math.max(0, state.townVisits - 1)
+    : TOWN_OPTIONS.length;
+  const free = state.phase === 'town' && state.townActions > 0 && state.offer === null;
+  const entries = TOWN_OPTIONS.map((option, i): [TownOption, TownOptionState] => {
+    const unlocked = i < open;
+    const used = state.townUsed.includes(option);
+    const affordable =
+      option === 'rest' ||
+      (state.trophies.length >= (option === 'item' ? town.itemCost : town.skillCost) &&
+        buyable(state, data, option).length > 0);
+    return [option, { unlocked, used, available: free && unlocked && !used && affordable }];
+  });
+  return Object.fromEntries(entries) as Record<TownOption, TownOptionState>;
+}
+
+/**
+ * Para salir hay que gastar las acciones de la visita (feedback del cliente, 2026-10-27),
+ * salvo que ya no quede ninguna opción posible (por ejemplo, sin trofeos para pagar).
+ */
+export function canLeaveTown(state: GameState, data: GameData): boolean {
+  if (state.offer) return false;
+  if (state.townActions <= 0) return true;
+  return !Object.values(townOptions(state, data)).some((o) => o.available);
+}
+
+function spendTownAction(state: GameState, data: GameData, option: TownOption): GameState {
   if (state.offer) fail('Primero elige una de las cartas ofrecidas');
   if (state.townActions <= 0) fail('No te quedan acciones en el pueblo');
+  const status = townOptions(state, data)[option];
+  if (!status.unlocked) fail('Esa opción aún no está disponible');
+  if (status.used) fail('Ya elegiste esa opción en esta visita');
+  return {
+    ...state,
+    townActions: state.townActions - 1,
+    townUsed: [...state.townUsed, option],
+  };
 }
 
 /** DESCANSAR (manual p. 14): sana por completo, recarga todos los objetos y gana un trofeo. */
 function rest(state: GameState, data: GameData): GameState {
-  spendTownAction(state);
+  const spent = spendTownAction(state, data, 'rest');
   const rng = new SeededRng(state.rngState);
   const trophy = randomTrophy(rng);
   return gainTrophy(
     {
-      ...state,
+      ...spent,
       rngState: rng.currentState,
       hp: state.maxHp,
       items: state.items.map((i) => ({ ...i, ready: true })),
-      townActions: state.townActions - 1,
     },
     data,
     trophy,
@@ -220,7 +289,7 @@ function buy(
   kind: Ability['kind'],
   pay: readonly number[],
 ): GameState {
-  spendTownAction(state);
+  const spent = spendTownAction(state, data, kind);
   const { town } = data.config;
   const cost = kind === 'item' ? town.itemCost : town.skillCost;
   if (pay.length !== cost) fail(`Cuesta ${cost} trofeo(s)`);
@@ -229,16 +298,14 @@ function buy(
     if (!Number.isInteger(i) || i < 0 || i >= state.trophies.length)
       fail(`No tienes el trofeo ${i}`);
   }
-  const owned = ownedIds(state);
-  const candidates = data.abilities.filter((a) => a.kind === kind && !owned.includes(a.id));
+  const candidates = buyable(state, data, kind);
   if (candidates.length === 0) fail('No quedan cartas de ese tipo');
   const rng = new SeededRng(state.rngState);
   const ids = sample(rng, candidates, town.offerSize).map((a) => a.id);
   return {
-    ...state,
+    ...spent,
     rngState: rng.currentState,
     trophies: state.trophies.filter((_, i) => !pay.includes(i)),
-    townActions: state.townActions - 1,
     offer: { kind, ids },
   };
 }
@@ -256,17 +323,20 @@ function discard(state: GameState, data: GameData, id: string): GameState {
   return { ...state, dice, skills: state.skills.filter((s) => s !== id) };
 }
 
-/** Elige una de las cartas ofrecidas (null = no quedarse con ninguna). Máximo 3 de cada tipo. */
+/**
+ * Elige una de las cartas ofrecidas: es obligatorio quedarse con una (feedback del cliente,
+ * 2026-10-27). Máximo 3 de cada tipo.
+ */
 function pick(
   state: GameState,
   data: GameData,
-  abilityId: string | null,
+  abilityId: string,
   replace: string | undefined,
 ): GameState {
   const { offer } = state;
   if (!offer) fail('No hay cartas para elegir');
-  if (abilityId === null) return { ...state, offer: null };
-  if (!offer.ids.includes(abilityId)) fail(`"${abilityId}" no está entre las cartas ofrecidas`);
+  if (typeof abilityId !== 'string' || !offer.ids.includes(abilityId))
+    fail(`"${abilityId}" no está entre las cartas ofrecidas`);
   const ability = findAbility(data, abilityId);
   const { town } = data.config;
   const max = ability.kind === 'item' ? town.maxItems : town.maxSkills;
@@ -293,6 +363,9 @@ function pick(
 /** Salir del pueblo: empieza la expedición con todos los dados y el HPie que se tenga. */
 function leave(state: GameState, data: GameData): GameState {
   if (state.offer) fail('Primero elige una de las cartas ofrecidas');
+  if (state.phase === 'town' && !canLeaveTown(state, data)) {
+    fail('Usa tus acciones en el pueblo antes de salir');
+  }
   const rng = new SeededRng(state.rngState);
   const trail = newTrail(data, rng);
   return {
@@ -334,7 +407,7 @@ function settle(state: GameState, data: GameData, combat: CombatState): GameStat
 /** Sigue el rastro elegido: el monstruo se revela y empieza el combate. */
 function follow(state: GameState, data: GameData, index: number): GameState {
   const run = state.run as RunState;
-  if (!canHunt(run)) fail('No quedan dados: vuelve al pueblo');
+  if (!canHunt(run)) fail('La expedición terminó: vuelve al pueblo');
   const id = state.trail?.[index];
   if (id === undefined) fail(`No hay rastro ${index}`);
   const rng = new SeededRng(state.rngState);
@@ -376,8 +449,7 @@ function keep(state: GameState, discardIndex: number | null): GameState {
 /** Siguiente encuentro de la misma expedición. */
 function next(state: GameState, data: GameData): GameState {
   const run = state.run as RunState;
-  if (run.status !== 'active') fail('La expedición terminó: vuelve al pueblo');
-  if (!canHunt(run)) fail('No quedan dados: vuelve al pueblo');
+  if (!canHunt(run)) fail('La expedición terminó: vuelve al pueblo');
   const rng = new SeededRng(state.rngState);
   const trail = newTrail(data, rng);
   return { ...state, rngState: rng.currentState, phase: 'trail', combat: null, trail };
@@ -396,13 +468,15 @@ function goToTown(state: GameState, data: GameData): GameState {
     combat: null,
     trail: null,
     townActions: data.config.town.actionsPerVisit,
+    townUsed: [],
+    townVisits: state.townVisits + 1,
   };
 }
 
 /** Elige el color del cazador: su dado especial se suma a los dados y sale de expedición. */
-function start(state: GameState, data: GameData, die: SpecialDieKind): GameState {
+function start(state: GameState, data: GameData, die: SpecialDieKind, guided: boolean): GameState {
   if (!SPECIAL_DICE.includes(die)) fail(`"${die}" no es un dado especial`);
-  return leave({ ...state, dice: [...state.dice, die] }, data);
+  return leave({ ...state, guided, dice: [...state.dice, die] }, data);
 }
 
 /** Aplica una acción de la partida. Lanza CombatError si no es válida en el estado actual. */
@@ -414,7 +488,7 @@ export function applyGameAction(state: GameState, action: GameAction, data: Game
   switch (action.type) {
     case 'start':
       requirePhase(state, 'setup');
-      return start(state, data, action.die);
+      return start(state, data, action.die, action.guided === true);
     case 'rest':
       requirePhase(state, 'town');
       return rest(state, data);

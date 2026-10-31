@@ -7,7 +7,7 @@ import { gameConfig } from '../game/config';
 import { useGame } from '../game/store';
 import { useT } from '../game/useT';
 
-/** Pantalla de puntaje (feedback V0, sección 6): puntos − KOs × 3 − expediciones. */
+/** Pantalla de puntaje: puntos − KOs × koWeight − expediciones × runWeight (config/). */
 export function OverScreen({ game }: { game: GameState }) {
   const t = useT();
   const { newGame, goHome } = useGame();
@@ -15,7 +15,7 @@ export function OverScreen({ game }: { game: GameState }) {
   const rows = [
     { label: t('over.points'), value: game.points },
     { label: t('over.kos', { ko: koWeight }), value: -game.kos * koWeight },
-    { label: t('over.runs'), value: -game.runs * runWeight },
+    { label: t('over.runs', { run: runWeight }), value: -game.runs * runWeight },
   ];
 
   return (
@@ -27,7 +27,9 @@ export function OverScreen({ game }: { game: GameState }) {
       >
         <img src="/assets/huntmaster-puppet.png" alt="" className="mx-auto h-24 object-contain" />
         <h1 className="font-comic text-4xl text-bark">{t('over.title')}</h1>
-        <p className="text-sm text-bark/70">{t('over.formula', { ko: koWeight })}</p>
+        <p className="text-sm text-bark/70">
+          {t('over.formula', { ko: koWeight, run: runWeight })}
+        </p>
         <dl className="mx-auto mt-3 max-w-xs text-left">
           {rows.map((r) => (
             <div key={r.label} className="flex justify-between border-b-2 border-bark/20 py-1">

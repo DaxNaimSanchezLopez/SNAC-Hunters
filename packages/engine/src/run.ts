@@ -1,7 +1,7 @@
 // RF-12: Expedición (run) — funciones puras sobre el estado entre combates.
 // Pueblo → salir → combates encadenados → volver al pueblo (por decisión, huida o KO).
-// Lo gastado en un combate sigue gastado el resto de la expedición; al volver al pueblo
-// se recuperan los dados y se retiran todos los dados blancos (D-14, D-15).
+// Lo gastado en un combate sigue gastado el resto de la expedición y los dados blancos se
+// acumulan; al volver al pueblo se recuperan los dados y se retiran los blancos (D-14, D-15).
 
 import { CombatError, isRollable, isValidHp, replayCombat } from './combat.js';
 import type { CombatAction, CombatSetup, CombatState } from './combat.js';
@@ -60,33 +60,38 @@ export function startRun(setup: RunSetup): RunState {
   };
 }
 
-/** ¿Puede enfrentar otro monstruo? Hace falta seguir en expedición y tener dados. */
+/**
+ * ¿Puede enfrentar otro monstruo? Basta con seguir en expedición: sin dados también se puede
+ * cazar, solo que únicamente se lanzarán dados blancos (feedback del cliente, 2026-10-27).
+ */
 export function canHunt(run: RunState): boolean {
-  return run.status === 'active' && run.pool.length > 0;
+  return run.status === 'active';
+}
+
+/** ¿Le queda algún dado que no sea blanco? Sin ellos, seguir cazando es muy arriesgado. */
+export function hasHuntingDice(run: RunState): boolean {
+  return run.pool.some((kind) => kind !== 'white');
 }
 
 /** Setup del siguiente combate: los dados y el HPie que quedan, no los iniciales. */
 export function runCombatSetup(run: RunState): CombatSetup {
   if (run.status !== 'active') throw new CombatError('La expedición ya terminó');
-  if (run.pool.length === 0) throw new CombatError('No quedan dados: vuelve al pueblo');
   return { dice: run.pool, hp: run.hp, maxHp: run.maxHp };
 }
 
 /**
  * Dados que siguen en la reserva al terminar un combate:
- * - Los usados en el monstruo, los corazones que bloquearon daño y los blancos que
- *   hicieron daño quedan gastados.
- * - Los dados blancos no pasan al siguiente monstruo, ni siquiera los que salieron en blanco
- *   (revisión del equipo, D-15): cada combate empieza solo con los dados del personaje.
+ * - Los usados en el monstruo, los corazones que bloquearon daño o curaron y los blancos
+ *   que hicieron daño quedan gastados.
+ * - Los dados blancos que no se resolvieron (en blanco o comodín sin usar) se quedan en la
+ *   reserva hasta volver al pueblo: pasan de un monstruo a otro (feedback del cliente,
+ *   2026-10-27, D-15).
  * - Los símbolos que consume una habilidad también quedan gastados.
  */
 export function remainingPool(combat: CombatState): DieKind[] {
   // Trofeos y símbolos de habilidad no son dados: nunca pasan al siguiente combate
   return combat.dice.flatMap((d) =>
-    isRollable(d.kind) &&
-    !combat.spent.includes(d.id) &&
-    !combat.assignments.includes(d.id) &&
-    d.kind !== 'white'
+    isRollable(d.kind) && !combat.spent.includes(d.id) && !combat.assignments.includes(d.id)
       ? [d.kind]
       : [],
   );

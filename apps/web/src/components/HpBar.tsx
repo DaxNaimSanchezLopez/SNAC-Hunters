@@ -4,6 +4,7 @@ export function HpBar({ hp, maxHp, glow = false }: { hp: number; maxHp: number; 
   return (
     <div
       aria-label={`HPie ${hp} de ${maxHp}`}
+      data-guide-target="hp"
       className={`flex shrink-0 items-center gap-0.5 rounded-full bg-black/40 px-2 py-1 ${glow ? 'ring-4 ring-yellow-300' : ''}`}
     >
       {Array.from({ length: maxHp }, (_, i) => (

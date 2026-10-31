@@ -1,10 +1,11 @@
 import { motion } from 'framer-motion';
-import { canHunt } from '@snac-hunters/engine';
+import { canHunt, hasHuntingDice } from '@snac-hunters/engine';
 import type { CombatState, Outcome } from '@snac-hunters/engine';
 import { Button } from '../components/Button';
 import { Hud } from '../components/Hud';
 import { MonsterPortrait } from '../components/MonsterCard';
 import { TrophyToken } from '../components/Trophy';
+import { gameConfig } from '../game/config';
 import { typeName } from '../game/i18n';
 import type { MessageKey } from '../game/i18n';
 import { useGame } from '../game/store';
@@ -68,17 +69,28 @@ export function ResultScreen() {
         </p>
         {ended && run.endedBy !== 'town' && (
           <p className="mt-2 rounded-xl border-2 border-black bg-orange-200 px-3 py-2 text-sm font-bold">
-            {t(run.endedBy === 'ko' ? 'result.runOver.ko' : 'result.runOver.flee')}
+            {run.endedBy === 'ko'
+              ? t('result.runOver.ko', { n: gameConfig.scoring.koWeight })
+              : t('result.runOver.flee')}
           </p>
         )}
-        {!ended && !canHunt(run) && <p className="mt-2 text-sm">{t('result.noDice')}</p>}
+        {!ended && !hasHuntingDice(run) && (
+          <p className="mt-2 rounded-xl border-2 border-black bg-red-200 px-3 py-2 text-sm font-bold text-red-900">
+            {t('result.noDice')}
+          </p>
+        )}
       </OutcomeCard>
       <div className="mt-auto grid gap-3">
         {canHunt(run) && (
-          <Button onClick={() => act({ type: 'continue' })}>{t('result.continue')}</Button>
+          <Button
+            variant={hasHuntingDice(run) ? 'primary' : 'secondary'}
+            onClick={() => act({ type: 'continue' })}
+          >
+            {t('result.continue')}
+          </Button>
         )}
         <Button
-          variant={canHunt(run) ? 'secondary' : 'primary'}
+          variant={canHunt(run) && hasHuntingDice(run) ? 'secondary' : 'primary'}
           onClick={() => act({ type: 'return' })}
         >
           {t('result.town')}

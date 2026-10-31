@@ -13,7 +13,8 @@
     "skillCost": 2,
     "offerSize": 3,
     "maxItems": 3,
-    "maxSkills": 3
+    "maxSkills": 3,
+    "guidedStartOptions": 2
   },
   "tutorial": {
     "monsterId": "garden-salaad",
@@ -28,11 +29,11 @@
     "boss": false
   },
   "scoring": {
-    "defeat": 1,
-    "study": 0,
+    "defeat": 10,
+    "study": 3,
     "flee": 0,
-    "ko": -1,
+    "ko": 0,
     "koWeight": 3,
-    "runWeight": 1
+    "runWeight": 5
   }
 }

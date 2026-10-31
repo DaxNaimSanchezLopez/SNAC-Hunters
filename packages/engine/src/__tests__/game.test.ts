@@ -5,9 +5,11 @@ import { availableDice, canRerollAny, coveredSlots, validSlotsFor } from '../com
 import {
   applyGameAction,
   finalScore,
+  canLeaveTown,
   newGame,
   readyAbilities,
   replayGame,
+  townOptions,
   trophyCapacity,
 } from '../game.js';
 import type { GameAction, GameData, GameState } from '../game.js';
@@ -43,9 +45,12 @@ function begin(data: GameData, seed: string): GameState {
   return applyGameAction(newGame(data, seed), { type: 'start', die: 'green' }, data);
 }
 
-/** El personaje en el pueblo antes de su primera expedición, para probar el pueblo. */
+/**
+ * El personaje en el pueblo antes de su primera expedición, con las acciones ya gastadas
+ * (listo para salir). Los tests del pueblo le dan acciones con `townActions`.
+ */
 function townGame(data: GameData, seed: string): GameState {
-  return { ...begin(data, seed), phase: 'town', run: null, trail: null, runs: 0 };
+  return { ...begin(data, seed), phase: 'town', run: null, trail: null, runs: 0, townActions: 0 };
 }
 
 /** Estado de partida (en el pueblo) con valores arbitrarios para probar casos concretos. */
@@ -96,18 +101,32 @@ describe('nueva partida', () => {
 
 describe('pueblo', () => {
   it('descansar sana, recarga los objetos, da un trofeo y gasta una acción', () => {
-    const g = withState({ items: [{ id: 'extra-ammo', ready: false }], trophies: [], hp: 1 });
+    const g = withState({
+      items: [{ id: 'extra-ammo', ready: false }],
+      trophies: [],
+      hp: 1,
+      townActions: 2,
+    });
     const r = applyGameAction(g, { type: 'rest' }, DATA);
     expect(r.hp).toBe(4);
     expect(r.items).toEqual([{ id: 'extra-ammo', ready: true }]);
     expect(r.trophies).toHaveLength(1);
     expect(r.townActions).toBe(1);
-    const r2 = run(r, [{ type: 'rest' }]);
-    expect(() => applyGameAction(r2, { type: 'rest' }, DATA)).toThrow(/No te quedan acciones/);
+    // Cada opción, una vez por visita (se muestra en gris)
+    expect(() => applyGameAction(r, { type: 'rest' }, DATA)).toThrow(/Ya elegiste/);
+    expect(townOptions(r, DATA).rest).toEqual({ unlocked: true, used: true, available: false });
+    const r2 = { ...r, townActions: 0 };
+    expect(() => applyGameAction(r2, { type: 'buy', kind: 'item', pay: [0] }, DATA)).toThrow(
+      /No te quedan acciones/,
+    );
   });
 
   it('comprar un objeto cuesta 1 trofeo y ofrece 3 cartas que no tienes', () => {
-    const g = withState({ items: [{ id: 'extra-ammo', ready: true }], trophies: ['Horn', 'Wing'] });
+    const g = withState({
+      items: [{ id: 'extra-ammo', ready: true }],
+      trophies: ['Horn', 'Wing'],
+      townActions: 2,
+    });
     const b = applyGameAction(g, { type: 'buy', kind: 'item', pay: [1] }, DATA);
     expect(b.trophies).toEqual(['Horn']);
     expect(b.townActions).toBe(1);
@@ -123,15 +142,54 @@ describe('pueblo', () => {
     expect(p.offer).toBeNull();
   });
 
-  it('se puede rechazar la oferta; los trofeos pagados no se devuelven', () => {
-    const g = withState({ items: [], trophies: ['Horn'] });
+  it('no se puede rechazar la oferta: hay que quedarse con una carta', () => {
+    const g = withState({ items: [], trophies: ['Horn'], townActions: 2 });
     const b = applyGameAction(g, { type: 'buy', kind: 'item', pay: [0] }, DATA);
-    const p = applyGameAction(b, { type: 'pick', abilityId: null }, DATA);
-    expect(p).toMatchObject({ offer: null, items: [], trophies: [] });
+    const decline = { type: 'pick', abilityId: null } as unknown as GameAction;
+    expect(() => applyGameAction(b, decline, DATA)).toThrow(/no está entre/);
+    expect(canLeaveTown(b, DATA)).toBe(false);
+  });
+
+  it('para salir hay que gastar las 2 acciones, salvo que no quede ninguna opción posible', () => {
+    const g = withState({ trophies: [], townActions: 2 });
+    expect(canLeaveTown(g, DATA)).toBe(false);
+    expect(() => applyGameAction(g, { type: 'leave' }, DATA)).toThrow(/antes de salir/);
+    const rested = applyGameAction(g, { type: 'rest' }, DATA);
+    // Descansar dio un trofeo: todavía puede comprar un objeto
+    expect(canLeaveTown(rested, DATA)).toBe(false);
+    const paid = applyGameAction(rested, { type: 'buy', kind: 'item', pay: [0] }, DATA);
+    const done = applyGameAction(paid, { type: 'pick', abilityId: paid.offer!.ids[0]! }, DATA);
+    expect(canLeaveTown(done, DATA)).toBe(true);
+    expect(applyGameAction(done, { type: 'leave' }, DATA).phase).toBe('trail');
+    // Ya descansó y no tiene trofeos para pagar: puede salir con una acción sin usar
+    expect(canLeaveTown({ ...rested, trophies: [] }, DATA)).toBe(true);
+  });
+
+  it('partida guiada: el pueblo empieza con 2 opciones y suma una en cada regreso', () => {
+    const g = applyGameAction(
+      newGame(DATA, 'guided'),
+      { type: 'start', die: 'green', guided: true },
+      DATA,
+    );
+    const returned = applyGameAction(g, { type: 'return' }, DATA);
+    const first: GameState = { ...returned, trophies: ['Horn', 'Wing'] };
+    expect(first.townVisits).toBe(1);
+    const options = townOptions(first, DATA);
+    expect(options.rest.unlocked && options.item.unlocked).toBe(true);
+    expect(options.skill).toMatchObject({ unlocked: false, available: false });
+    expect(() => applyGameAction(first, { type: 'buy', kind: 'skill', pay: [0, 1] }, DATA)).toThrow(
+      /aún no está disponible/,
+    );
+    const second = run({ ...first, townActions: 0 }, [{ type: 'leave' }, { type: 'return' }]);
+    expect(second.townVisits).toBe(2);
+    expect(townOptions(second, DATA).skill.unlocked).toBe(true);
+    // Sin guía, las 3 opciones desde la primera visita
+    const free = applyGameAction(begin(DATA, 'free'), { type: 'return' }, DATA);
+    expect(townOptions(free, DATA).skill.unlocked).toBe(true);
   });
 
   it('una destreza cuesta 2 trofeos; la de dado especial agrega ese dado', () => {
-    const g = withState({ trophies: ['Horn', 'Wing'], skills: [] });
+    const g = withState({ trophies: ['Horn', 'Wing'], skills: [], townActions: 2 });
     expect(() => applyGameAction(g, { type: 'buy', kind: 'skill', pay: [0] }, DATA)).toThrow(
       /Cuesta 2/,
     );
@@ -182,7 +240,8 @@ describe('pueblo', () => {
       id: a.id,
       ready: true,
     }));
-    const g = withState({ items, trophies: ['Horn'] });
+    const g = withState({ items, trophies: ['Horn'], townActions: 2 });
+    expect(townOptions(g, DATA).item.available).toBe(false);
     expect(() => applyGameAction(g, { type: 'buy', kind: 'item', pay: [0] }, DATA)).toThrow(
       /No quedan cartas/,
     );
@@ -297,14 +356,14 @@ describe('expedición', () => {
     });
     const town = applyGameAction(g, { type: 'return' }, DATA);
     expect(town.hp).toBe(2);
-    const out = applyGameAction(town, { type: 'leave' }, DATA);
+    const out = applyGameAction({ ...town, townActions: 0 }, { type: 'leave' }, DATA);
     expect(out.run?.hp).toBe(2);
     expect(applyGameAction(town, { type: 'rest' }, DATA).hp).toBe(4);
   });
 
   it('se puede volver al pueblo desde el sendero sin pelear', () => {
     const g = run(townGame(DATA, 's'), [{ type: 'leave' }, { type: 'return' }]);
-    expect(g).toMatchObject({ phase: 'town', runs: 1 });
+    expect(g).toMatchObject({ phase: 'town', runs: 1, townActions: 2, townUsed: [] });
   });
 
   it('un objeto usado queda gastado hasta descansar; una destreza se puede volver a usar', () => {
@@ -424,13 +483,20 @@ function autoplay(data: GameData, seed: string, choices: readonly number[]): Gam
     if (s.phase === 'over') break;
     if (s.pendingTrophy !== null) act({ type: 'keep', discard: c % 2 === 0 ? 0 : null });
     else if (s.phase === 'town') {
-      if (s.offer) act({ type: 'pick', abilityId: s.offer.ids[0] ?? null });
-      else if (c % 4 === 0 && s.townActions > 0) act({ type: 'rest' });
-      else if (c % 4 === 1 && s.townActions > 0 && s.trophies.length >= 1)
-        act({ type: 'buy', kind: 'item', pay: [0] });
+      const options = townOptions(s, data);
+      if (s.offer) {
+        // Siempre hay que quedarse con una carta; con 3 del mismo tipo se reemplaza la primera
+        const mine = s.offer.kind === 'item' ? s.items.map((i) => i.id) : s.skills;
+        const max = s.offer.kind === 'item' ? CONFIG.town.maxItems : CONFIG.town.maxSkills;
+        const replace = mine.length >= max ? mine[0] : undefined;
+        act({ type: 'pick', abilityId: s.offer.ids[0]!, ...(replace ? { replace } : {}) });
+      } else if (options.rest.available && c % 2 === 0) act({ type: 'rest' });
+      else if (options.item.available) act({ type: 'buy', kind: 'item', pay: [0] });
+      else if (options.rest.available) act({ type: 'rest' });
+      else if (options.skill.available) act({ type: 'buy', kind: 'skill', pay: [0, 1] });
       else act({ type: 'leave' });
     } else if (s.phase === 'trail') {
-      if (s.run && s.run.pool.length > 0 && c % 5 !== 0) act({ type: 'follow', index: c % 2 });
+      if (s.run && c % 5 !== 0) act({ type: 'follow', index: c % 2 });
       else act({ type: 'return' });
     } else if (s.phase === 'combat') {
       const combat = s.combat!;
@@ -450,7 +516,7 @@ function autoplay(data: GameData, seed: string, choices: readonly number[]): Gam
         });
       }
     } else if (s.phase === 'aftermath') {
-      const canGo = s.run?.status === 'active' && (s.run?.pool.length ?? 0) > 0;
+      const canGo = s.run?.status === 'active';
       act(canGo && c % 3 !== 0 ? { type: 'continue' } : { type: 'return' });
     }
   }

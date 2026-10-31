@@ -36,11 +36,16 @@ const CombatActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('undo'), abilityId: z.string().max(64) }),
   z.object({ type: z.literal('block'), dieId: DieId, damageId: DieId }),
   z.object({ type: z.literal('unblock'), damageId: DieId }),
+  z.object({ type: z.literal('heal'), dieId: DieId }),
   z.object({ type: z.literal('resolve'), trophy: SymbolSchema.optional() }),
 ]);
 
 const GameActionSchema = z.discriminatedUnion('type', [
-  z.object({ type: z.literal('start'), die: z.enum(['orange', 'blue', 'purple', 'green']) }),
+  z.object({
+    type: z.literal('start'),
+    die: z.enum(['orange', 'blue', 'purple', 'green']),
+    guided: z.boolean().optional(),
+  }),
   z.object({ type: z.literal('rest') }),
   z.object({
     type: z.literal('buy'),
@@ -49,7 +54,7 @@ const GameActionSchema = z.discriminatedUnion('type', [
   }),
   z.object({
     type: z.literal('pick'),
-    abilityId: z.string().max(64).nullable(),
+    abilityId: z.string().max(64),
     replace: z.string().max(64).optional(),
   }),
   z.object({ type: z.literal('leave') }),

@@ -166,7 +166,7 @@ El dado de daño se gasta al recibirse y nunca se relanza. Si el daño recibido 
 
 ---
 
-## D-15 — Dados blancos durante la expedición
+## D-15 — Dados blancos durante la expedición *(reemplazada por D-35)*
 
 **Fuente:** feedback del cliente, sección 2; manual p. 10 y FAQ
 
@@ -258,7 +258,7 @@ El dado de daño se gasta al recibirse y nunca se relanza. Si el daño recibido 
 
 ---
 
-## D-23 — Puntaje de V0 y fin de partida
+## D-23 — Puntaje de V0 y fin de partida *(valores reemplazados por D-37)*
 
 **Fuente:** feedback V0, sección 6
 
@@ -315,4 +315,47 @@ El riesgo de D-11 (seeds elegidas por el cliente) sigue igual.
 
 ---
 
-*Última actualización: 2026-10-21 — V0: partida guiada, pueblo, trofeos, 20 habilidades, puntaje, idioma.*
+## D-35 — Feedback del cliente del 2026-10-27: reglas de combate
+
+**Fuente:** retroalimentación de Alex (Pieland), 27.10.2026, sección Combate
+
+**Decisión:**
+- **Dados blancos (reemplaza D-15):** se quedan en la reserva hasta volver al pueblo y pasan de un monstruo a otro. Un blanco se resuelve de dos formas: usándolo como comodín en el monstruo (queda asignado y gastado) o recibiendo su daño al relanzar o resolver (1 de daño por símbolo, salvo que un corazón lo bloquee). Los que salen en blanco o comodín sin usar siguen en la reserva y se vuelven a lanzar al empezar el siguiente combate.
+- **Curarse con corazones:** un corazón de la reserva puede gastarse para recuperar 1 HPie (acción `heal`), sin pasar del máximo.
+- **Deshacer habilidades:** solo hasta el siguiente relanzamiento (`canUndo`); después sería una trampa.
+- **Comodines temporales:** los símbolos que crea una habilidad pueden activar otra habilidad. El engine ya lo permitía (se agregó un test con el caso del cliente); la UI los pinta dorados con un texto que avisa que desaparecen al terminar la pelea.
+- **Cazar sin dados:** se puede seguir cazando aunque no queden dados; el combate empieza sin dados y cada relanzamiento solo agrega un dado blanco. La UI lo advierte.
+- **Daño = 1 HPie:** ya era así en `dev` desde "Correcciones V0" (el sitio de prueba de Firebase todavía tenía la versión anterior).
+
+---
+
+## D-36 — Feedback del cliente del 2026-10-27: pueblo
+
+**Decisión:**
+- Al comprar cartas **hay que quedarse con una** (se quitó "No quiero ninguna"; `pick` ya no acepta `null`).
+- Cada opción del pueblo se usa **una vez por visita** y luego se muestra en gris (`townUsed`).
+- **No se puede salir** sin gastar las 2 acciones, salvo que ya no quede ninguna opción posible (por ejemplo, sin trofeos para pagar y ya descansó) — `canLeaveTown`.
+- **Partida guiada:** el pueblo empieza con 2 opciones (Descansar y Misión de aldeano) y suma una por regreso (`town.guidedStartOptions` en `config/game.json`); la Misión del Huntmaster llega en la segunda visita. La acción `start` lleva `guided` para que el servidor re-simule igual.
+- "Terminar partida" pasa a **"Menú principal"**: la partida queda abierta para continuarla. Si desde el menú se empieza otra partida estando en el pueblo, la anterior se termina y su puntuación se guarda; a mitad de una expedición se descarta (se avisa).
+
+---
+
+## D-37 — Feedback del cliente del 2026-10-27: puntaje e interfaz
+
+**Puntaje (reemplaza los valores de D-23):** se multiplicó la escala para ajustar las penalizaciones con más precisión. Derrotar = 10, estudiar = 3, huir = 0, cada expedición terminada −5 y cada KO −3 (ya no hay además −1 en los puntos). Así un KO cuesta menos que una expedición extra, como pidió el cliente. Valores en `config/game.json` → **pendiente de validar con Alex**.
+
+**Interfaz:**
+- Menú principal: "Mejores puntuaciones" con los 3 primeros lugares (`topScores`, se guarda aparte del historial).
+- Rastros y tarjeta del monstruo: ícono del tipo de monstruo (PNG del cliente) en lugar del trofeo. **Falta el ícono de Garra**: mientras tanto se usa su trofeo.
+- Botón **Auto** y selección múltiple: con varios dados elegidos, tocar un espacio los acomoda todos (`autoFillPlan` cubre el máximo de espacios gastando los menos comodines).
+- El espacio de daño libre del monstruo se resalta en rojo.
+- Si relanzar o resolver dejaría KO, el botón se pone rojo con "¡Quedarás KO!" y hay que tocarlo dos veces.
+- Trofeos en combate muestran los espacios vacíos (se empieza con 2).
+
+**Tutorial:** textos del cliente aplicados (1, 3, 6, 8, 11, 14, 15, 17) y lecciones repartidas: trofeos desde el segundo combate, cartas cuando hay símbolos para activar una, curar cuando estás herido y tienes un corazón, símbolos temporales cuando aparecen, Huntmaster y puntaje en la segunda visita al pueblo.
+
+**Fuera de alcance por ahora:** Huntmaster's Journal, arte de personajes para elegir color y fichas de misión (el cliente las enviará).
+
+---
+
+*Última actualización: 2026-10-27 — feedback del cliente: dados blancos entre combates, curar, pueblo por partes, puntaje ×10, mejores puntuaciones.*

@@ -1,8 +1,10 @@
 import { motion } from 'framer-motion';
-import { canHunt } from '@snac-hunters/engine';
+import { canHunt, hasHuntingDice } from '@snac-hunters/engine';
 import type { GameState } from '@snac-hunters/engine';
 import { Button } from '../components/Button';
 import { Hud } from '../components/Hud';
+import { Icon } from '../components/Icon';
+import { TypeIcon } from '../components/MonsterCard';
 import { getMonster } from '../game/config';
 import { typeName } from '../game/i18n';
 import { useGame } from '../game/store';
@@ -10,7 +12,8 @@ import { useT } from '../game/useT';
 
 /**
  * Nodo de encuentro: dos rastros de distinto tipo. Feedback V0 (monstruos ocultos): antes del
- * combate solo se ve el tipo; el monstruo concreto se revela al empezar a pelear.
+ * combate solo se ve el tipo; el monstruo concreto se revela al empezar a pelear. Se muestra el
+ * ícono del tipo de monstruo, no el trofeo, para que no parezca que se elige un premio.
  */
 export function TrailScreen({ game }: { game: GameState }) {
   const t = useT();
@@ -18,6 +21,9 @@ export function TrailScreen({ game }: { game: GameState }) {
   const run = game.run;
   const types = (game.trail ?? []).map((id) => getMonster(id)?.type);
   const hunting = run !== null && canHunt(run);
+  // Sin dados se puede seguir, pero solo se tirarán dados blancos (feedback 2026-10-27)
+  const onlyWhite = run !== null && !hasHuntingDice(run);
+  const whites = run?.pool.filter((k) => k === 'white').length ?? 0;
 
   return (
     <div className="flex min-h-[100dvh] flex-col gap-4 px-3 py-3">
@@ -27,10 +33,18 @@ export function TrailScreen({ game }: { game: GameState }) {
         <p className="text-sm">
           {t('trail.subtitle', { run: game.runs, fight: (run?.fights ?? 0) + 1 })} ·{' '}
           {t('trail.pool', { n: run?.pool.length ?? 0 })}
+          {whites > 0 && ` (${t('trail.white', { n: whites })})`}
         </p>
       </div>
 
-      {hunting ? (
+      {onlyWhite && (
+        <p className="flex items-center gap-2 rounded-2xl border-[3px] border-black bg-red-200 p-3 text-sm font-bold text-red-900">
+          <Icon name="warning" className="h-6 w-6" />
+          {t('trail.noDice')}
+        </p>
+      )}
+
+      {hunting && (
         <>
           <p className="text-center text-sm text-white/90">{t('trail.pick')}</p>
           <div data-guide-target="tracks" className="grid grid-cols-2 gap-3">
@@ -46,11 +60,7 @@ export function TrailScreen({ game }: { game: GameState }) {
                     className="flex flex-col items-center gap-2 rounded-3xl border-4 border-black bg-sherbet p-4 shadow-[0_6px_0_#000] active:translate-y-1"
                   >
                     <span className="grid h-28 w-28 place-items-center rounded-full border-4 border-dashed border-bark/40 bg-bark/10">
-                      <img
-                        src={`/assets/trophies/${type.toLowerCase()}.png`}
-                        alt=""
-                        className="h-20 object-contain"
-                      />
+                      <TypeIcon type={type} className="h-20 w-20" />
                     </span>
                     <span className="font-comic text-xl text-bark">
                       {t('trail.track', { type: typeName(t, type) })}
@@ -63,11 +73,13 @@ export function TrailScreen({ game }: { game: GameState }) {
             )}
           </div>
         </>
-      ) : (
-        <p className="rounded-2xl bg-black/50 p-3 text-center text-white">{t('trail.noDice')}</p>
       )}
 
-      <Button variant="secondary" className="mt-auto" onClick={() => act({ type: 'return' })}>
+      <Button
+        variant={onlyWhite ? 'primary' : 'secondary'}
+        className="mt-auto"
+        onClick={() => act({ type: 'return' })}
+      >
         {t('trail.return')}
       </Button>
     </div>

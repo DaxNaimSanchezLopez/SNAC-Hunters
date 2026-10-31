@@ -3,11 +3,13 @@ import { AnimatePresence } from 'framer-motion';
 import {
   availableDice,
   canRerollAny,
+  canUndo,
   isRollable,
   pendingDamage,
   pendingHits,
   previewOutcome,
   slotsForFace,
+  trophyCapacity,
   validSlotsFor,
 } from '@snac-hunters/engine';
 import type { Ability, GameSymbol } from '@snac-hunters/engine';
@@ -20,8 +22,8 @@ import { Hud } from '../components/Hud';
 import { Icon } from '../components/Icon';
 import { Modal } from '../components/Modal';
 import { MonsterCard } from '../components/MonsterCard';
-import { TrophyToken } from '../components/Trophy';
-import { tutorialSteps } from '../game/config';
+import { TrophySlot, TrophyToken } from '../components/Trophy';
+import { gameData, tutorialSteps } from '../game/config';
 import { outcomeName, SYMBOLS, typeName } from '../game/i18n';
 import { currentCombat, useGame } from '../game/store';
 import { useT } from '../game/useT';
@@ -34,6 +36,9 @@ function stepIndex(id: string): number {
 /** Elegir trofeo: al derrotar/estudiar (opciones del monstruo) o con "tres iguales" (cualquiera). */
 type TrophyChoice =
   { readonly kind: 'resolve' } | { readonly kind: 'ability'; readonly id: string };
+
+/** Decisión que dejaría KO: hay que tocarla dos veces (feedback 2026-10-27). */
+type Lethal = 'reroll' | 'resolve';
 
 export function CombatScreen() {
   const t = useT();
@@ -48,6 +53,8 @@ export function CombatScreen() {
     selectTrophy,
     tapSlot,
     tapDamage,
+    autoFill,
+    heal,
     rerollRest,
     activateAbility,
     undoAbility,
@@ -56,6 +63,7 @@ export function CombatScreen() {
     goHome,
   } = state;
   const [choosing, setChoosing] = useState<TrophyChoice | null>(null);
+  const [armed, setArmed] = useState<Lethal | null>(null);
   const combat = currentCombat(state);
   if (!combat) return null;
 
@@ -77,6 +85,10 @@ export function CombatScreen() {
   const hits = pendingHits(combat);
   const whiteHits = hits.filter((h) => h.heart === null).length;
   const covered = combat.assignments.filter(Boolean).length + (preview ? snacDamage : 0);
+  // Avisos de KO: relanzar cobra el daño pendiente; resolver, también el de los espacios
+  const rerollKills = whiteHits >= combat.hp;
+  const resolveKills = preview !== null && whiteHits + snacDamage >= combat.hp;
+  const tokens = pool.some((d) => d.kind === 'token');
 
   // Con una sola pieza elegida (dado o trofeo) se iluminan los espacios donde cabe
   const picked = selected.length + selectedTrophies.length;
@@ -91,9 +103,21 @@ export function CombatScreen() {
         ? validSlotsFor(combat, selected[0])
         : [];
 
+  /** La primera vez que una decisión deja KO solo se avisa; la segunda, se confirma. */
+  function confirmLethal(kind: Lethal, lethal: boolean, run: () => void) {
+    if (lethal && armed !== kind) {
+      setArmed(kind);
+      return;
+    }
+    setArmed(null);
+    run();
+  }
+
   function onResolve() {
-    if (preview === 'flee') resolve();
-    else setChoosing({ kind: 'resolve' });
+    confirmLethal('resolve', resolveKills, () => {
+      if (preview === 'flee') resolve();
+      else setChoosing({ kind: 'resolve' });
+    });
   }
 
   // Con un corazón elegido se iluminan los daños que puede cubrir
@@ -101,6 +125,10 @@ export function CombatScreen() {
     picked === 1 && selected[0] !== undefined
       ? pool.find((d) => d.id === selected[0])?.face === 'heart'
       : false;
+  // Corazones elegidos: también sirven para curarse (feedback 2026-10-27)
+  const hearts = pool.filter((d) => d.face === 'heart' && selected.includes(d.id)).length;
+  const healable = Math.min(hearts, combat.maxHp - combat.hp);
+  const capacity = game && !tutorial ? trophyCapacity(game, gameData) : 0;
 
   function onAbility(ability: Ability) {
     // Los símbolos pueden ser dados o trofeos: cuentan los dos
@@ -171,6 +199,28 @@ export function CombatScreen() {
           {/* Feedback V0: solo importa cuántos dados quedan, no cuántas veces se relanzó */}
           <span className="text-sm font-bold">{t('combat.available', { n: pool.length })}</span>
         </div>
+        <div className="mb-2 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={autoFill}
+            disabled={pool.length === 0}
+            aria-label={t('combat.autoLabel')}
+            title={t('combat.autoLabel')}
+            className="min-h-[40px] rounded-xl border-[3px] border-black bg-yellow-300 px-3 font-comic text-bark shadow-[0_3px_0_#000] active:translate-y-0.5 disabled:opacity-40"
+          >
+            {t('combat.auto')}
+          </button>
+          {healable > 0 && (
+            <button
+              type="button"
+              onClick={heal}
+              className="flex min-h-[40px] items-center gap-1 rounded-xl border-[3px] border-black bg-die-red px-3 font-comic text-white shadow-[0_3px_0_#000] active:translate-y-0.5"
+            >
+              <img src="/assets/icons/hp.png" alt="" className="h-5 w-5 object-contain" />
+              {t('combat.heal', { n: healable })}
+            </button>
+          )}
+        </div>
         <p className="mb-2 text-xs text-white/75">{t('combat.keepHint')}</p>
         <div className="flex min-h-[64px] flex-wrap gap-2">
           <AnimatePresence mode="popLayout">
@@ -185,6 +235,11 @@ export function CombatScreen() {
           </AnimatePresence>
           {pool.length === 0 && <p className="text-sm text-white/70">{t('combat.noDice')}</p>}
         </div>
+        {tokens && (
+          <p className="mt-2 rounded-lg bg-amber-300/90 px-2 py-1 text-[11px] font-bold leading-tight text-bark">
+            {t('combat.tempWild')}
+          </p>
+        )}
         {hits.length > 0 && (
           <div
             data-guide-target="pending"
@@ -226,7 +281,7 @@ export function CombatScreen() {
         )}
       </section>
 
-      {!tutorial && combat.trophies.length > 0 && (
+      {!tutorial && capacity > 0 && (
         <section
           aria-label={t('combat.trophies')}
           data-guide-target="trophies"
@@ -243,6 +298,13 @@ export function CombatScreen() {
                 onClick={() => selectTrophy(i)}
               />
             ))}
+            {/* Espacios libres del inventario: se empieza con 2 */}
+            {Array.from(
+              { length: Math.max(0, capacity - (game?.trophies.length ?? 0)) },
+              (_, i) => (
+                <TrophySlot key={`empty-${i}`} />
+              ),
+            )}
           </div>
         </section>
       )}
@@ -258,14 +320,18 @@ export function CombatScreen() {
           <div className="flex gap-2 overflow-x-auto pb-1">
             {combat.abilities.map((a) => {
               const used = combat.usedAbilities.includes(a.id);
+              // Deshacer solo hasta relanzar (feedback 2026-10-27)
+              const undoable = used && canUndo(combat, a.id);
               return (
                 <AbilityCard
                   key={a.id}
                   ability={a}
                   compact
                   dimmed={used}
-                  badge={used ? t('combat.undo') : undefined}
-                  onClick={used ? () => undoAbility(a.id) : () => onAbility(a)}
+                  badge={used ? t(undoable ? 'combat.undo' : 'combat.used') : undefined}
+                  onClick={
+                    undoable ? () => undoAbility(a.id) : used ? undefined : () => onAbility(a)
+                  }
                 />
               );
             })}
@@ -277,19 +343,22 @@ export function CombatScreen() {
       <footer className="fixed inset-x-0 bottom-0 z-20 border-t-4 border-black bg-bark/95 px-3 pb-[max(12px,env(safe-area-inset-bottom))] pt-3">
         <div className="mx-auto grid max-w-md grid-cols-2 gap-3">
           <Button
-            variant="secondary"
-            onClick={rerollRest}
+            variant={rerollKills ? 'danger' : 'secondary'}
+            onClick={() => confirmLethal('reroll', rerollKills, rerollRest)}
             data-guide-target="reroll"
             disabled={!canReroll || (rerollCount === 0 && !whiteOnly)}
             className={highlight === 'reroll' ? 'ring-4 ring-yellow-300' : ''}
           >
             {whiteOnly ? t('combat.rerollWhite') : `${t('combat.reroll')} (${rerollCount})`}
             <span className="block font-sans text-xs">
-              {t('combat.rerollHint')}
-              {whiteHits > 0 ? ` · ${t('combat.hit', { n: whiteHits })}` : ''}
+              {rerollKills
+                ? t(armed === 'reroll' ? 'combat.koConfirm' : 'combat.koWarning')
+                : t('combat.rerollHint') +
+                  (whiteHits > 0 ? ` · ${t('combat.hit', { n: whiteHits })}` : '')}
             </span>
           </Button>
           <Button
+            variant={resolveKills ? 'danger' : 'primary'}
             onClick={onResolve}
             data-guide-target="resolve"
             disabled={!canResolve || preview === null}
@@ -297,12 +366,14 @@ export function CombatScreen() {
           >
             {preview ? outcomeName(t, preview) : t('combat.resolve')}
             <span className="block font-sans text-xs">
-              {preview
-                ? t('combat.spaces', { n: covered }) +
-                  (snacDamage + whiteHits > 0
-                    ? ` · ${t('combat.hit', { n: snacDamage + whiteHits })}`
-                    : '')
-                : t('combat.resolveHint')}
+              {resolveKills
+                ? t(armed === 'resolve' ? 'combat.koConfirm' : 'combat.koWarning')
+                : preview
+                  ? t('combat.spaces', { n: covered }) +
+                    (snacDamage + whiteHits > 0
+                      ? ` · ${t('combat.hit', { n: snacDamage + whiteHits })}`
+                      : '')
+                  : t('combat.resolveHint')}
             </span>
           </Button>
         </div>

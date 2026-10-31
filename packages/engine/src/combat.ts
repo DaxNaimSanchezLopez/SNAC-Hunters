@@ -41,8 +41,10 @@ export type CombatAction =
       /** Solo para habilidades de "tres iguales": el trofeo que se gana (cualquiera). */
       readonly trophy?: GameSymbol;
     }
-  /** Hasta resolver nada es definitivo: deshace una habilidad usada en este monstruo. */
+  /** Deshace una habilidad usada en este monstruo, solo hasta el siguiente relanzamiento. */
   | { readonly type: 'undo'; readonly abilityId: string }
+  /** Un corazón de la reserva cura 1 HPie (feedback del cliente, 2026-10-27). */
+  | { readonly type: 'heal'; readonly dieId: string }
   /** Un corazón de la reserva cubre el daño pendiente de un dado blanco (D-08). */
   | { readonly type: 'block'; readonly dieId: string; readonly damageId: string }
   | { readonly type: 'unblock'; readonly damageId: string }
@@ -75,6 +77,7 @@ export type CombatEvent =
       readonly created: readonly string[];
     }
   | { readonly type: 'undo'; readonly abilityId: string }
+  | { readonly type: 'heal'; readonly dieId: string }
   | {
       readonly type: 'resolve';
       readonly outcome: Outcome;
@@ -238,6 +241,59 @@ export function faceActivates(face: Face, ability: Ability): boolean {
   return face === ability.effect.symbol || face === 'wild';
 }
 
+/** ¿Hay símbolos suficientes (dados de la reserva o trofeos) para activar la habilidad? */
+export function canActivate(state: CombatState, ability: Ability): boolean {
+  const { effect } = ability;
+  if (effect.type === 'special' || state.usedAbilities.includes(ability.id)) return false;
+  const faces = [...availableDice(state).map((d) => d.face), ...state.trophies];
+  return faces.filter((f) => faceActivates(f, ability)).length >= ABILITY_INPUTS[effect.type];
+}
+
+/**
+ * Llenado automático (feedback del cliente, 2026-10-27): reparte los dados elegidos en los
+ * espacios libres del monstruo cubriendo el máximo posible y, a igualdad, gastando menos
+ * comodines. Solo planea: la UI aplica el resultado como acciones `assign`.
+ */
+export function autoFillPlan(
+  state: CombatState,
+  dieIds: readonly string[],
+): { readonly dieId: string; readonly slot: number }[] {
+  if (state.status !== 'active') return [];
+  const dice = availableDice(state).filter((d) => dieIds.includes(d.id));
+  const free = state.monster.slots.flatMap((slot, i) =>
+    state.assignments[i] === null ? [{ slot, i }] : [],
+  );
+  let best: { dieId: string; slot: number }[] = [];
+  let bestWilds = Infinity;
+  const plan: { dieId: string; slot: number }[] = [];
+  const used = new Set<string>();
+  // Como mucho 4 espacios: la búsqueda exhaustiva es pequeña
+  function search(k: number, wilds: number): void {
+    const target = free[k];
+    if (!target) {
+      if (plan.length > best.length || (plan.length === best.length && wilds < bestWilds)) {
+        best = [...plan];
+        bestWilds = wilds;
+      }
+      return;
+    }
+    const tried = new Set<Face>();
+    for (const d of dice) {
+      // Dados con la misma cara son intercambiables: basta probar uno
+      if (used.has(d.id) || tried.has(d.face) || !faceMatchesSlot(d.face, target.slot)) continue;
+      tried.add(d.face);
+      used.add(d.id);
+      plan.push({ dieId: d.id, slot: target.i });
+      search(k + 1, wilds + (d.face === 'wild' ? 1 : 0));
+      plan.pop();
+      used.delete(d.id);
+    }
+    search(k + 1, wilds);
+  }
+  search(0, 0);
+  return best;
+}
+
 /** HPie con el que se puede pelear: entero, al menos 1 y sin pasar del máximo. */
 export function isValidHp(hp: number, maxHp: number): boolean {
   return Number.isInteger(hp) && hp >= 1 && hp <= maxHp;
@@ -305,14 +361,31 @@ function unblock(state: CombatState, damageId: string): CombatState {
   return { ...state, blocks: state.blocks.filter((b) => b.damage !== damageId) };
 }
 
-/** RF-11.2: Inicia un combate lanzando todos los dados de la reserva. */
+/** Gasta un corazón de la reserva para recuperar 1 HPie, sin pasar del máximo. */
+function heal(state: CombatState, heartId: string): CombatState {
+  const heart = availableDice(state).find((d) => d.id === heartId);
+  if (!heart || heart.face !== 'heart') {
+    throw new CombatError('Elige un corazón de tu reserva para curarte');
+  }
+  if (state.hp >= state.maxHp) throw new CombatError('Tu HPie ya está completo');
+  return {
+    ...state,
+    hp: state.hp + 1,
+    spent: [...state.spent, heartId],
+    log: [...state.log, { type: 'heal', dieId: heartId }],
+  };
+}
+
+/**
+ * RF-11.2: Inicia un combate lanzando todos los dados de la reserva. Se puede pelear sin
+ * dados (feedback del cliente, 2026-10-27): entonces solo se lanzan dados blancos al relanzar.
+ */
 export function startCombat(
   monster: Monster,
   setup: CombatSetup,
   seed: number | string,
   table: DiceTable,
 ): CombatState {
-  if (setup.dice.length === 0) throw new CombatError('La reserva de dados está vacía');
   if (!isValidHp(setup.hp, setup.maxHp)) {
     throw new CombatError(`HPie inválido: ${setup.hp}`);
   }
@@ -552,19 +625,37 @@ function useAbility(
   };
 }
 
+/** Posición en el log del evento con el que se activó la habilidad (-1 si no se usó). */
+function abilityEntry(state: CombatState, abilityId: string): number {
+  if (!state.usedAbilities.includes(abilityId)) return -1;
+  for (let i = state.log.length - 1; i >= 0; i--) {
+    const e = state.log[i] as CombatEvent;
+    if (e.type === 'ability' && e.abilityId === abilityId) return i;
+  }
+  return -1;
+}
+
 /**
- * Hasta resolver nada es definitivo (manual p. 11): deshace una habilidad. Los símbolos
- * que creó desaparecen (si estaban en el monstruo, se retiran) y los dados y trofeos que
- * consumió vuelven a la reserva y al inventario.
+ * Una habilidad se puede deshacer hasta el siguiente relanzamiento: después ya se tiró con
+ * esa información y deshacerla sería una trampa (feedback del cliente, 2026-10-27).
+ */
+export function canUndo(state: CombatState, abilityId: string): boolean {
+  const at = abilityEntry(state, abilityId);
+  return at >= 0 && !state.log.slice(at + 1).some((e) => e.type === 'roll');
+}
+
+/**
+ * Deshace una habilidad. Los símbolos que creó desaparecen (si estaban en el monstruo, se
+ * retiran) y los dados y trofeos que consumió vuelven a la reserva y al inventario.
  */
 function undoAbility(state: CombatState, abilityId: string): CombatState {
-  if (!state.usedAbilities.includes(abilityId)) {
+  const entry = state.log[abilityEntry(state, abilityId)];
+  if (entry?.type !== 'ability') {
     throw new CombatError(`No has usado "${abilityId}" con este monstruo`);
   }
-  const entry = [...state.log]
-    .reverse()
-    .find((e) => e.type === 'ability' && e.abilityId === abilityId);
-  if (entry?.type !== 'ability') throw new CombatError(`No has usado "${abilityId}"`);
+  if (!canUndo(state, abilityId)) {
+    throw new CombatError('Ya relanzaste: esa habilidad ya no se puede deshacer');
+  }
   if (entry.created.some((id) => state.spent.includes(id))) {
     throw new CombatError('Sus símbolos activaron otra habilidad: deshaz esa primero');
   }
@@ -649,6 +740,8 @@ export function applyAction(
       return block(state, action.dieId, action.damageId);
     case 'unblock':
       return unblock(state, action.damageId);
+    case 'heal':
+      return heal(state, action.dieId);
     case 'resolve':
       return resolve(state, action.trophy);
     default:

@@ -7,6 +7,7 @@ import {
   ABILITY_INPUTS,
   applyAction,
   applyGameAction,
+  autoFillPlan,
   availableDice,
   canRerollAny,
   CombatError,
@@ -74,6 +75,8 @@ interface GameStore {
   tutorialStep: number;
   tutorialDone: boolean;
   history: readonly FinishedGame[];
+  /** Las 3 mejores partidas (menú principal, feedback del cliente 2026-10-27). */
+  topScores: readonly FinishedGame[];
   /** Partida guiada activa (la primera partida, o al elegir "Aprender a jugar"). */
   guideOn: boolean;
   /** Lecciones de la guía ya vistas. */
@@ -99,6 +102,10 @@ interface GameStore {
   tapSlot(slot: number): void;
   /** Daño pendiente de un dado blanco: lo cubre con el corazón elegido o le quita el corazón. */
   tapDamage(damageId: string): void;
+  /** Acomoda solos los dados elegidos (o toda la reserva si no hay ninguno elegido). */
+  autoFill(): void;
+  /** Gasta los corazones elegidos para curar, 1 HPie cada uno. */
+  heal(): void;
   rerollRest(): void;
   activateAbility(abilityId: string, trophy?: GameSymbol): void;
   undoAbility(abilityId: string): void;
@@ -109,6 +116,12 @@ interface GameStore {
 }
 
 const HISTORY_SIZE = 10;
+const TOP_SIZE = 3;
+
+/** Las mejores partidas, de mayor a menor puntaje (a igualdad, la más antigua primero). */
+export function topOf(games: readonly FinishedGame[]): FinishedGame[] {
+  return [...games].sort((a, b) => b.score - a.score || a.at - b.at).slice(0, TOP_SIZE);
+}
 
 function newSeed(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -234,7 +247,11 @@ export const useGame = create<GameStore>()(
           defeated: game.outcomes.defeat ?? 0,
           at: Date.now(),
         };
-        setState({ history: [entry, ...getState().history].slice(0, HISTORY_SIZE) });
+        const { history, topScores } = getState();
+        setState({
+          history: [entry, ...history].slice(0, HISTORY_SIZE),
+          topScores: topOf([...topScores, entry]),
+        });
       }
 
       function act(action: GameAction): void {
@@ -302,6 +319,19 @@ export const useGame = create<GameStore>()(
         else act({ type: 'combat', action });
       }
 
+      /** Coloca varios dados de una vez: el engine planea, aquí solo se aplican las acciones. */
+      function fill(dieIds: readonly string[]): void {
+        const combat = currentCombat(getState());
+        if (!combat) return;
+        const plan = autoFillPlan(combat, dieIds);
+        if (plan.length === 0) {
+          setState({ selected: [], selectedTrophies: [] });
+          toast(t('combat.noFit'));
+          return;
+        }
+        for (const { dieId, slot } of plan) combatDispatch({ type: 'assign', dieId, slot });
+      }
+
       return {
         hydrated: false,
         lang: 'es',
@@ -314,6 +344,7 @@ export const useGame = create<GameStore>()(
         tutorialStep: 0,
         tutorialDone: false,
         history: [],
+        topScores: [],
         guideOn: false,
         guideSeen: [],
         selected: [],
@@ -328,6 +359,12 @@ export const useGame = create<GameStore>()(
         },
 
         newGame(guided) {
+          // "Menú principal" deja la partida abierta: si estaba en el pueblo, empezar otra la
+          // termina y guarda su puntuación; a mitad de una expedición se descarta
+          const { game } = getState();
+          if (game?.phase === 'town' && game.runs > 0 && !game.offer && !game.pendingTrophy) {
+            act({ type: 'finish' });
+          }
           const seed = newSeed();
           // La primera partida siempre es guiada: V0 enseña el juego de mesa
           const guideOn = guided ?? getState().history.length === 0;
@@ -429,6 +466,9 @@ export const useGame = create<GameStore>()(
           const picked = selected.length + selectedTrophies.length;
           if (combat.assignments[slot] !== null) {
             combatDispatch({ type: 'unassign', slot });
+          } else if (selected.length > 1 && selectedTrophies.length === 0) {
+            // Varios dados elegidos + tocar un espacio = se acomodan todos solos
+            fill(selected);
           } else if (picked === 1 && selectedTrophies[0] !== undefined) {
             combatDispatch({ type: 'trophy', index: selectedTrophies[0], slot });
           } else if (picked === 1 && selected[0]) {
@@ -436,6 +476,23 @@ export const useGame = create<GameStore>()(
           } else {
             toast(t('combat.tapDieFirst'));
           }
+        },
+
+        autoFill() {
+          const state = getState();
+          const combat = currentCombat(state);
+          if (!combat) return;
+          fill(state.selected.length > 0 ? state.selected : availableDice(combat).map((d) => d.id));
+        },
+
+        heal() {
+          const state = getState();
+          const combat = currentCombat(state);
+          if (!combat) return;
+          const hearts = availableDice(combat)
+            .filter((d) => d.face === 'heart' && state.selected.includes(d.id))
+            .slice(0, combat.maxHp - combat.hp);
+          for (const d of hearts) combatDispatch({ type: 'heal', dieId: d.id });
         },
 
         // Feedback V0: se seleccionan los dados que se CONSERVAN y se relanza el resto
@@ -494,6 +551,7 @@ export const useGame = create<GameStore>()(
             saved: null,
             game: null,
             history: [],
+            topScores: [],
             tutorialDone: false,
             guideOn: false,
             guideSeen: [],
@@ -517,6 +575,7 @@ export const useGame = create<GameStore>()(
         saved: s.saved,
         tutorialDone: s.tutorialDone,
         history: s.history,
+        topScores: s.topScores,
         guideOn: s.guideOn,
         guideSeen: s.guideSeen,
       }),
@@ -524,12 +583,15 @@ export const useGame = create<GameStore>()(
         const p = (persisted ?? {}) as Partial<GameStore>;
         // Sesión interrumpida: se reanuda la partida re-simulándola; si está corrupta se descarta
         const game = p.saved ? rebuild(p.saved) : null;
+        const history = Array.isArray(p.history) ? p.history : [];
         return {
           ...current,
           lang: p.lang === 'en' ? 'en' : 'es',
           langChosen: p.langChosen === true,
           tutorialDone: p.tutorialDone === true,
-          history: Array.isArray(p.history) ? p.history : [],
+          history,
+          // Guardados anteriores no tenían el podio: se arma con el historial
+          topScores: topOf(Array.isArray(p.topScores) ? p.topScores : history),
           guideOn: game !== null && p.guideOn === true,
           guideSeen: Array.isArray(p.guideSeen) ? p.guideSeen : [],
           saved: game ? (p.saved ?? null) : null,

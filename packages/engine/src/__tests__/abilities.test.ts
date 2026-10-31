@@ -1,6 +1,14 @@
 // RF-13, RF-14: Trofeos como dados y habilidades (12 objetos + 8 destrezas de V0).
 import { describe, it, expect } from 'vitest';
-import { applyAction, availableDice, canRerollAny, slotsForFace, startCombat } from '../combat.js';
+import {
+  applyAction,
+  availableDice,
+  canActivate,
+  canRerollAny,
+  canUndo,
+  slotsForFace,
+  startCombat,
+} from '../combat.js';
 import type { CombatAction, CombatSetup, CombatState } from '../combat.js';
 import { remainingPool } from '../run.js';
 import type { DiceTable } from '../types.js';
@@ -201,6 +209,43 @@ describe('habilidades', () => {
       wings,
     );
     expect(s3.usedAbilities).toEqual(['double-damage']);
+  });
+
+  it('deshacer solo vale hasta relanzar: después sería una trampa', () => {
+    const s0 = startCombat(BEEHOLDER, withAbilities('extra-ammo'), 1, wings);
+    const s1 = applyAction(s0, { type: 'ability', abilityId: 'extra-ammo', dieIds: ['d0'] }, wings);
+    expect(canUndo(s1, 'extra-ammo')).toBe(true);
+    const s2 = applyAction(s1, { type: 'reroll', dieIds: ['d1'] }, wings);
+    expect(canUndo(s2, 'extra-ammo')).toBe(false);
+    expect(() => applyAction(s2, { type: 'undo', abilityId: 'extra-ammo' }, wings)).toThrow(
+      /Ya relanzaste/,
+    );
+  });
+
+  // Mismo caso que reportó el cliente con Scent and Sound (2 Lupas) → Double Damage
+  it('los comodines temporales de una habilidad activan otra', () => {
+    const horns = fixedTable({ red: 'Horn', green: 'Horn' });
+    const s0 = startCombat(BEEHOLDER, withAbilities('ambidexterity', 'double-damage'), 1, horns);
+    expect(canActivate(s0, ability('double-damage'))).toBe(false);
+    const s1 = applyAction(
+      s0,
+      { type: 'ability', abilityId: 'ambidexterity', dieIds: ['d0', 'd1'] },
+      horns,
+    );
+    const wilds = availableDice(s1).filter((d) => d.kind === 'token');
+    expect(wilds.map((d) => d.face)).toEqual(['wild', 'wild', 'wild']);
+    expect(canActivate(s1, ability('double-damage'))).toBe(true);
+    const s2 = applyAction(
+      s1,
+      {
+        type: 'ability',
+        abilityId: 'double-damage',
+        dieIds: wilds.slice(0, 2).map((d) => d.id),
+      },
+      horns,
+    );
+    expect(s2.usedAbilities).toEqual(['ambidexterity', 'double-damage']);
+    expect(availableDice(s2).filter((d) => d.kind === 'token')).toHaveLength(4);
   });
 
   it('no se deshace una habilidad sin usar ni una cuyos símbolos activaron otra', () => {

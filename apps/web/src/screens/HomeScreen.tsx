@@ -3,6 +3,7 @@ import { Button } from '../components/Button';
 import { isEnabled } from '../game/config';
 import type { Lang } from '../game/i18n';
 import { useGame } from '../game/store';
+import type { FinishedGame } from '../game/store';
 import { useT } from '../game/useT';
 
 /** Selector español / inglés al inicio del juego (feedback V0). */
@@ -34,7 +35,7 @@ export function HomeScreen() {
   const t = useT();
   const {
     game,
-    history,
+    topScores,
     tutorialDone,
     langChosen,
     newGame,
@@ -43,8 +44,8 @@ export function HomeScreen() {
     resetAll,
   } = useGame();
   const playing = game !== null && game.phase !== 'over';
-  const best = history.length ? Math.max(...history.map((h) => h.score)) : null;
-  const last = history[0];
+  // Desde el pueblo, empezar otra partida la termina y guarda su puntuación
+  const inTown = game?.phase === 'town';
 
   return (
     <div className="flex min-h-[100dvh] flex-col gap-4 px-4 py-6">
@@ -78,15 +79,12 @@ export function HomeScreen() {
       />
 
       <section className="rounded-3xl border-4 border-black bg-sherbet/95 p-4 text-center shadow-[0_6px_0_#000]">
-        {best === null ? (
-          <p className="text-bark/70">{t('home.none')}</p>
-        ) : (
-          <div className="grid grid-cols-2 gap-2">
-            <Stat label={t('home.best')} value={best} />
-            <Stat label={t('home.last')} value={last?.score ?? 0} />
-          </div>
-        )}
-        <p className="mt-2 text-xs text-bark/60">{t('home.saved')}</p>
+        <h2 className="font-comic text-2xl text-bark">{t('home.topScores')}</h2>
+        <ol className="mt-2 grid gap-2">
+          {[0, 1, 2].map((i) => (
+            <TopScore key={i} rank={i + 1} game={topScores[i]} />
+          ))}
+        </ol>
       </section>
 
       <div className="mt-auto grid gap-3">
@@ -98,7 +96,9 @@ export function HomeScreen() {
           {t('home.new')}
         </Button>
         {playing && (
-          <p className="-mt-2 text-center text-xs text-white/80">{t('home.newWarning')}</p>
+          <p className="-mt-2 text-center text-xs text-white/80">
+            {t(inTown ? 'home.newWarning' : 'home.newWarningRun')}
+          </p>
         )}
         {isEnabled('tutorial') && (
           <>
@@ -130,11 +130,28 @@ export function HomeScreen() {
   );
 }
 
-function Stat({ label, value }: { label: string; value: number }) {
+const MEDALS = ['bg-yellow-300', 'bg-gray-200', 'bg-orange-300'];
+
+/** Un puesto del podio (feedback del cliente, 2026-10-27): siempre se ven los 3 lugares. */
+function TopScore({ rank, game }: { rank: number; game: FinishedGame | undefined }) {
+  const t = useT();
   return (
-    <div className="rounded-2xl border-2 border-black bg-white py-2">
-      <div className="font-comic text-3xl text-bark">{value}</div>
-      <div className="text-xs text-bark/70">{label}</div>
-    </div>
+    <li className="flex items-center gap-3 rounded-2xl border-2 border-black bg-white px-3 py-1.5 text-left">
+      <span
+        className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-black font-comic text-lg ${MEDALS[rank - 1] ?? ''}`}
+      >
+        {rank}
+      </span>
+      {game ? (
+        <>
+          <span className="flex-1 text-xs text-bark/70">
+            {t('home.snacs', { n: game.defeated })} · {new Date(game.at).toLocaleDateString()}
+          </span>
+          <span className="font-comic text-2xl text-bark">{game.score}</span>
+        </>
+      ) : (
+        <span className="flex-1 text-sm text-bark/50">{t('home.emptyScore')}</span>
+      )}
+    </li>
   );
 }

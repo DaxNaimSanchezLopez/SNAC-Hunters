@@ -18,6 +18,8 @@ const COLORS: readonly { die: SpecialDieKind; symbol: GameSymbol; bg: string }[]
 export function SetupScreen({ game }: { game: GameState }) {
   const t = useT();
   const act = useGame((s) => s.act);
+  // La partida guiada desbloquea el pueblo poco a poco (lo decide el engine)
+  const guideOn = useGame((s) => s.guideOn);
   return (
     <div className="flex min-h-[100dvh] flex-col gap-4 px-3 py-3">
       <Hud game={game} />
@@ -33,7 +35,7 @@ export function SetupScreen({ game }: { game: GameState }) {
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: i * 0.06 }}
-            onClick={() => act({ type: 'start', die })}
+            onClick={() => act({ type: 'start', die, guided: guideOn })}
             className="flex min-h-[48px] flex-col items-center gap-2 rounded-3xl border-4 border-black bg-sherbet p-3 shadow-[0_6px_0_#000] active:translate-y-1"
           >
             <span

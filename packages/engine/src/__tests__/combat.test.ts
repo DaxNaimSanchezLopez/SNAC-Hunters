@@ -4,6 +4,7 @@ import { describe, it, expect } from 'vitest';
 import * as fc from 'fast-check';
 import {
   applyAction,
+  autoFillPlan,
   availableDice,
   CombatError,
   coveredSlots,
@@ -68,8 +69,9 @@ describe('startCombat', () => {
     for (const d of s.dice) expect(DICE[d.kind as DieKind]).toContain(d.face);
   });
 
-  it('rechaza reserva vacía y HPie fuera de rango', () => {
-    expect(() => startCombat(GARDEN_SALAAD, { ...SETUP, dice: [] }, 1, DICE)).toThrow(CombatError);
+  it('acepta reserva vacía (solo dados blancos) y rechaza HPie fuera de rango', () => {
+    expect(startCombat(GARDEN_SALAAD, { ...SETUP, dice: [] }, 1, DICE).dice).toEqual([]);
+    expect(() => startCombat(GARDEN_SALAAD, { ...SETUP, hp: 0 }, 1, DICE)).toThrow(CombatError);
     expect(() => startCombat(GARDEN_SALAAD, { ...SETUP, hp: 0 }, 1, DICE)).toThrow(/HPie/);
     expect(() => startCombat(GARDEN_SALAAD, { ...SETUP, hp: 7 }, 1, DICE)).toThrow(/HPie/);
     expect(() => startCombat(GARDEN_SALAAD, { ...SETUP, hp: 2.5 }, 1, DICE)).toThrow(/HPie/);
@@ -495,5 +497,61 @@ describe('pickEncounterPair', () => {
   it('falla si todos los monstruos son del mismo tipo', () => {
     expect(() => pickEncounterPair([GARDEN_SALAAD, PORCUPINEAPPLE], 1)).toThrow(/dos tipos/);
     expect(() => pickEncounterPair([], 1)).toThrow(CombatError);
+  });
+});
+
+describe('curarse con corazones', () => {
+  const hearts = fixedTable({ red: 'heart', green: 'Claw' });
+
+  it('un corazón de la reserva cura 1 HPie y queda gastado', () => {
+    const s0 = startCombat(GARDEN_SALAAD, { ...SETUP, hp: 3 }, 1, hearts);
+    const s1 = act(s0, { type: 'heal', dieId: 'd0' }, hearts);
+    expect(s1.hp).toBe(4);
+    expect(s1.spent).toEqual(['d0']);
+    expect(availableDice(s1).map((d) => d.id)).not.toContain('d0');
+    expect(s1.log.at(-1)).toEqual({ type: 'heal', dieId: 'd0' });
+  });
+
+  it('no cura por encima del máximo ni con algo que no sea un corazón', () => {
+    const full = startCombat(GARDEN_SALAAD, SETUP, 1, hearts);
+    expect(() => act(full, { type: 'heal', dieId: 'd0' }, hearts)).toThrow(/completo/);
+    const hurt = startCombat(GARDEN_SALAAD, { ...SETUP, hp: 2 }, 1, hearts);
+    expect(() => act(hurt, { type: 'heal', dieId: 'd4' }, hearts)).toThrow(/corazón/);
+  });
+});
+
+describe('llenado automático', () => {
+  it('cubre el máximo de espacios con los dados elegidos y guarda los comodines', () => {
+    const table = fixedTable({ red: 'Claw', green: 'wild', orange: 'Horn' });
+    const setup: CombatSetup = { ...SETUP, dice: ['red', 'green', 'red', 'orange'] };
+    const s0 = startCombat(PORCUPINEAPPLE, setup, 1, table);
+    // Garra, Garra, Hacha y corazón roto: el comodín sobra (no cubre el daño)
+    const plan = autoFillPlan(s0, ['d0', 'd1', 'd2', 'd3']);
+    expect(plan).toEqual([
+      { dieId: 'd0', slot: 0 },
+      { dieId: 'd2', slot: 1 },
+      { dieId: 'd3', slot: 2 },
+    ]);
+    const s1 = plan.reduce((s, p) => act(s, { type: 'assign', ...p }, table), s0);
+    expect(coveredSlots(s1)).toBe(3);
+    expect(autoFillPlan(s1, ['d1'])).toEqual([]);
+  });
+
+  it('usa el comodín donde hace falta y respeta los espacios ya cubiertos', () => {
+    const table = fixedTable({ red: 'Claw', green: 'wild' });
+    const s0 = act(
+      startCombat(GARDEN_SALAAD, SETUP, 1, table),
+      {
+        type: 'assign',
+        dieId: 'd0',
+        slot: 0,
+      },
+      table,
+    );
+    const plan = autoFillPlan(s0, ['d1', 'd4']);
+    expect(plan).toEqual([
+      { dieId: 'd1', slot: 1 },
+      { dieId: 'd4', slot: 2 },
+    ]);
   });
 });

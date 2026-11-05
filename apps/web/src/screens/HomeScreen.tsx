@@ -1,8 +1,9 @@
 import { motion } from 'framer-motion';
+import { finalScore } from '@snac-hunters/engine';
 import { Button } from '../components/Button';
-import { isEnabled } from '../game/config';
+import { gameData, isEnabled } from '../game/config';
 import type { Lang } from '../game/i18n';
-import { useGame } from '../game/store';
+import { canFinish, useGame } from '../game/store';
 import type { FinishedGame } from '../game/store';
 import { useT } from '../game/useT';
 
@@ -44,8 +45,8 @@ export function HomeScreen() {
     resetAll,
   } = useGame();
   const playing = game !== null && game.phase !== 'over';
-  // Desde el pueblo, empezar otra partida la termina y guarda su puntuación
-  const inTown = game?.phase === 'town';
+  // Fuera de un combate, empezar otra partida la termina y guarda su puntuación (su mejor run)
+  const finishable = game !== null && canFinish(game);
 
   return (
     <div className="flex min-h-[100dvh] flex-col gap-4 px-4 py-6">
@@ -88,7 +89,15 @@ export function HomeScreen() {
       </section>
 
       <div className="mt-auto grid gap-3">
-        {playing && <Button onClick={continueGame}>{t('home.continue')}</Button>}
+        {playing && (
+          <Button onClick={continueGame}>
+            {t('home.continue')}
+            {/* Feedback 2026-11-03: el puntaje se puede consultar en cualquier momento */}
+            <span className="block font-sans text-xs">
+              {t('home.current', { n: finalScore(game, gameData) })}
+            </span>
+          </Button>
+        )}
         <Button
           variant={playing || !tutorialDone ? 'secondary' : 'primary'}
           onClick={() => newGame()}
@@ -97,7 +106,7 @@ export function HomeScreen() {
         </Button>
         {playing && (
           <p className="-mt-2 text-center text-xs text-white/80">
-            {t(inTown ? 'home.newWarning' : 'home.newWarningRun')}
+            {t(finishable ? 'home.newWarning' : 'home.newWarningRun')}
           </p>
         )}
         {isEnabled('tutorial') && (
@@ -145,6 +154,11 @@ function TopScore({ rank, game }: { rank: number; game: FinishedGame | undefined
       {game ? (
         <>
           <span className="flex-1 text-xs text-bark/70">
+            {game.bossDefeated && (
+              <span className="mr-1 rounded-full border border-black bg-purple-800 px-1.5 font-bold text-white">
+                {t('home.boss')}
+              </span>
+            )}
             {t('home.snacs', { n: game.defeated })} · {new Date(game.at).toLocaleDateString()}
           </span>
           <span className="font-comic text-2xl text-bark">{game.score}</span>

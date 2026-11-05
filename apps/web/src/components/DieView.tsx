@@ -1,7 +1,9 @@
 import { forwardRef } from 'react';
 import { motion } from 'framer-motion';
-import type { Die, DieSource, Face } from '@snac-hunters/engine';
+import { isWhiteWild } from '@snac-hunters/engine';
+import type { Die, DieSource, Face, SpecialDieKind } from '@snac-hunters/engine';
 import { faceName, kindName } from '../game/i18n';
+import { Icon } from './Icon';
 import { useT } from '../game/useT';
 
 const KIND_BG: Record<DieSource, string> = {
@@ -15,6 +17,14 @@ const KIND_BG: Record<DieSource, string> = {
   trophy: 'bg-yellow-200',
   // Feedback 2026-10-27: los símbolos de habilidad son temporales y se ven dorados
   token: 'bg-gradient-to-br from-yellow-200 via-amber-300 to-amber-500 border-amber-800',
+};
+
+// Comodín de color creado por una carta: el color de su dado especial con borde dorado
+const COLOR_TOKEN_BG: Record<SpecialDieKind, string> = {
+  orange: 'bg-gradient-to-br from-die-orange to-amber-300',
+  blue: 'bg-gradient-to-br from-die-blue to-amber-300',
+  purple: 'bg-gradient-to-br from-die-purple to-amber-300',
+  green: 'bg-gradient-to-br from-die-green to-amber-300',
 };
 
 export function FaceIcon({ face, className = 'h-8 w-8' }: { face: Face; className?: string }) {
@@ -53,6 +63,16 @@ export const DieView = forwardRef<HTMLDivElement, Props>(function DieView(
   const size = small ? 'h-10 w-10' : 'h-14 w-14';
   const white = die.kind === 'white';
   const temporary = die.kind === 'token';
+  // Feedback 2026-11-03: el comodín blanco no se relanza; se marca para que se note
+  const locked = isWhiteWild(die);
+  const background = die.color ? COLOR_TOKEN_BG[die.color] : KIND_BG[die.kind];
+  const hint = locked
+    ? t('combat.whiteWild')
+    : die.color
+      ? t('combat.colorWild', { color: kindName(t, die.color) })
+      : temporary
+        ? t('combat.tempWild')
+        : undefined;
   return (
     // Un div con rol de botón: dentro de un espacio del monstruo (que ya es botón) no se anida
     // un <button>, y en la reserva sigue siendo accesible con teclado
@@ -69,7 +89,7 @@ export const DieView = forwardRef<HTMLDivElement, Props>(function DieView(
       }}
       aria-pressed={onClick ? selected : undefined}
       aria-label={t('die.label', { kind: kindName(t, die.kind), face: faceName(t, die.face) })}
-      title={temporary ? t('combat.tempWild') : undefined}
+      title={hint}
       layout
       initial={white ? WHITE_ENTER : ROLL_ENTER}
       animate={{
@@ -82,10 +102,17 @@ export const DieView = forwardRef<HTMLDivElement, Props>(function DieView(
       transition={
         white ? { duration: 0.9, ease: 'easeOut' } : { type: 'spring', stiffness: 260, damping: 18 }
       }
-      className={`${size} ${KIND_BG[die.kind]} relative grid ${onClick ? 'cursor-pointer' : ''} shrink-0 place-items-center rounded-xl border-[3px] border-black shadow-[0_4px_0_#000] ${
+      className={`${size} ${background} relative grid ${onClick ? 'cursor-pointer' : ''} shrink-0 place-items-center rounded-xl border-[3px] border-black shadow-[0_4px_0_#000] ${
         selected ? 'ring-4 ring-yellow-300' : ''
-      } ${white && !dimmed ? 'shadow-[0_0_14px_4px_rgba(255,255,255,0.8)]' : ''}`}
+      } ${white && !dimmed ? 'shadow-[0_0_14px_4px_rgba(255,255,255,0.8)]' : ''} ${
+        die.color ? 'border-amber-700' : ''
+      }`}
     >
+      {locked && !small && (
+        <span className="absolute -left-2 -top-2 grid h-5 w-5 place-items-center rounded-full border-2 border-black bg-white">
+          <Icon name="lock" className="h-3 w-3" />
+        </span>
+      )}
       {die.kind === 'trophy' && (
         <img
           src={`/assets/trophies/${die.face.toLowerCase()}.png`}

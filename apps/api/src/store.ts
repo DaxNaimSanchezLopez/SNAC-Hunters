@@ -7,7 +7,8 @@ export interface GameRecord {
   readonly userId: string;
   readonly phase: GamePhase;
   readonly score: number;
-  readonly points: number;
+  /** El ranking pone primero a quien derrotó al jefe (feedback del cliente, 2026-11-03). */
+  readonly bossDefeated: boolean;
   readonly kos: number;
   readonly runs: number;
   readonly fights: number;

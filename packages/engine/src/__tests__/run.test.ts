@@ -180,7 +180,7 @@ describe('dados blancos en la expedición', () => {
     expect(remainingPool(combat)).toEqual(['red', 'red', 'green', 'white', 'white', 'white']);
   });
 
-  it('un blanco comodín se resuelve al usarlo en el monstruo; si no se usa, sigue en la reserva', () => {
+  it('un blanco comodín se resuelve al usarlo en el monstruo; si no se usa, se pierde', () => {
     const table = fixedTable({ red: 'Claw', green: 'Claw', white: 'wild' });
     const run = startRun(SETUP);
     const combat = fight(run, GARDEN_SALAAD, table, [
@@ -190,7 +190,8 @@ describe('dados blancos en la expedición', () => {
       { type: 'resolve', trophy: 'Claw' },
     ]);
     expect(combat.dice.find((d) => d.id === 'd5')).toMatchObject({ kind: 'white', face: 'wild' });
-    expect(remainingPool(combat)).toEqual(['red', 'red', 'green', 'white']);
+    // Feedback 2026-11-03: el comodín blanco se usa en este monstruo o se pierde
+    expect(remainingPool(combat)).toEqual(['red', 'red', 'green']);
     const used = fight(run, GARDEN_SALAAD, table, [
       { type: 'reroll', dieIds: ['d4'] },
       { type: 'assign', dieId: 'd5', slot: 0 },

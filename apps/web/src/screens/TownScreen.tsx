@@ -1,15 +1,30 @@
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { canLeaveTown, townOptions, trophyCapacity } from '@snac-hunters/engine';
-import type { Ability, DieKind, GameState, TownOptionState } from '@snac-hunters/engine';
+import {
+  canLeaveTown,
+  findAbility,
+  payableOptions,
+  townOptions,
+  trophyCapacity,
+} from '@snac-hunters/engine';
+import type {
+  Ability,
+  DieKind,
+  GameState,
+  QuestSlot,
+  TownOption,
+  TownOptionState,
+} from '@snac-hunters/engine';
 import { AbilityCard } from '../components/AbilityCard';
 import { Button } from '../components/Button';
 import { Hud } from '../components/Hud';
 import { Icon } from '../components/Icon';
 import { Modal } from '../components/Modal';
+import { CompletedQuests, CostIcon, QuestBoard } from '../components/Quests';
 import { TrophySlot, TrophyToken } from '../components/Trophy';
-import { gameConfig, gameData, getAbility } from '../game/config';
-import { kindName } from '../game/i18n';
+import { gameConfig, gameData, getAbility, getQuest } from '../game/config';
+import { costName, kindName } from '../game/i18n';
+import type { MessageKey } from '../game/i18n';
 import { useGame } from '../game/store';
 import { useT } from '../game/useT';
 
@@ -26,12 +41,15 @@ function owned(ids: readonly string[]): Ability[] {
   return ids.map(getAbility).filter((a): a is Ability => a !== undefined);
 }
 
-/** Fase en el pueblo (manual p. 14–15): descansar, comprar con trofeos y salir a cazar. */
+/**
+ * Fase en el pueblo (manual p. 14–15): descansar, cumplir misiones del tablero y salir a cazar.
+ * Cada opción usa el arte nuevo del pueblo con su personaje, ilustración y letrero
+ * (Image files/town screen).
+ */
 export function TownScreen({ game }: { game: GameState }) {
   const t = useT();
   const act = useGame((s) => s.act);
   const goHome = useGame((s) => s.goHome);
-  const [pay, setPay] = useState<number[]>([]);
   const { town } = gameConfig;
   const capacity = trophyCapacity(game, gameData);
   const items = owned(game.items.map((i) => i.id));
@@ -39,18 +57,10 @@ export function TownScreen({ game }: { game: GameState }) {
   // El engine decide qué opción está abierta, usada o disponible
   const options = townOptions(game, gameData);
   const canLeave = canLeaveTown(game, gameData);
-
-  function togglePay(i: number) {
-    setPay((p) => (p.includes(i) ? p.filter((x) => x !== i) : [...p, i]));
-  }
-
-  /** Paga con los trofeos elegidos; si no eligió los justos, con los primeros. */
-  function buy(kind: Ability['kind']) {
-    const cost = kind === 'item' ? town.itemCost : town.skillCost;
-    const chosen = pay.length === cost ? pay : game.trophies.map((_, i) => i).slice(0, cost);
-    setPay([]);
-    act({ type: 'buy', kind, pay: chosen });
-  }
+  // Cloning Tool cargado: puede recargar otro objeto gastado
+  const cloning = game.items.some(
+    (i) => i.ready && findAbility(gameData, i.id).effect.type === 'recharge',
+  );
 
   return (
     // El fondo del pueblo lo pone App en toda la ventana, no solo en la columna del juego
@@ -70,17 +80,10 @@ export function TownScreen({ game }: { game: GameState }) {
             <h2 className="font-comic text-lg">
               {t('town.trophies', { n: game.trophies.length, max: capacity })}
             </h2>
-            <p className="text-xs text-white/75">
-              {t('town.trophiesHint')} {t('town.payHint')}
-            </p>
+            <p className="text-xs text-white/75">{t('town.trophiesHint')}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {game.trophies.map((s, i) => (
-                <TrophyToken
-                  key={`${s}-${i}`}
-                  symbol={s}
-                  selected={pay.includes(i)}
-                  onClick={() => togglePay(i)}
-                />
+                <TrophyToken key={`${s}-${i}`} symbol={s} />
               ))}
               {Array.from({ length: Math.max(0, capacity - game.trophies.length) }, (_, i) => (
                 <TrophySlot key={`empty-${i}`} />
@@ -102,32 +105,39 @@ export function TownScreen({ game }: { game: GameState }) {
         </section>
 
         {/* Partida guiada: solo se muestran las opciones ya desbloqueadas */}
-        <div
-          data-guide-target="actions"
-          className={`grid gap-2 rounded-2xl ${options.skill.unlocked ? 'grid-cols-3' : 'grid-cols-2'}`}
-        >
+        <div data-guide-target="actions" className="grid gap-2">
           <TownSign
-            img="/assets/town/rest.png"
+            img="/assets/town/rest-scene.png"
             title={t('town.rest')}
             text={t('town.restText')}
             status={options.rest}
             onClick={() => act({ type: 'rest' })}
           />
           <TownSign
-            img="/assets/town/villager.png"
-            title={t('town.buyItem')}
-            text={t('town.buyItemText', { n: town.itemCost })}
+            img="/assets/town/villager-scene.png"
+            title={t('town.villager')}
+            text={t('town.villagerText')}
             status={options.item}
-            onClick={() => buy('item')}
           />
           <TownSign
-            img="/assets/town/huntmaster.png"
-            title={t('town.buySkill')}
-            text={t('town.buySkillText', { n: town.skillCost })}
+            img="/assets/town/huntmaster-scene.png"
+            title={t('town.huntmaster')}
+            text={t('town.huntmasterText')}
             status={options.skill}
-            onClick={() => buy('skill')}
           />
         </div>
+
+        <section
+          data-guide-target="quests"
+          className="rounded-3xl border-4 border-black bg-black/55 p-3 text-white"
+        >
+          <h2 className="font-comic text-lg">{t('town.quests')}</h2>
+          <p className="mb-2 text-xs text-white/75">{t('town.questsHint')}</p>
+          <QuestBoard game={game} action={(slot) => <QuestActions game={game} slot={slot} />} />
+          <div className="mt-2 text-white">
+            <CompletedQuests game={game} />
+          </div>
+        </section>
 
         <section
           data-guide-target="cards"
@@ -136,10 +146,14 @@ export function TownScreen({ game }: { game: GameState }) {
           <h2 className="font-comic text-lg">
             {t('town.items', { n: items.length, max: town.maxItems })}
           </h2>
+          {cloning && game.items.some((i) => !i.ready) && (
+            <p className="text-xs text-white/75">{t('town.rechargeHint')}</p>
+          )}
           <CardRow
             cards={items}
             empty={t('town.emptyItems')}
             spent={(a) => game.items.find((i) => i.id === a.id)?.ready === false}
+            recharge={cloning ? (a) => act({ type: 'recharge', target: a.id }) : undefined}
           />
           <h2 className="mt-3 font-comic text-lg">
             {t('town.skills', { n: skills.length, max: town.maxSkills })}
@@ -171,35 +185,96 @@ export function TownScreen({ game }: { game: GameState }) {
   );
 }
 
+/** Por qué no se puede cumplir una misión ahora (o null si se puede). */
+function blockedReason(game: GameState, option: TownOptionState): MessageKey | null {
+  if (!option.unlocked) return 'town.questLocked';
+  if (option.used) return 'town.questUsed';
+  if (game.townActions <= 0) return 'town.questNoAction';
+  return null;
+}
+
+/** Botones para cumplir una misión: uno por opción de pago (aldeano) o "entregar todo". */
+function QuestActions({ game, slot }: { game: GameState; slot: QuestSlot }) {
+  const t = useT();
+  const act = useGame((s) => s.act);
+  const quest = getQuest(slot.id);
+  if (!quest) return null;
+  const option: TownOption = quest.kind === 'villager' ? 'item' : 'skill';
+  const blocked = blockedReason(game, townOptions(game, gameData)[option]);
+  const payable = payableOptions(game, quest);
+  if (blocked) return <p className="mt-1 text-[11px] font-bold opacity-70">{t(blocked)}</p>;
+  if (payable.length === 0) {
+    return <p className="mt-1 text-[11px] font-bold opacity-70">{t('town.questMissing')}</p>;
+  }
+  if (quest.kind === 'huntmaster') {
+    return (
+      <button
+        type="button"
+        onClick={() => act({ type: 'quest', id: quest.id })}
+        className="mt-1 min-h-[44px] w-full rounded-xl border-[3px] border-black bg-yellow-300 font-comic shadow-[0_3px_0_#000] active:translate-y-0.5"
+      >
+        {t('town.questPayAll')}
+      </button>
+    );
+  }
+  return (
+    <div className="mt-1 flex flex-wrap gap-2">
+      {payable.map((cost) => (
+        <button
+          key={cost}
+          type="button"
+          onClick={() => act({ type: 'quest', id: quest.id, pay: cost })}
+          className="flex min-h-[44px] flex-1 items-center justify-center gap-1 rounded-xl border-[3px] border-black bg-yellow-300 px-2 font-comic shadow-[0_3px_0_#000] active:translate-y-0.5"
+        >
+          {t('town.questPay', { what: costName(t, cost) })}
+          <span className="scale-75">
+            <CostIcon cost={cost} />
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function TownSign(props: {
   img: string;
   title: string;
   text: string;
   status: TownOptionState;
-  onClick: () => void;
+  /** Descansar se elige aquí; las misiones, desde el tablero. */
+  onClick?: () => void;
 }) {
   const t = useT();
   const { unlocked, used, available } = props.status;
   if (!unlocked) return null;
-  return (
-    <motion.button
-      type="button"
-      whileTap={{ scale: 0.95 }}
-      onClick={props.onClick}
-      disabled={!available}
-      className={`relative flex min-h-[48px] flex-col items-center rounded-2xl border-[3px] border-black p-2 text-center shadow-[0_4px_0_#000] disabled:opacity-45 ${
-        used ? 'bg-gray-300 grayscale' : 'bg-sherbet'
-      }`}
-    >
+  const className = `relative flex min-h-[48px] w-full items-center gap-2 rounded-2xl border-[3px] border-black p-2 text-left shadow-[0_4px_0_#000] ${
+    used ? 'bg-gray-300 grayscale' : 'bg-sherbet'
+  }`;
+  const content = (
+    <>
       {used && (
         <span className="absolute right-1 top-1 flex items-center gap-0.5 rounded-full border-2 border-black bg-white px-1.5 text-[10px] font-bold uppercase">
           <Icon name="check" className="h-3 w-3" />
           {t('town.used')}
         </span>
       )}
-      <img src={props.img} alt="" className="h-16 object-contain" draggable={false} />
-      <span className="mt-1 font-comic text-sm leading-tight text-bark">{props.title}</span>
-      <span className="text-[11px] leading-tight text-bark/75">{props.text}</span>
+      <img src={props.img} alt="" className="h-20 w-28 shrink-0 object-contain" draggable={false} />
+      <span className="flex flex-col">
+        <span className="font-comic text-base leading-tight text-bark">{props.title}</span>
+        <span className="text-[11px] leading-tight text-bark/75">{props.text}</span>
+      </span>
+    </>
+  );
+  if (!props.onClick) return <div className={className}>{content}</div>;
+  return (
+    <motion.button
+      type="button"
+      whileTap={{ scale: 0.97 }}
+      onClick={props.onClick}
+      disabled={!available}
+      className={`${className} disabled:opacity-45`}
+    >
+      {content}
     </motion.button>
   );
 }
@@ -208,26 +283,37 @@ function CardRow(props: {
   cards: readonly Ability[];
   empty: string;
   spent: (a: Ability) => boolean;
+  /** Cloning Tool: recargar un objeto gastado. */
+  recharge?: (a: Ability) => void;
 }) {
   const t = useT();
   if (props.cards.length === 0) return <p className="text-sm text-white/60">{props.empty}</p>;
   return (
     <div className="mt-1 grid grid-cols-3 gap-2">
-      {props.cards.map((a) => (
-        <AbilityCard
-          key={a.id}
-          ability={a}
-          dimmed={props.spent(a)}
-          badge={props.spent(a) ? t('town.spent') : undefined}
-        />
-      ))}
+      {props.cards.map((a) => {
+        const spent = props.spent(a);
+        return (
+          <div key={a.id} className="flex flex-col gap-1">
+            <AbilityCard ability={a} dimmed={spent} badge={spent ? t('town.spent') : undefined} />
+            {spent && props.recharge && (
+              <button
+                type="button"
+                onClick={() => props.recharge?.(a)}
+                className="min-h-[36px] rounded-lg border-2 border-black bg-yellow-300 font-comic text-sm text-bark"
+              >
+                {t('town.recharge')}
+              </button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }
 
 /**
- * Cartas robadas tras pagar: hay que quedarse con una (feedback 2026-10-27). Con 3 del mismo
- * tipo, la nueva reemplaza a otra.
+ * Cartas robadas tras cumplir una misión: hay que quedarse con una (feedback 2026-10-27). Con 3
+ * del mismo tipo, la nueva reemplaza a otra.
  */
 function Offer({ game }: { game: GameState }) {
   const t = useT();

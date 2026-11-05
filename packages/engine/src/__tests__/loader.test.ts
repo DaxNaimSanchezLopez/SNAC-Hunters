@@ -7,6 +7,8 @@ import {
   loadGameConfig,
   loadGuide,
   loadMonsters,
+  loadQuests,
+  loadSecretQuests,
   loadTutorial,
 } from '../loader.js';
 import type { Slot } from '../types.js';
@@ -14,6 +16,8 @@ import {
   DICE,
   GARDEN_SALAAD,
   PORCUPINEAPPLE,
+  QUESTS,
+  SECRET_QUESTS,
   VALID_SLOTS,
   validMonsterArbitrary,
 } from './fixtures.js';
@@ -176,5 +180,24 @@ describe('loadGuide', () => {
     expect(() => loadGuide([{ ...lesson, advance: 'dance' }])).toThrow(/guía es inválido/);
     expect(() => loadGuide([{ ...lesson, en: undefined }])).toThrow(/guía es inválido/);
     expect(() => loadGuide([lesson, lesson])).toThrow(/repetidos/);
+  });
+});
+
+describe('loadQuests / loadSecretQuests', () => {
+  it('carga las misiones del pueblo y las cartas de misión secreta', () => {
+    expect(loadQuests(QUESTS)).toEqual(QUESTS);
+    expect(loadSecretQuests(SECRET_QUESTS)).toEqual(SECRET_QUESTS);
+  });
+
+  it('rechaza costos inválidos, tipos desconocidos, listas vacías e ids repetidos', () => {
+    const quest = QUESTS[0]!;
+    expect(() => loadQuests([{ ...quest, cost: ['wild'] }])).toThrow(/índice 0/);
+    expect(() => loadQuests([{ ...quest, cost: [] }])).toThrow(/índice 0/);
+    expect(() => loadQuests([{ ...quest, kind: 'mayor' }])).toThrow(/índice 0/);
+    expect(() => loadQuests([quest, quest])).toThrow(/duplicado/);
+    expect(() => loadQuests([])).toThrow(/vacía/);
+    const secret = SECRET_QUESTS[0]!;
+    expect(() => loadSecretQuests([{ ...secret, symbols: ['Horn'] }])).toThrow(/índice 0/);
+    expect(() => loadSecretQuests('x')).toThrow(/se esperaba un array/);
   });
 });

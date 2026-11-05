@@ -83,15 +83,19 @@ export function MonsterCard({ combat, highlightSlots, onSlot, glow = false }: Pr
           <h2 className="font-comic text-2xl leading-none text-bark">{monster.name}</h2>
           <p className="mt-1 text-xs italic text-bark/70">"{monster.pun}"</p>
         </div>
-        <span className="flex items-center gap-1 rounded-full border-2 border-black bg-white px-2 py-0.5 text-xs font-bold">
-          <TypeIcon type={monster.type} className="h-5 w-5" />
-          {t('monster.type', { type: typeName(t, monster.type) })}
-        </span>
+        {/* El jefe es "Any type" */}
+        {!monster.boss && (
+          <span className="flex items-center gap-1 rounded-full border-2 border-black bg-white px-2 py-0.5 text-xs font-bold">
+            <TypeIcon type={monster.type} className="h-5 w-5" />
+            {t('monster.type', { type: typeName(t, monster.type) })}
+          </span>
+        )}
       </div>
 
       <MonsterPortrait monster={monster} className="mx-auto my-1 h-28 w-full sm:h-36" />
 
-      <div className="grid grid-cols-4 gap-2">
+      {/* El jefe tiene 6 espacios: dos filas de 3 */}
+      <div className={`grid gap-2 ${monster.slots.length > 4 ? 'grid-cols-3' : 'grid-cols-4'}`}>
         {monster.slots.map((slot, i) => {
           const dieId = combat.assignments[i];
           const die = dieId ? combat.dice.find((d) => d.id === dieId) : undefined;

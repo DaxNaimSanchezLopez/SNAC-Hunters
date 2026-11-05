@@ -4,9 +4,9 @@ import {
   applyGameAction,
   availableDice,
   canRerollAny,
+  canReroll,
   coveredSlots,
   finalScore,
-  isRollable,
   loadGuide,
   loadTutorial,
   newGame,
@@ -16,7 +16,15 @@ import rawGuide from '@snac-hunters/config/guide.json';
 import rawTutorial from '@snac-hunters/config/tutorial.json';
 import type { GameAction, GameState } from '@snac-hunters/engine';
 import { handleRequest } from '../app.js';
-import { abilities, diceTable, gameConfig, gameData, monsters } from '../game.js';
+import {
+  abilities,
+  diceTable,
+  gameConfig,
+  gameData,
+  monsters,
+  quests,
+  secretQuests,
+} from '../game.js';
 import { MemoryStore } from '../store.js';
 
 let store: MemoryStore;
@@ -48,7 +56,7 @@ function playHonestly(seed: string): { actions: GameAction[]; final: GameState }
     } else if (coveredSlots(combat) > 0) {
       act({ type: 'combat', action: { type: 'resolve', trophy: combat.monster.trophies[0] } });
     } else {
-      const free = availableDice(combat).find((d) => isRollable(d.kind));
+      const free = availableDice(combat).find(canReroll);
       act({
         type: 'combat',
         action: { type: 'reroll', dieIds: free && canRerollAny(combat) ? [free.id] : [] },
@@ -62,11 +70,14 @@ function playHonestly(seed: string): { actions: GameAction[]; final: GameState }
 }
 
 describe('config/ real', () => {
-  it('monstruos, dados, 20 habilidades, game.json, tutorial y guía son válidos', () => {
+  it('monstruos, dados, 30 cartas, misiones, game.json, tutorial y guía son válidos', () => {
     expect(monsters).toHaveLength(9);
     expect(Object.keys(diceTable)).toHaveLength(6);
-    expect(abilities.filter((a) => a.kind === 'item')).toHaveLength(12);
-    expect(abilities.filter((a) => a.kind === 'skill')).toHaveLength(8);
+    expect(abilities.filter((a) => a.kind === 'item')).toHaveLength(15);
+    expect(abilities.filter((a) => a.kind === 'skill')).toHaveLength(15);
+    expect(quests.filter((q) => q.kind === 'villager')).toHaveLength(16);
+    expect(quests.filter((q) => q.kind === 'huntmaster')).toHaveLength(16);
+    expect(secretQuests).toHaveLength(8);
     expect(gameConfig.player.maxHp).toBe(4);
     expect(loadTutorial(rawTutorial).length).toBeGreaterThan(0);
     expect(loadGuide(rawGuide).filter((l) => l.final)).toHaveLength(1);
@@ -83,7 +94,8 @@ describe('POST /games', () => {
       gameId: 'demo-1',
       userId: 'u1',
       phase: 'over',
-      score: finalScore(final, gameConfig),
+      score: finalScore(final, gameData),
+      bossDefeated: false,
       runs: 1,
       fights: 1,
     });

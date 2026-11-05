@@ -1,11 +1,11 @@
 import { motion } from 'framer-motion';
-import { canHunt, hasHuntingDice } from '@snac-hunters/engine';
+import { bossAvailable, canHunt, hasHuntingDice } from '@snac-hunters/engine';
 import type { GameState } from '@snac-hunters/engine';
 import { Button } from '../components/Button';
 import { Hud } from '../components/Hud';
 import { Icon } from '../components/Icon';
 import { TypeIcon } from '../components/MonsterCard';
-import { getMonster } from '../game/config';
+import { gameConfig, gameData, getMonster } from '../game/config';
 import { typeName } from '../game/i18n';
 import { useGame } from '../game/store';
 import { useT } from '../game/useT';
@@ -73,6 +73,35 @@ export function TrailScreen({ game }: { game: GameState }) {
             )}
           </div>
         </>
+      )}
+
+      {/* RF-16: la guarida de Pieous Assassin; derrotarlo termina la partida */}
+      {bossAvailable(game, gameData) && (
+        <motion.button
+          type="button"
+          data-guide-target="boss"
+          initial={{ y: 40, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          onClick={() => act({ type: 'boss' })}
+          className="flex items-center gap-3 rounded-3xl border-4 border-black bg-purple-950/90 p-3 text-left text-white shadow-[0_6px_0_#000] active:translate-y-1"
+        >
+          <img
+            src={`/assets/monsters/${gameConfig.boss.id}.png`}
+            alt=""
+            className="h-24 w-24 shrink-0 object-contain"
+          />
+          <span className="flex flex-col gap-1">
+            <span className="font-comic text-xl leading-none text-yellow-300">
+              {t('trail.boss', { name: gameConfig.boss.name })}
+            </span>
+            <span className="text-xs leading-tight">
+              {t('trail.bossText', { n: gameConfig.boss.slots })}
+            </span>
+            <span className="self-start rounded-full border-2 border-black bg-yellow-300 px-4 py-1 font-comic text-bark">
+              {t('trail.bossGo')}
+            </span>
+          </span>
+        </motion.button>
       )}
 
       <Button

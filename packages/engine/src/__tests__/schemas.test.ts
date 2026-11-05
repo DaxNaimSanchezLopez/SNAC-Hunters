@@ -69,15 +69,24 @@ describe('DiceTableSchema / GameConfigSchema', () => {
     },
     town: {
       actionsPerVisit: 2,
-      itemCost: 1,
-      skillCost: 2,
+      questSlots: 3,
       offerSize: 3,
       maxItems: 3,
       maxSkills: 3,
     },
+    boss: { id: 'pieous', name: 'Pieous Assassin', pun: '', slots: 6, fromRun: 2 },
     tutorial: { monsterId: 'garden-salaad', seed: 'seed' },
     features: { town: false },
-    scoring: { defeat: 1, study: 0, flee: 0, ko: -1, koWeight: 3, runWeight: 1 },
+    scoring: {
+      chainStep: 10,
+      questKill: 10,
+      questTrophy: 10,
+      hp: 10,
+      pointsCard: 10,
+      pointsCardMax: 4,
+      bossMultiplier: [{ maxRuns: 4, multiplier: 2 }],
+      slowMultiplier: 1.25,
+    },
   };
 
   it('acepta una configuración válida', () => {

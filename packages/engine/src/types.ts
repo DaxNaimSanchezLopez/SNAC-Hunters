@@ -28,22 +28,39 @@ export interface Die {
   readonly id: string;
   readonly kind: DieSource;
   readonly face: Face;
+  /**
+   * Color de un comodín creado por una carta (Auto-Aimer, Lasso Trap…): cuenta como el comodín
+   * de ese dado especial, así que una carta Lucky de ese color lo puede duplicar.
+   */
+  readonly color?: SpecialDieKind;
 }
 
 // RF-14: Efecto de una habilidad (cartas de Objeto y Destreza)
 // - triple: tres símbolos iguales derrotan a cualquier monstruo; el trofeo puede ser cualquiera
-// - double: un símbolo se convierte en dos
-// - wild: un símbolo se convierte en comodín
+// - double: un símbolo (o un corazón, Double Healing) se convierte en dos
+// - wild: un símbolo se convierte en el comodín de su color
 // - convert: dos símbolos iguales se convierten en tres comodines
 // - special: pasiva, el personaje gana un dado especial de ese color
+// Resto de las cartas (V02, Image files/abilities):
+// - lucky: un comodín de ese color (dado especial o carta) se convierte en dos comodines
+// - gauntlet: perder 1 HPie para ganar un comodín (Cursed Gauntlet)
+// - recharge: fuera de combate, recarga otro objeto (Cloning Tool)
+// - points: puntos extra al final (Piebix Cube, Varied Samples, Well Traveled)
 export type SpecialDieKind = Exclude<DieKind, 'red' | 'white'>;
+
+/** Qué cuentan las cartas de puntos (uno por color o tipo distinto, máximo 4). */
+export type PointsBy = 'specialDice' | 'trophyTypes' | 'monsterTypes';
 
 export type AbilityEffect =
   | { readonly type: 'triple'; readonly symbol: GameSymbol }
-  | { readonly type: 'double'; readonly symbol: GameSymbol }
+  | { readonly type: 'double'; readonly symbol: GameSymbol | 'heart' }
   | { readonly type: 'wild'; readonly symbol: GameSymbol }
   | { readonly type: 'convert'; readonly symbol: GameSymbol }
-  | { readonly type: 'special'; readonly die: SpecialDieKind };
+  | { readonly type: 'special'; readonly die: SpecialDieKind }
+  | { readonly type: 'lucky'; readonly die: SpecialDieKind }
+  | { readonly type: 'gauntlet' }
+  | { readonly type: 'recharge' }
+  | { readonly type: 'points'; readonly by: PointsBy };
 
 export interface Ability {
   readonly id: string;
@@ -61,12 +78,35 @@ export interface Trophy {
   readonly symbol: GameSymbol;
 }
 
-// RF-07.5: Monstruo con exactamente 4 slots y sus opciones de trofeo
+// RF-07.5: Monstruo con sus espacios (4; el jefe tiene más) y sus opciones de trofeo
 export interface Monster {
   readonly id: string;
   readonly name: string;
   readonly type: GameSymbol;
-  readonly slots: readonly [Slot, Slot, Slot, Slot];
+  readonly slots: readonly Slot[];
   readonly trophies: readonly GameSymbol[];
   readonly pun: string;
+  /** RF-16: el jefe solo se derrota cubriendo todos sus espacios (o se huye) y no da trofeo. */
+  readonly boss?: boolean;
+}
+
+// RF-17: Carta de misión secreta (Image files/secret quest cards). Da puntos extra por derrotar
+// monstruos de su tipo y por guardar trofeos de sus dos símbolos.
+export interface SecretQuest {
+  readonly id: string;
+  readonly name: string;
+  readonly monsterType: GameSymbol;
+  readonly symbols: readonly [GameSymbol, GameSymbol];
+}
+
+/** Lo que pide una misión del pueblo: trofeos de un símbolo o corazones (HPie). */
+export type QuestCost = GameSymbol | 'heart';
+
+// RF-18: Misión del tablero del pueblo (Image files/Quests). La de aldeano se paga con UNO de
+// los trofeos/corazones que muestra y da un objeto; la del Huntmaster pide TODOS y da una destreza.
+export interface TownQuest {
+  readonly id: string;
+  readonly kind: 'villager' | 'huntmaster';
+  readonly name: { readonly es: string; readonly en: string };
+  readonly cost: readonly QuestCost[];
 }

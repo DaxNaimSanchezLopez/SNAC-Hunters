@@ -1,11 +1,11 @@
 import { motion } from 'framer-motion';
-import { canHunt, hasHuntingDice } from '@snac-hunters/engine';
+import { canHunt, findSecretQuest, hasHuntingDice, scoreBreakdown } from '@snac-hunters/engine';
 import type { CombatState, Outcome } from '@snac-hunters/engine';
 import { Button } from '../components/Button';
 import { Hud } from '../components/Hud';
 import { MonsterPortrait } from '../components/MonsterCard';
 import { TrophyToken } from '../components/Trophy';
-import { gameConfig } from '../game/config';
+import { gameConfig, gameData } from '../game/config';
 import { typeName } from '../game/i18n';
 import type { MessageKey } from '../game/i18n';
 import { useGame } from '../game/store';
@@ -59,19 +59,42 @@ export function ResultScreen() {
   const run = game?.run;
   if (!game || !combat || !run) return null;
   const ended = run.status === 'ended';
+  const { chainStep, questKill } = gameConfig.scoring;
+  // Puntaje (feedback 2026-11-03): cada SNAC derrotado del run vale más que el anterior
+  const defeated = combat.outcome === 'defeat';
+  const secret = game.secretQuest ? findSecretQuest(gameData, game.secretQuest) : null;
+  const isQuestKill = defeated && secret?.monsterType === combat.monster.type;
 
   return (
     <div className="flex min-h-[100dvh] flex-col gap-4 px-3 py-3">
       <Hud game={game} />
       <OutcomeCard combat={combat}>
+        <div data-guide-target="score" className="mt-2 rounded-2xl bg-white/70 p-2">
+          {defeated && (
+            <p className="font-comic text-xl text-green-700">
+              {t('result.chain', { pts: game.chain * chainStep, n: game.chain })}
+            </p>
+          )}
+          {isQuestKill && (
+            <p className="text-sm font-bold text-purple-800">
+              {t('result.questKill', { n: questKill })}
+            </p>
+          )}
+          <p className="text-sm text-bark/80">
+            {t('result.runScore', { n: scoreBreakdown(game, gameData).total })}
+          </p>
+          {!ended && (
+            <p className="text-xs text-bark/70">
+              {t('result.chainHint', { next: (game.chain + 1) * chainStep })}
+            </p>
+          )}
+        </div>
         <p data-guide-target="status" className="mt-2 text-sm text-bark/80">
           {t('result.status', { hp: game.hp, max: game.maxHp, dice: run.pool.length })}
         </p>
         {ended && run.endedBy !== 'town' && (
           <p className="mt-2 rounded-xl border-2 border-black bg-orange-200 px-3 py-2 text-sm font-bold">
-            {run.endedBy === 'ko'
-              ? t('result.runOver.ko', { n: gameConfig.scoring.koWeight })
-              : t('result.runOver.flee')}
+            {run.endedBy === 'ko' ? t('result.runOver.ko') : t('result.runOver.flee')}
           </p>
         )}
         {!ended && !hasHuntingDice(run) && (

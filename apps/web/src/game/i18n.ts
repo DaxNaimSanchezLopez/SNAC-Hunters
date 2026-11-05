@@ -1,13 +1,16 @@
 // Selector español / inglés (feedback V0). Todos los textos de la interfaz viven aquí;
 // los del tutorial vienen de config/tutorial.json con ambos idiomas.
+import { SYMBOL_COLOR } from '@snac-hunters/engine';
 import type {
   AbilityEffect,
   DieSource,
   Face,
   GameSymbol,
   Outcome,
+  QuestCost,
   Slot,
 } from '@snac-hunters/engine';
+import { gameConfig } from './config';
 
 export type Lang = 'es' | 'en';
 
@@ -22,7 +25,9 @@ const es = {
   'home.continue': 'Continuar partida',
   'home.new': 'Nueva partida',
   'home.newWarning': 'Empezar otra partida termina la actual y guarda su puntuación.',
-  'home.newWarningRun': 'Estás a mitad de una expedición: empezar otra partida la descarta.',
+  'home.newWarningRun': 'Estás a mitad de un combate: empezar otra partida lo descarta.',
+  'home.current': 'Partida actual: {n} pts',
+  'home.boss': 'Jefe derrotado',
   'home.tutorial': 'Aprender a jugar',
   'home.tutorialText': 'Partida guiada por el Huntmaster',
   'home.practice': 'Práctica de combate',
@@ -32,9 +37,10 @@ const es = {
   'home.snacs': '{n} SNACs',
   'home.reset': 'Borrar todo el progreso',
 
-  'hud.points': 'Puntos',
-  'hud.kos': 'KOs',
-  'hud.runs': 'Exped.',
+  'hud.run': 'Exped.',
+  'hud.best': 'Mejor',
+  'hud.runs': 'Nº exp.',
+  'hud.quests': 'Ver misiones',
   'hud.score': 'Puntaje',
   'hud.home': 'Inicio',
   'hud.homeLabel': 'Volver al inicio',
@@ -44,12 +50,33 @@ const es = {
   'setup.die': 'Dado {color}',
   'setup.faces': '4 caras de {symbol} + 2 comodines',
   'setup.hint': 'Además llevas 4 dados rojos. Después sales directo a cazar.',
+  'setup.secretTitle': 'Tu misión secreta',
+  'setup.secretChoose': 'Elige tu misión secreta',
+  'setup.secretText':
+    'Te da un objetivo: ganas puntos extra por derrotar monstruos de su tipo y por guardar trofeos de sus símbolos.',
+  'setup.secretStart': '¡A cazar!',
+  'setup.back': 'Cambiar color',
+
+  'secret.monsters': 'SNACs de tipo {type}: +{n} c/u en la expedición',
+  'secret.trophies': 'Trofeos de {a} y {b} que guardes: +{n} c/u',
+
+  'quests.title': 'Misiones',
+  'quests.secret': 'Misión secreta',
+  'quests.board': 'Tablero del pueblo',
+  'quests.close': 'Cerrar',
+  'quest.villager': 'Aldeano',
+  'quest.huntmaster': 'Huntmaster',
+  'quest.one': 'Entrega UNO:',
+  'quest.all': 'Entrega TODO:',
+  'quest.heart': '1 HPie',
+  'quest.reward.villager': 'Recompensa: elige 1 de 3 objetos',
+  'quest.reward.huntmaster': 'Recompensa: elige 1 de 3 destrezas',
+  'quest.oldest': 'Cuando regreses al pueblo, esta misión se retirará y aparecerá una nueva aquí.',
 
   'town.title': 'Pueblo',
   'town.actions': 'Acciones: {n}/{max}',
   'town.trophies': 'Trofeos ({n}/{max})',
-  'town.trophiesHint': 'Los trofeos sirven como dados en combate o como dinero aquí.',
-  'town.payHint': 'Toca trofeos para elegir con cuáles pagar.',
+  'town.trophiesHint': 'Los trofeos sirven como dados en combate o para cumplir misiones aquí.',
   'town.dice': 'Tus dados',
   'town.items': 'Objetos ({n}/{max})',
   'town.skills': 'Destrezas ({n}/{max})',
@@ -57,10 +84,23 @@ const es = {
   'town.emptySkills': 'Sin destrezas',
   'town.rest': 'Descansar',
   'town.restText': 'Sana tu HPie, recarga tus objetos y gana un trofeo al azar.',
-  'town.buyItem': 'Misión de aldeano',
-  'town.buyItemText': 'Paga {n} trofeo: elige 1 de 3 objetos.',
-  'town.buySkill': 'Misión del Huntmaster',
-  'town.buySkillText': 'Paga {n} trofeos: elige 1 de 3 destrezas.',
+  'town.villager': 'Misión de aldeano',
+  'town.villagerText': 'Entrega UNO de los trofeos o corazones que pide y elige un objeto.',
+  'town.huntmaster': 'Misión del Huntmaster',
+  'town.huntmasterText': 'Entrega TODO lo que pide y elige una destreza.',
+  'town.quests': 'Tablero de misiones',
+  'town.questsHint':
+    'Las misiones se quedan hasta que las cumples. Los corazones rotos se pagan con HPie (nunca hasta quedar KO).',
+  'town.questPay': 'Entregar {what}',
+  'town.questPayAll': 'Entregar todo',
+  'town.questLocked': 'Esta opción del pueblo aún no está abierta.',
+  'town.questUsed': 'Ya cumpliste una misión de este tipo en esta visita.',
+  'town.questNoAction': 'No te quedan acciones en esta visita.',
+  'town.questMissing': 'Te falta algo de lo que pide.',
+  'town.completed': 'Misiones cumplidas ({n})',
+  'town.noCompleted': 'Aún no cumples ninguna.',
+  'town.recharge': 'Recargar',
+  'town.rechargeHint': 'Toca RECARGAR en un objeto gastado para recargarlo con tu Cloning Tool.',
   'town.leave': 'Salir de expedición',
   'town.leaveText': 'Todos tus dados · HPie {hp}/{max}',
   'town.mainMenu': 'Menú principal',
@@ -84,6 +124,10 @@ const es = {
   'trail.white': '{n} blancos',
   'trail.return': 'Volver al pueblo',
   'trail.pool': 'Dados disponibles: {n}',
+  'trail.boss': 'Guarida de {name}',
+  'trail.bossText':
+    'Cubre sus {n} espacios para derrotarlo y terminar la partida. No se le estudia: con menos, huyes.',
+  'trail.bossGo': 'Enfrentarlo',
 
   'guide.next': 'Entendido',
   'guide.doIt': 'Hazlo para continuar',
@@ -117,15 +161,20 @@ const es = {
   'combat.keepHint': 'Selecciona los dados que quieres conservar y relanza el resto.',
   'combat.resolve': 'Resolver',
   'combat.resolveHint': 'cubre 1+ espacios',
-  'combat.spaces': '{n}/4 espacios',
+  'combat.spaces': '{n}/{max} espacios',
   'combat.chooseTrophy': 'Elige tu trofeo',
   'combat.defeatText': '¡Derrotaste al SNAC!',
+  'combat.bossDown': '¡Derrotaste a {name}!',
   'combat.studyText': 'Estudiaste al SNAC; escapará.',
   'combat.anyTrophy': 'Puedes elegir cualquier trofeo.',
   'combat.trophyUse': 'Los trofeos sirven como dados o como dinero en el pueblo.',
   'combat.tapDieFirst': 'Primero toca UN dado (o un trofeo) y luego el espacio',
   'combat.deselect': 'Deja sin seleccionar los dados que quieras relanzar',
   'combat.needDice': '{name}: selecciona {n} {symbol} (o comodín)',
+  'combat.needLucky': '{name}: selecciona un comodín {color}',
+  'combat.needHeart': '{name}: selecciona un corazón',
+  'combat.whiteWild': 'Comodín blanco: no se relanza. Úsalo en este SNAC o se pierde.',
+  'combat.colorWild': 'Comodín {color}: lo creó una carta y cuenta como el de ese dado especial.',
   'combat.invalid': 'Ese movimiento no está permitido',
   'combat.whiteDie': '¡Dado blanco!',
   'combat.blocked': '{n} daño bloqueado por corazón',
@@ -148,7 +197,11 @@ const es = {
   'result.ko': '¡KO!',
   'result.koDefeat': 'Quedaste KO en la misma tirada, pero conservas el premio.',
   'result.trophy': 'Trofeo de {symbol}',
-  'result.runOver.ko': 'Quedaste KO (-{n} puntos) y la expedición termina.',
+  'result.runOver.ko': 'Quedaste KO y la expedición termina, pero conservas tus puntos.',
+  'result.chain': '+{pts} puntos · cadena ×{n}',
+  'result.chainHint': 'El siguiente SNAC derrotado en esta expedición vale {next}.',
+  'result.questKill': '¡Era de tu misión secreta! +{n} al puntaje',
+  'result.runScore': 'Puntaje de esta expedición: {n}',
   'result.runOver.flee': 'Huiste: la expedición termina.',
   'result.status': 'HPie: {hp}/{max} · Dados disponibles: {dice}',
   'result.continue': 'Seguir cazando',
@@ -163,10 +216,17 @@ const es = {
   'keep.discardNew': 'Tirar el nuevo',
 
   'over.title': 'Fin de la partida',
-  'over.formula': 'Puntos − KOs × {ko} − expediciones × {run}',
-  'over.points': 'Puntos',
-  'over.kos': 'KOs × {ko}',
-  'over.runs': 'Expediciones × {run}',
+  'over.victory': '¡Derrotaste a {name}!',
+  'over.finalText': 'Puntaje de la expedición en la que cayó el jefe, con HPie y multiplicador.',
+  'over.unfinished':
+    'Sin derrotar al jefe: cuenta tu mejor expedición (la n.º {run}), sin HPie ni multiplicador.',
+  'over.noRun': 'Aún no terminaste ninguna expedición.',
+  'over.hunt': 'Puntos de cadena',
+  'over.questKills': 'SNACs de misión × {n}',
+  'over.questTrophies': 'Trofeos de misión × {n}',
+  'over.hp': 'HPie restante × {n}',
+  'over.cards': 'Cartas de puntos',
+  'over.multiplier': 'Multiplicador ({runs} expediciones)',
   'over.total': 'Puntaje final',
   'over.defeated': 'SNACs derrotados',
   'over.new': 'Nueva partida',
@@ -207,7 +267,13 @@ const es = {
 
   'ability.triple': '3 {symbol} = derrotar al monstruo (trofeo a elección)',
   'ability.double': '1 {symbol} → 2 {symbol}',
-  'ability.wild': '1 {symbol} → 1 comodín',
+  'ability.wild': '1 {symbol} → 1 comodín {color}',
+  'ability.lucky': '1 comodín {color} → 2 comodines',
+  'ability.gauntlet': 'Pierde 1 HPie → 1 comodín',
+  'ability.recharge': 'Fuera de combate: recarga otro objeto',
+  'ability.points.specialDice': '+{n} por cada color de dado especial que tengas (máx. {max})',
+  'ability.points.trophyTypes': '+{n} por cada tipo de trofeo que guardes (máx. {max})',
+  'ability.points.monsterTypes': '+{n} por cada tipo de SNAC que derrotes (máx. {max})',
   'ability.convert': '2 {symbol} → 3 comodines',
   'ability.special': '+1 dado especial {die}',
   'ability.bonus': '+1 espacio para trofeos',
@@ -228,7 +294,9 @@ const en: Record<MessageKey, string> = {
   'home.continue': 'Continue game',
   'home.new': 'New game',
   'home.newWarning': 'Starting a new game ends the current one and saves its score.',
-  'home.newWarningRun': "You're in the middle of a run: starting a new game discards it.",
+  'home.newWarningRun': "You're in the middle of a fight: starting a new game discards it.",
+  'home.current': 'Current game: {n} pts',
+  'home.boss': 'Boss defeated',
   'home.tutorial': 'Learn to play',
   'home.tutorialText': 'A game guided by the Huntmaster',
   'home.practice': 'Combat practice',
@@ -238,9 +306,10 @@ const en: Record<MessageKey, string> = {
   'home.snacs': '{n} SNACs',
   'home.reset': 'Erase all progress',
 
-  'hud.points': 'Points',
-  'hud.kos': 'KOs',
+  'hud.run': 'Run',
+  'hud.best': 'Best',
   'hud.runs': 'Runs',
+  'hud.quests': 'View quests',
   'hud.score': 'Score',
   'hud.home': 'Home',
   'hud.homeLabel': 'Back to home',
@@ -250,12 +319,34 @@ const en: Record<MessageKey, string> = {
   'setup.die': '{color} die',
   'setup.faces': '4 {symbol} faces + 2 wilds',
   'setup.hint': 'You also carry 4 red dice. Then you head straight out to hunt.',
+  'setup.secretTitle': 'Your secret quest',
+  'setup.secretChoose': 'Choose your secret quest',
+  'setup.secretText':
+    'It gives you a goal: earn bonus points for defeating monsters of its type and for keeping trophies of its symbols.',
+  'setup.secretStart': "Let's hunt!",
+  'setup.back': 'Change color',
+
+  'secret.monsters': '{type} SNACs: +{n} each per run',
+  'secret.trophies': '{a} and {b} trophies you keep: +{n} each',
+
+  'quests.title': 'Quests',
+  'quests.secret': 'Secret quest',
+  'quests.board': 'Town board',
+  'quests.close': 'Close',
+  'quest.villager': 'Villager',
+  'quest.huntmaster': 'Huntmaster',
+  'quest.one': 'Hand in ONE:',
+  'quest.all': 'Hand in ALL:',
+  'quest.heart': '1 HP',
+  'quest.reward.villager': 'Reward: pick 1 of 3 items',
+  'quest.reward.huntmaster': 'Reward: pick 1 of 3 skills',
+  'quest.oldest':
+    'When you return to town, this quest will be retired and a new one will appear here.',
 
   'town.title': 'Town',
   'town.actions': 'Actions: {n}/{max}',
   'town.trophies': 'Trophies ({n}/{max})',
-  'town.trophiesHint': 'Trophies work as dice in combat or as money here.',
-  'town.payHint': 'Tap trophies to choose which ones to pay with.',
+  'town.trophiesHint': 'Trophies work as dice in combat or to complete quests here.',
   'town.dice': 'Your dice',
   'town.items': 'Items ({n}/{max})',
   'town.skills': 'Skills ({n}/{max})',
@@ -263,10 +354,23 @@ const en: Record<MessageKey, string> = {
   'town.emptySkills': 'No skills',
   'town.rest': 'Rest',
   'town.restText': 'Heal your HP, recharge your items and gain a random trophy.',
-  'town.buyItem': 'Villager quest',
-  'town.buyItemText': 'Pay {n} trophy: pick 1 of 3 items.',
-  'town.buySkill': 'Huntmaster quest',
-  'town.buySkillText': 'Pay {n} trophies: pick 1 of 3 skills.',
+  'town.villager': 'Villager quest',
+  'town.villagerText': 'Hand in ONE of the trophies or hearts it shows and pick an item.',
+  'town.huntmaster': 'Huntmaster quest',
+  'town.huntmasterText': 'Hand in EVERYTHING it shows and pick a skill.',
+  'town.quests': 'Quest board',
+  'town.questsHint':
+    'Quests stay until you complete them. Broken hearts are paid with HP (never down to a KO).',
+  'town.questPay': 'Hand in {what}',
+  'town.questPayAll': 'Hand it all in',
+  'town.questLocked': "This town option isn't open yet.",
+  'town.questUsed': 'You already completed a quest of this kind on this visit.',
+  'town.questNoAction': 'No actions left on this visit.',
+  'town.questMissing': "You're missing something it asks for.",
+  'town.completed': 'Completed quests ({n})',
+  'town.noCompleted': 'None completed yet.',
+  'town.recharge': 'Recharge',
+  'town.rechargeHint': 'Tap RECHARGE on a spent item to recharge it with your Cloning Tool.',
   'town.leave': 'Leave town',
   'town.leaveText': 'All your dice · HP {hp}/{max}',
   'town.mainMenu': 'Main menu',
@@ -289,6 +393,10 @@ const en: Record<MessageKey, string> = {
   'trail.white': '{n} white',
   'trail.return': 'Back to town',
   'trail.pool': 'Available dice: {n}',
+  'trail.boss': "{name}'s lair",
+  'trail.bossText':
+    "Fill its {n} spaces to defeat it and end the game. It can't be studied: with fewer, you flee.",
+  'trail.bossGo': 'Face it',
 
   'guide.next': 'Got it',
   'guide.doIt': 'Do it to continue',
@@ -322,15 +430,20 @@ const en: Record<MessageKey, string> = {
   'combat.keepHint': 'Select the dice to keep, and re-roll the remaining.',
   'combat.resolve': 'Resolve',
   'combat.resolveHint': 'fill 1+ spaces',
-  'combat.spaces': '{n}/4 spaces',
+  'combat.spaces': '{n}/{max} spaces',
   'combat.chooseTrophy': 'Pick your trophy',
   'combat.defeatText': 'You defeated the SNAC!',
+  'combat.bossDown': 'You defeated {name}!',
   'combat.studyText': 'You studied the SNAC; it will escape.',
   'combat.anyTrophy': 'You can pick any trophy.',
   'combat.trophyUse': 'Trophies work as dice or as money in town.',
   'combat.tapDieFirst': 'First tap ONE die (or a trophy), then the space',
   'combat.deselect': 'Leave unselected the dice you want to re-roll',
   'combat.needDice': '{name}: select {n} {symbol} (or wild)',
+  'combat.needLucky': '{name}: select a {color} wild',
+  'combat.needHeart': '{name}: select a heart',
+  'combat.whiteWild': "White wild: it can't be re-rolled. Use it on this SNAC or it's lost.",
+  'combat.colorWild': '{color} wild: a card created it and it counts as that special die’s wild.',
   'combat.invalid': "That move isn't allowed",
   'combat.whiteDie': 'White die!',
   'combat.blocked': '{n} damage blocked by a heart',
@@ -353,7 +466,11 @@ const en: Record<MessageKey, string> = {
   'result.ko': 'KO!',
   'result.koDefeat': 'You were KO’d on the same roll, but you keep the reward.',
   'result.trophy': '{symbol} trophy',
-  'result.runOver.ko': 'You were KO’d (-{n} points) and the run ends.',
+  'result.runOver.ko': 'You were KO’d and the run ends, but you keep your points.',
+  'result.chain': '+{pts} points · chain ×{n}',
+  'result.chainHint': 'The next SNAC you defeat on this run is worth {next}.',
+  'result.questKill': 'It was from your secret quest! +{n} to your score',
+  'result.runScore': 'This run’s score: {n}',
   'result.runOver.flee': 'You fled: the run ends.',
   'result.status': 'HP: {hp}/{max} · Available dice: {dice}',
   'result.continue': 'Keep hunting',
@@ -368,10 +485,17 @@ const en: Record<MessageKey, string> = {
   'keep.discardNew': 'Throw away the new one',
 
   'over.title': 'Game over',
-  'over.formula': 'Points − KOs × {ko} − runs × {run}',
-  'over.points': 'Points',
-  'over.kos': 'KOs × {ko}',
-  'over.runs': 'Runs × {run}',
+  'over.victory': 'You defeated {name}!',
+  'over.finalText': 'Score of the run where the boss fell, with HP and multiplier.',
+  'over.unfinished':
+    'Boss not defeated: your best run counts (run {run}), without HP or multiplier.',
+  'over.noRun': "You haven't finished a run yet.",
+  'over.hunt': 'Chain points',
+  'over.questKills': 'Quest SNACs × {n}',
+  'over.questTrophies': 'Quest trophies × {n}',
+  'over.hp': 'HP left × {n}',
+  'over.cards': 'Points cards',
+  'over.multiplier': 'Multiplier ({runs} runs)',
   'over.total': 'Final score',
   'over.defeated': 'SNACs defeated',
   'over.new': 'New game',
@@ -412,7 +536,13 @@ const en: Record<MessageKey, string> = {
 
   'ability.triple': '3 {symbol} = defeat the monster (any trophy)',
   'ability.double': '1 {symbol} → 2 {symbol}',
-  'ability.wild': '1 {symbol} → 1 wild',
+  'ability.wild': '1 {symbol} → 1 {color} wild',
+  'ability.lucky': '1 {color} wild → 2 wilds',
+  'ability.gauntlet': 'Lose 1 HP → 1 wild',
+  'ability.recharge': 'Outside combat: recharge another item',
+  'ability.points.specialDice': '+{n} for each special die color you have (max {max})',
+  'ability.points.trophyTypes': '+{n} for each trophy type you keep (max {max})',
+  'ability.points.monsterTypes': '+{n} for each SNAC type you defeat (max {max})',
   'ability.convert': '2 {symbol} → 3 wilds',
   'ability.special': '+1 {die} special die',
   'ability.bonus': '+1 trophy space',
@@ -458,8 +588,30 @@ export function outcomeName(t: Translate, outcome: Exclude<Outcome, 'ko'>): stri
 
 /** Descripción del efecto de una carta, generada a partir de config/abilities.json. */
 export function describeEffect(t: Translate, effect: AbilityEffect): string {
-  if (effect.type === 'special') return t('ability.special', { die: kindName(t, effect.die) });
-  return t(`ability.${effect.type}` as MessageKey, { symbol: faceName(t, effect.symbol) });
+  const { pointsCard, pointsCardMax } = gameConfig.scoring;
+  switch (effect.type) {
+    case 'special':
+      return t('ability.special', { die: kindName(t, effect.die) });
+    case 'lucky':
+      return t('ability.lucky', { color: kindName(t, effect.die) });
+    case 'gauntlet':
+    case 'recharge':
+      return t(`ability.${effect.type}`);
+    case 'points':
+      return t(`ability.points.${effect.by}`, { n: pointsCard, max: pointsCardMax });
+    case 'wild':
+      return t('ability.wild', {
+        symbol: faceName(t, effect.symbol),
+        color: kindName(t, SYMBOL_COLOR[effect.symbol]),
+      });
+    default:
+      return t(`ability.${effect.type}`, { symbol: faceName(t, effect.symbol) });
+  }
+}
+
+/** Lo que pide una misión del pueblo: un símbolo de trofeo o un corazón (HPie). */
+export function costName(t: Translate, cost: QuestCost): string {
+  return cost === 'heart' ? t('quest.heart') : typeName(t, cost);
 }
 
 export const SYMBOLS: readonly GameSymbol[] = ['Horn', 'Wing', 'Claw', 'Tail'];

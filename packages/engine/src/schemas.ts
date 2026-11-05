@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import type { Ability, DiceTable, Monster } from './types.js';
+import type { Ability, DiceTable, Monster, SecretQuest, TownQuest } from './types.js';
 
 // RF-08: Schemas Zod para los datos de config/
 
@@ -41,12 +41,22 @@ export const DiceTableSchema = z.object({
 });
 
 // RF-14: Catálogo de habilidades — config/abilities.json
+const SpecialDieSchema = z.enum(['orange', 'blue', 'purple', 'green']);
+
 const AbilityEffectSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('triple'), symbol: GameSymbolSchema }),
-  z.object({ type: z.literal('double'), symbol: GameSymbolSchema }),
+  // Double Healing: un corazón se convierte en dos
+  z.object({ type: z.literal('double'), symbol: z.union([GameSymbolSchema, z.literal('heart')]) }),
   z.object({ type: z.literal('wild'), symbol: GameSymbolSchema }),
   z.object({ type: z.literal('convert'), symbol: GameSymbolSchema }),
-  z.object({ type: z.literal('special'), die: z.enum(['orange', 'blue', 'purple', 'green']) }),
+  z.object({ type: z.literal('special'), die: SpecialDieSchema }),
+  z.object({ type: z.literal('lucky'), die: SpecialDieSchema }),
+  z.object({ type: z.literal('gauntlet') }),
+  z.object({ type: z.literal('recharge') }),
+  z.object({
+    type: z.literal('points'),
+    by: z.enum(['specialDice', 'trophyTypes', 'monsterTypes']),
+  }),
 ]);
 
 export const AbilitySchema = z.object({
@@ -71,11 +81,11 @@ export const GameConfigSchema = z
       startingTrophies: count,
       startingItems: count,
     }),
-    // Fase en el pueblo (manual p. 14–16): acciones por visita y precios en trofeos
+    // Fase en el pueblo (manual p. 14–16): acciones por visita y cartas por misión
     town: z.object({
       actionsPerVisit: z.number().int().min(1),
-      itemCost: count,
-      skillCost: count,
+      // Misiones a la vista en el tablero (feedback 2026-11-03: siempre 3)
+      questSlots: z.number().int().min(1),
       offerSize: z.number().int().min(1),
       maxItems: z.number().int().min(1),
       maxSkills: z.number().int().min(1),
@@ -86,17 +96,31 @@ export const GameConfigSchema = z
       monsterId: z.string().min(1),
       seed: z.string().min(1),
     }),
+    // RF-16: Pieous Assassin, el jefe de Sherbert Forest ("Any type, Random symbols")
+    boss: z.object({
+      id: z.string().min(1),
+      name: z.string().min(1),
+      pun: z.string(),
+      slots: z.number().int().min(1),
+      // Desde qué expedición aparece su guarida en el sendero
+      fromRun: z.number().int().min(1),
+    }),
     features: z.record(z.string(), z.boolean()),
-    // Puntos por resultado. Feedback del cliente (2026-10-27): escala ×10 para poder ajustar
-    // las penalizaciones con más precisión (un KO cuesta menos que una expedición)
+    // Puntaje (feedback del cliente, 2026-11-03, sección 3)
     scoring: z.object({
-      defeat: z.number().int(),
-      study: z.number().int(),
-      flee: z.number().int(),
-      ko: z.number().int(),
-      // Puntaje final (feedback V0): puntos − KOs × koWeight − expediciones × runWeight
-      koWeight: z.number().int(),
-      runWeight: z.number().int(),
+      // El monstruo n de la cadena de un run vale n × chainStep (10, 20, 30…)
+      chainStep: z.number().int().min(0),
+      questKill: z.number().int().min(0),
+      questTrophy: z.number().int().min(0),
+      hp: z.number().int().min(0),
+      // Cartas de puntos (Piebix Cube, Varied Samples, Well Traveled): por cada tipo, máx. 4
+      pointsCard: z.number().int().min(0),
+      pointsCardMax: z.number().int().min(0),
+      // Multiplicador al derrotar al jefe según las expediciones usadas; con más, slowMultiplier
+      bossMultiplier: z
+        .array(z.object({ maxRuns: z.number().int().min(1), multiplier: z.number().min(1) }))
+        .min(1),
+      slowMultiplier: z.number().min(1),
     }),
   })
   .refine((c) => c.player.startingHp <= c.player.maxHp, {
@@ -127,6 +151,22 @@ export const TutorialSchema = z
 
 export type TutorialStep = z.infer<typeof TutorialSchema>[number];
 
+// RF-17: Cartas de misión secreta — config/secret-quests.json
+export const SecretQuestSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  monsterType: GameSymbolSchema,
+  symbols: z.tuple([GameSymbolSchema, GameSymbolSchema]),
+});
+
+// RF-18: Misiones del tablero del pueblo — config/quests.json
+export const TownQuestSchema = z.object({
+  id: z.string().min(1),
+  kind: z.enum(['villager', 'huntmaster']),
+  name: z.object({ es: z.string().min(1), en: z.string().min(1) }),
+  cost: z.array(z.union([GameSymbolSchema, z.literal('heart')])).min(1),
+});
+
 const LocalizedText = z.object({ title: z.string().min(1), text: z.string().min(1) });
 
 // Partida guiada (V0 = tutorial del juego de mesa) — config/guide.json. Cada lección aparece
@@ -154,6 +194,10 @@ export const GuideSchema = z
             'canHeal',
             'tempWild',
             'skillUnlocked',
+            'whiteWild',
+            'bossReady',
+            'boss',
+            'defeatedNow',
           ]),
         )
         .default([]),
@@ -176,6 +220,9 @@ export const GuideSchema = z
           'colors',
           'pending',
           'hp',
+          'quests',
+          'boss',
+          'score',
         ])
         .optional(),
       position: z.enum(['top', 'bottom']).default('bottom'),
@@ -196,6 +243,10 @@ export type GuideLesson = z.infer<typeof GuideSchema>[number];
 const _monsterCheck: MonsterFromSchema extends Monster ? true : false = true;
 const _diceCheck: z.infer<typeof DiceTableSchema> extends DiceTable ? true : false = true;
 const _abilityCheck: z.infer<typeof AbilitySchema> extends Ability ? true : false = true;
+const _secretCheck: z.infer<typeof SecretQuestSchema> extends SecretQuest ? true : false = true;
+const _questCheck: z.infer<typeof TownQuestSchema> extends TownQuest ? true : false = true;
+void _secretCheck;
+void _questCheck;
 void _monsterCheck;
 void _diceCheck;
 void _abilityCheck;

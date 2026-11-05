@@ -9,10 +9,11 @@ import {
   applyGameAction,
   autoFillPlan,
   availableDice,
+  canReroll,
   canRerollAny,
   CombatError,
   finalScore,
-  isRollable,
+  isActive,
   newGame,
   replayGame,
   startCombat,
@@ -37,7 +38,7 @@ import {
   tutorialSteps,
 } from './config';
 import { activeLesson, completesLesson, guide } from './guide';
-import { faceName, translate } from './i18n';
+import { faceName, kindName, translate } from './i18n';
 import type { Lang, MessageKey, Vars } from './i18n';
 import { idbStorage } from './persistence';
 
@@ -51,7 +52,8 @@ export interface SavedGame {
 export interface FinishedGame {
   readonly gameId: string;
   readonly score: number;
-  readonly points: number;
+  /** Derrotó al jefe: en el ranking va por encima de cualquiera que no (feedback 2026-11-03). */
+  readonly bossDefeated?: boolean;
   readonly kos: number;
   readonly runs: number;
   readonly defeated: number;
@@ -118,9 +120,30 @@ interface GameStore {
 const HISTORY_SIZE = 10;
 const TOP_SIZE = 3;
 
-/** Las mejores partidas, de mayor a menor puntaje (a igualdad, la más antigua primero). */
+/**
+ * Las mejores partidas: primero las que derrotaron al jefe, sin importar los números (si no,
+ * quien abandona tras un run largo quedaría arriba de quien terminó la partida); después, de
+ * mayor a menor puntaje y, a igualdad, la más antigua primero.
+ */
 export function topOf(games: readonly FinishedGame[]): FinishedGame[] {
-  return [...games].sort((a, b) => b.score - a.score || a.at - b.at).slice(0, TOP_SIZE);
+  return [...games]
+    .sort(
+      (a, b) =>
+        Number(b.bossDefeated === true) - Number(a.bossDefeated === true) ||
+        b.score - a.score ||
+        a.at - b.at,
+    )
+    .slice(0, TOP_SIZE);
+}
+
+/** ¿Se puede dejar la partida ahora (desde el menú) sin perder lo jugado? */
+export function canFinish(game: GameState): boolean {
+  return (
+    (game.phase === 'town' || game.phase === 'trail' || game.phase === 'aftermath') &&
+    !game.offer &&
+    !game.pendingTrophy &&
+    game.runs > 0
+  );
 }
 
 function newSeed(): string {
@@ -194,11 +217,16 @@ function trackTransition(before: GameState, after: GameState, action: GameAction
   }
   if (action.type === 'leave') void track('run_start', { run: after.runs });
   if (action.type === 'return') void track('run_end', { endedBy: before.run?.endedBy ?? 'town' });
-  if (action.type === 'rest' || action.type === 'buy' || action.type === 'pick') {
+  if (action.type === 'rest' || action.type === 'quest' || action.type === 'pick') {
     void track('town_action', { action: action.type });
   }
-  if (action.type === 'finish') {
-    void track('game_over', { score: finalScore(after, gameConfig), runs: after.runs });
+  if (action.type === 'quest') void track('quest_completed', { questId: action.id });
+  if (after.phase === 'over' && before.phase !== 'over') {
+    void track('game_over', {
+      score: finalScore(after, gameData),
+      runs: after.runs,
+      bossDefeated: after.bossDefeated,
+    });
   }
 }
 
@@ -240,8 +268,8 @@ export const useGame = create<GameStore>()(
       function recordFinished(game: GameState): void {
         const entry: FinishedGame = {
           gameId: game.seed,
-          score: finalScore(game, gameConfig),
-          points: game.points,
+          score: finalScore(game, gameData),
+          bossDefeated: game.bossDefeated,
           kos: game.kos,
           runs: game.runs,
           defeated: game.outcomes.defeat ?? 0,
@@ -277,8 +305,10 @@ export const useGame = create<GameStore>()(
         const fresh = action.type === 'follow' ? null : game.combat;
         toast(damageMessage(getState().lang, fresh, next.combat));
         if (action.type === 'return') toast(t('town.welcomeBack'));
-        if (action.type === 'return' || action.type === 'finish') void validateOnServer(nextSaved);
-        if (action.type === 'finish') recordFinished(next);
+        // Termina al pedirlo o al derrotar al jefe
+        const over = next.phase === 'over' && game.phase !== 'over';
+        if (action.type === 'return' || over) void validateOnServer(nextSaved);
+        if (over) recordFinished(next);
       }
 
       function tutorialDispatch(action: CombatAction): void {
@@ -359,12 +389,10 @@ export const useGame = create<GameStore>()(
         },
 
         newGame(guided) {
-          // "Menú principal" deja la partida abierta: si estaba en el pueblo, empezar otra la
-          // termina y guarda su puntuación; a mitad de una expedición se descarta
+          // "Menú principal" deja la partida abierta: empezar otra la termina y guarda su
+          // puntuación (su mejor run); solo a mitad de un combate se descarta
           const { game } = getState();
-          if (game?.phase === 'town' && game.runs > 0 && !game.offer && !game.pendingTrophy) {
-            act({ type: 'finish' });
-          }
+          if (game && canFinish(game)) act({ type: 'finish' });
           const seed = newSeed();
           // La primera partida siempre es guiada: V0 enseña el juego de mesa
           const guideOn = guided ?? getState().history.length === 0;
@@ -500,8 +528,9 @@ export const useGame = create<GameStore>()(
           const state = getState();
           const combat = currentCombat(state);
           if (!combat) return;
+          // El comodín blanco no se relanza: se queda en la bandeja (feedback 2026-11-03)
           const dieIds = availableDice(combat)
-            .filter((d) => isRollable(d.kind) && !state.selected.includes(d.id))
+            .filter((d) => canReroll(d) && !state.selected.includes(d.id))
             .map((d) => d.id);
           if (dieIds.length === 0 && canRerollAny(combat)) {
             toast(t('combat.deselect'));
@@ -513,15 +542,20 @@ export const useGame = create<GameStore>()(
         activateAbility(abilityId, trophy) {
           const state = getState();
           const ability = getAbility(abilityId);
-          if (!ability || ability.effect.type === 'special') return;
-          const need = ABILITY_INPUTS[ability.effect.type];
+          if (!ability || !isActive(ability)) return;
+          const { effect } = ability;
+          const need = ABILITY_INPUTS[effect.type];
           if (state.selected.length + state.selectedTrophies.length !== need) {
             toast(
-              t('combat.needDice', {
-                name: ability.name,
-                n: need,
-                symbol: faceName(t, ability.effect.symbol),
-              }),
+              effect.type === 'lucky'
+                ? t('combat.needLucky', { name: ability.name, color: kindName(t, effect.die) })
+                : 'symbol' in effect && effect.symbol === 'heart'
+                  ? t('combat.needHeart', { name: ability.name })
+                  : t('combat.needDice', {
+                      name: ability.name,
+                      n: need,
+                      symbol: 'symbol' in effect ? faceName(t, effect.symbol) : '',
+                    }),
             );
             return;
           }

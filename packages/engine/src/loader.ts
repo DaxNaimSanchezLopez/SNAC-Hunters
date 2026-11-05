@@ -5,10 +5,12 @@ import {
   GameConfigSchema,
   GuideSchema,
   MonsterSchema,
+  SecretQuestSchema,
+  TownQuestSchema,
   TutorialSchema,
 } from './schemas.js';
 import type { GameConfig, GuideLesson, TutorialStep } from './schemas.js';
-import type { Ability, DiceTable, Monster } from './types.js';
+import type { Ability, DiceTable, Monster, SecretQuest, TownQuest } from './types.js';
 
 function formatIssues(issues: readonly { path: (string | number)[]; message: string }[]): string {
   return issues.map((issue) => `  - ${issue.path.join('.')}: ${issue.message}`).join('\n');
@@ -81,4 +83,32 @@ export function loadAbilities(raw: unknown): Ability[] {
     ids.add(a.id);
   }
   return abilities;
+}
+
+/** Valida una lista no vacía con ids únicos. */
+function loadList<T extends { readonly id: string }>(
+  schema: ZodType<T, ZodTypeDef, unknown>,
+  raw: unknown,
+  label: string,
+): T[] {
+  if (!Array.isArray(raw))
+    throw new Error(`${label}: se esperaba un array, se recibió ${typeof raw}`);
+  if (raw.length === 0) throw new Error(`${label}: la lista está vacía`);
+  const list = raw.map((item, index) => parseOrThrow(schema, item, `${label}: índice ${index}`));
+  const ids = new Set<string>();
+  for (const item of list) {
+    if (ids.has(item.id)) throw new Error(`${label}: id duplicado "${item.id}"`);
+    ids.add(item.id);
+  }
+  return list;
+}
+
+/** RF-17: Valida las cartas de misión secreta (config/secret-quests.json). */
+export function loadSecretQuests(raw: unknown): SecretQuest[] {
+  return loadList(SecretQuestSchema, raw, 'loadSecretQuests');
+}
+
+/** RF-18: Valida las misiones del pueblo (config/quests.json). */
+export function loadQuests(raw: unknown): TownQuest[] {
+  return loadList(TownQuestSchema, raw, 'loadQuests');
 }

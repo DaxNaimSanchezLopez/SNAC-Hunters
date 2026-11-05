@@ -3,7 +3,7 @@
 // Lo gastado en un combate sigue gastado el resto de la expedición y los dados blancos se
 // acumulan; al volver al pueblo se recuperan los dados y se retiran los blancos (D-14, D-15).
 
-import { CombatError, isRollable, isValidHp, replayCombat } from './combat.js';
+import { CombatError, isRollable, isValidHp, isWhiteWild, replayCombat } from './combat.js';
 import type { CombatAction, CombatSetup, CombatState } from './combat.js';
 import type { DiceTable, DieKind, Monster } from './types.js';
 
@@ -83,15 +83,18 @@ export function runCombatSetup(run: RunState): CombatSetup {
  * Dados que siguen en la reserva al terminar un combate:
  * - Los usados en el monstruo, los corazones que bloquearon daño o curaron y los blancos
  *   que hicieron daño quedan gastados.
- * - Los dados blancos que no se resolvieron (en blanco o comodín sin usar) se quedan en la
- *   reserva hasta volver al pueblo: pasan de un monstruo a otro (feedback del cliente,
- *   2026-10-27, D-15).
+ * - Los dados blancos en blanco se quedan en la reserva hasta volver al pueblo: pasan de un
+ *   monstruo a otro (feedback del cliente, 2026-10-27, D-15). El comodín blanco sin usar se
+ *   pierde al terminar la pelea, como los dorados (feedback del cliente, 2026-11-03).
  * - Los símbolos que consume una habilidad también quedan gastados.
  */
 export function remainingPool(combat: CombatState): DieKind[] {
   // Trofeos y símbolos de habilidad no son dados: nunca pasan al siguiente combate
   return combat.dice.flatMap((d) =>
-    isRollable(d.kind) && !combat.spent.includes(d.id) && !combat.assignments.includes(d.id)
+    isRollable(d.kind) &&
+    !isWhiteWild(d) &&
+    !combat.spent.includes(d.id) &&
+    !combat.assignments.includes(d.id)
       ? [d.kind]
       : [],
   );

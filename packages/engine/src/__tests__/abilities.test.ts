@@ -6,12 +6,13 @@ import {
   canActivate,
   canRerollAny,
   canUndo,
+  previewOutcome,
   slotsForFace,
   startCombat,
 } from '../combat.js';
 import type { CombatAction, CombatSetup, CombatState } from '../combat.js';
 import { remainingPool } from '../run.js';
-import type { DiceTable } from '../types.js';
+import type { DiceTable, Monster } from '../types.js';
 import { ability, BEEHOLDER, fixedTable, GARDEN_SALAAD, PORCUPINEAPPLE } from './fixtures.js';
 
 const SETUP: CombatSetup = { dice: ['red', 'red', 'red', 'red', 'green'], hp: 4, maxHp: 4 };
@@ -154,7 +155,8 @@ describe('habilidades', () => {
     expect(s1.trophies).toEqual(['Claw']);
     expect(s1.dice.slice(-2)).toEqual([
       { id: 'd5', kind: 'trophy', face: 'Wing' },
-      { id: 'd6', kind: 'token', face: 'wild' },
+      // El comodín de Auto-Aimer es azul: cuenta como el comodín del dado especial azul
+      { id: 'd6', kind: 'token', face: 'wild', color: 'blue' },
     ]);
     expect(s1.spent).toEqual(['d5']);
     expect(() =>
@@ -360,5 +362,180 @@ describe('sin dados que relanzar', () => {
     expect(s3.dice).toHaveLength(3);
     expect(s3.hp).toBe(4);
     expect(s3.spent).toEqual(['d1', 'd0']);
+  });
+});
+
+describe('comodín blanco (feedback 2026-11-03)', () => {
+  it('no se relanza: se queda en la bandeja; el comodín de un dado de color sí se relanza', () => {
+    const table = fixedTable({ red: 'Tail', green: 'wild', white: 'wild' });
+    const s0 = startCombat(GARDEN_SALAAD, SETUP, 1, table);
+    const s1 = applyAction(s0, { type: 'reroll', dieIds: ['d0'] }, table);
+    expect(s1.dice.at(-1)).toMatchObject({ id: 'd5', kind: 'white', face: 'wild' });
+    expect(() => applyAction(s1, { type: 'reroll', dieIds: ['d5'] }, table)).toThrow(
+      /comodín blanco no se relanza/,
+    );
+    expect(() => applyAction(s1, { type: 'reroll', dieIds: ['d4'] }, table)).not.toThrow();
+    const s2 = applyAction(s1, { type: 'reroll', dieIds: ['d0'] }, table);
+    expect(availableDice(s2).map((d) => d.id)).toContain('d5');
+  });
+
+  it('con solo comodines blancos en la bandeja se relanza únicamente un dado blanco nuevo', () => {
+    const table = fixedTable({ red: 'heart', white: 'wild' });
+    const s0 = startCombat(GARDEN_SALAAD, { dice: ['red'], hp: 3, maxHp: 4 }, 1, table);
+    const s1 = play(
+      s0,
+      [
+        { type: 'reroll', dieIds: ['d0'] },
+        { type: 'heal', dieId: 'd0' },
+      ],
+      table,
+    );
+    expect(availableDice(s1).map((d) => d.kind)).toEqual(['white']);
+    expect(canRerollAny(s1)).toBe(false);
+    const s2 = applyAction(s1, { type: 'reroll', dieIds: [] }, table);
+    expect(availableDice(s2).filter((d) => d.kind === 'white')).toHaveLength(2);
+  });
+});
+
+describe('cartas V02', () => {
+  it('Lucky: un comodín del dado especial de su color se convierte en dos', () => {
+    const table = fixedTable({ red: 'Tail', green: 'wild' });
+    const setup: CombatSetup = {
+      ...SETUP,
+      abilities: [ability('lucky-find'), ability('lucky-hit')],
+    };
+    const s0 = startCombat(GARDEN_SALAAD, setup, 1, table);
+    expect(canActivate(s0, ability('lucky-find'))).toBe(true);
+    expect(canActivate(s0, ability('lucky-hit'))).toBe(false);
+    expect(() =>
+      applyAction(s0, { type: 'ability', abilityId: 'lucky-find', dieIds: ['d0'] }, table),
+    ).toThrow(/no activa/);
+    const s1 = applyAction(s0, { type: 'ability', abilityId: 'lucky-find', dieIds: ['d4'] }, table);
+    expect(s1.dice.slice(-2).map((d) => [d.kind, d.face])).toEqual([
+      ['token', 'wild'],
+      ['token', 'wild'],
+    ]);
+  });
+
+  it('una carta de comodín da el comodín de su color, y la Lucky de ese color lo duplica', () => {
+    const table = fixedTable({ red: 'Horn', green: 'Claw' });
+    const setup: CombatSetup = {
+      ...SETUP,
+      abilities: [ability('sentient-sword'), ability('lucky-hit')],
+    };
+    const s0 = startCombat(GARDEN_SALAAD, setup, 1, table);
+    expect(canActivate(s0, ability('lucky-hit'))).toBe(false);
+    const s1 = applyAction(
+      s0,
+      { type: 'ability', abilityId: 'sentient-sword', dieIds: ['d0'] },
+      table,
+    );
+    const sword = s1.dice.at(-1)!;
+    expect(sword).toMatchObject({ kind: 'token', face: 'wild', color: 'orange' });
+    const s2 = applyAction(
+      s1,
+      { type: 'ability', abilityId: 'lucky-hit', dieIds: [sword.id] },
+      table,
+    );
+    expect(availableDice(s2).filter((d) => d.face === 'wild')).toHaveLength(2);
+  });
+
+  it('Double Healing: un corazón se convierte en dos (un comodín no sirve)', () => {
+    const table = fixedTable({ red: 'heart', green: 'wild' });
+    const setup: CombatSetup = { ...SETUP, hp: 2, abilities: [ability('double-healing')] };
+    const s0 = startCombat(GARDEN_SALAAD, setup, 1, table);
+    expect(() =>
+      applyAction(s0, { type: 'ability', abilityId: 'double-healing', dieIds: ['d4'] }, table),
+    ).toThrow(/no activa/);
+    const s1 = applyAction(
+      s0,
+      { type: 'ability', abilityId: 'double-healing', dieIds: ['d0'] },
+      table,
+    );
+    const hearts = s1.dice.slice(-2);
+    expect(hearts.map((d) => d.face)).toEqual(['heart', 'heart']);
+    const healed = play(
+      s1,
+      hearts.map((d): CombatAction => ({ type: 'heal', dieId: d.id })),
+      table,
+    );
+    expect(healed.hp).toBe(4);
+  });
+
+  it('Cursed Gauntlet: cuesta 1 HPie y da un comodín; deshacerla devuelve el HPie', () => {
+    const table = fixedTable({ red: 'Tail', green: 'Tail' });
+    const setup: CombatSetup = { ...SETUP, hp: 3, abilities: [ability('cursed-gauntlet')] };
+    const s0 = startCombat(GARDEN_SALAAD, setup, 1, table);
+    const s1 = applyAction(
+      s0,
+      { type: 'ability', abilityId: 'cursed-gauntlet', dieIds: [] },
+      table,
+    );
+    expect(s1.hp).toBe(2);
+    expect(s1.dice.at(-1)).toMatchObject({ kind: 'token', face: 'wild' });
+    const undone = applyAction(s1, { type: 'undo', abilityId: 'cursed-gauntlet' }, table);
+    expect(undone.hp).toBe(3);
+    expect(undone.dice).toHaveLength(5);
+    const weak = startCombat(GARDEN_SALAAD, { ...setup, hp: 1 }, 1, table);
+    expect(canActivate(weak, ability('cursed-gauntlet'))).toBe(false);
+    expect(() =>
+      applyAction(weak, { type: 'ability', abilityId: 'cursed-gauntlet', dieIds: [] }, table),
+    ).toThrow(/No te queda HPie/);
+  });
+
+  it('las cartas pasivas o de fuera de combate no aparecen en el combate', () => {
+    const setup: CombatSetup = {
+      ...SETUP,
+      abilities: [ability('cloning-tool'), ability('varied-samples'), ability('pierfect-shot')],
+    };
+    expect(startCombat(GARDEN_SALAAD, setup, 1, fixedTable({})).abilities).toEqual([]);
+  });
+});
+
+describe('jefe (RF-16)', () => {
+  const BOSS: Monster = {
+    id: 'pieous',
+    name: 'Pieous Assassin',
+    type: 'Horn',
+    slots: ['Horn', 'Horn', 'Wing', 'Wing', 'Claw', 'Tail'],
+    trophies: [],
+    pun: '',
+    boss: true,
+  };
+  const wilds = fixedTable({ red: 'wild', green: 'wild' });
+  const six: CombatSetup = { dice: ['red', 'red', 'red', 'red', 'red', 'green'], hp: 4, maxHp: 4 };
+
+  it('solo se derrota cubriendo todos sus espacios y no da trofeo; con menos, se huye', () => {
+    const s0 = startCombat(BOSS, six, 1, wilds);
+    expect(s0.assignments).toHaveLength(6);
+    const five = play(
+      s0,
+      [0, 1, 2, 3, 4].map((slot): CombatAction => ({ type: 'assign', dieId: `d${slot}`, slot })),
+      wilds,
+    );
+    expect(previewOutcome(five)).toBe('flee');
+    const all = applyAction(five, { type: 'assign', dieId: 'd5', slot: 5 }, wilds);
+    expect(previewOutcome(all)).toBe('defeat');
+    const won = applyAction(all, { type: 'resolve' }, wilds);
+    expect(won).toMatchObject({ outcome: 'defeat', trophy: null });
+  });
+
+  it('"tres iguales" no sirve contra el jefe', () => {
+    const wings = fixedTable({ red: 'Wing', green: 'Wing' });
+    const setup: CombatSetup = { ...six, abilities: [ability('meaty-crossbow')] };
+    const s0 = startCombat(BOSS, setup, 1, wings);
+    expect(canActivate(s0, ability('meaty-crossbow'))).toBe(false);
+    expect(() =>
+      applyAction(
+        s0,
+        {
+          type: 'ability',
+          abilityId: 'meaty-crossbow',
+          dieIds: ['d0', 'd1', 'd2'],
+          trophy: 'Horn',
+        },
+        wings,
+      ),
+    ).toThrow(/no sirve contra el jefe/);
   });
 });

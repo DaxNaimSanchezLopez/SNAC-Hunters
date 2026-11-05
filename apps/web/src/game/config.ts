@@ -4,13 +4,24 @@ import {
   loadDiceTable,
   loadGameConfig,
   loadMonsters,
+  loadQuests,
+  loadSecretQuests,
   loadTutorial,
 } from '@snac-hunters/engine';
-import type { Ability, CombatSetup, GameData, Monster } from '@snac-hunters/engine';
+import type {
+  Ability,
+  CombatSetup,
+  GameData,
+  Monster,
+  SecretQuest,
+  TownQuest,
+} from '@snac-hunters/engine';
 import rawAbilities from '@snac-hunters/config/abilities.json';
 import rawDice from '@snac-hunters/config/dice.json';
 import rawGame from '@snac-hunters/config/game.json';
 import rawMonsters from '@snac-hunters/config/monsters.json';
+import rawQuests from '@snac-hunters/config/quests.json';
+import rawSecretQuests from '@snac-hunters/config/secret-quests.json';
 import rawTutorial from '@snac-hunters/config/tutorial.json';
 
 export const diceTable = loadDiceTable(rawDice);
@@ -18,9 +29,18 @@ export const gameConfig = loadGameConfig(rawGame);
 export const monsters: readonly Monster[] = loadMonsters(rawMonsters);
 export const tutorialSteps = loadTutorial(rawTutorial);
 export const abilities: readonly Ability[] = loadAbilities(rawAbilities);
+export const quests: readonly TownQuest[] = loadQuests(rawQuests);
+export const secretQuests: readonly SecretQuest[] = loadSecretQuests(rawSecretQuests);
 
 /** Lo mismo que usa el servidor para re-simular la partida. */
-export const gameData: GameData = { config: gameConfig, monsters, abilities, dice: diceTable };
+export const gameData: GameData = {
+  config: gameConfig,
+  monsters,
+  abilities,
+  secretQuests,
+  quests,
+  dice: diceTable,
+};
 
 /** Setup del tutorial: un combate suelto con los dados iniciales. */
 export const playerSetup: CombatSetup = {
@@ -53,6 +73,14 @@ export function getMonster(id: string): Monster | undefined {
 
 export function getAbility(id: string): Ability | undefined {
   return abilities.find((a) => a.id === id);
+}
+
+export function getQuest(id: string): TownQuest | undefined {
+  return quests.find((q) => q.id === id);
+}
+
+export function getSecretQuest(id: string): SecretQuest | undefined {
+  return secretQuests.find((q) => q.id === id);
 }
 
 // Sin "/" final: la salida ApiUrl de CDK termina en "/" y produciría rutas como "/dev//runs"

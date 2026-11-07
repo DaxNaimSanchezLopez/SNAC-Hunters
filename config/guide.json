@@ -17,17 +17,16 @@
     "id": "setup-color",
     "phase": "setup",
     "when": [],
-    "advance": "start",
+    "advance": "next",
     "highlight": "colors",
     "es": {
       "title": "Elige tu color y tu misión secreta",
-      "text": "Cada cazador tiene un color, y ese color te da tu DADO ESPECIAL: 4 caras de su símbolo y 2 comodines. Naranja = hachas, azul = flechas, morado = anzuelos y verde = lupas. Al elegirlo recibes tu MISIÓN SECRETA: da puntos extra por derrotar SNACs de su tipo y por guardar trofeos de sus símbolos. Después toca ¡A CAZAR!"
+      "text": "Cada cazador tiene un color, y ese color te da tu DADO ESPECIAL: 4 caras de su símbolo y 2 comodines. Naranja = hachas, azul = flechas, morado = anzuelos y verde = lupas. Al elegirlo recibes tu MISIÓN SECRETA: da puntos extra por derrotar SNACs de su tipo y por guardar trofeos de sus símbolos. Toca ENTENDIDO y elige tu color."
     },
     "en": {
       "title": "Choose your color and secret quest",
-      "text": "Each hunter has a color, and that color gives you your SPECIAL DIE: 4 faces of its symbol and 2 wilds. Orange = axes, blue = arrows, purple = hooks and green = finders. Choosing it gives you your SECRET QUEST: bonus points for defeating SNACs of its type and keeping trophies of its symbols. Then tap LET'S HUNT!"
-    },
-    "position": "top"
+      "text": "Each hunter has a color, and that color gives you your SPECIAL DIE: 4 faces of its symbol and 2 wilds. Orange = axes, blue = arrows, purple = hooks and green = finders. Choosing it gives you your SECRET QUEST: bonus points for defeating SNACs of its type and keeping trophies of its symbols. Tap GOT IT and choose your color."
+    }
   },
   {
     "id": "hunt-dice",

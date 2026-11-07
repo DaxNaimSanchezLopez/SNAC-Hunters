@@ -6,11 +6,11 @@
     "advance": "next",
     "es": {
       "title": "¡Bienvenido, aprendiz!",
-      "text": "Soy el Huntmaster. Esta es la versión digital del juego de mesa Attack of the SNACs. Cada ronda empieza con la EXPEDICIÓN: sales a cazar SNACs con tus dados. Después vuelves al PUEBLO para hacerte más fuerte. Buscas conseguir la puntuación más alta posible."
+      "text": "Soy el Huntmaster. Esta es la versión digital del juego de mesa Attack of the SNACs. Cada ronda empieza con la EXPEDICIÓN: sales a cazar SNACs con tus dados. Después vuelves al PUEBLO para hacerte más fuerte. Cuando estés listo, enfrenta al jefe, Pieous Assassin: derrotarlo termina la partida con el mejor puntaje."
     },
     "en": {
       "title": "Welcome, apprentice!",
-      "text": "I'm the Huntmaster. This is the digital version of the board game Attack of the SNACs. Each round starts with the EXPEDITION: you head out to hunt SNACs with your dice. Then you go back to TOWN to get stronger. You're looking to get the highest score possible."
+      "text": "I'm the Huntmaster. This is the digital version of the board game Attack of the SNACs. Each round starts with the EXPEDITION: you head out to hunt SNACs with your dice. Then you go back to TOWN to get stronger. When you're ready, face the boss, Pieous Assassin: defeating it ends the game with the best score."
     }
   },
   {
@@ -20,13 +20,14 @@
     "advance": "start",
     "highlight": "colors",
     "es": {
-      "title": "Elige tu color",
-      "text": "Como en el juego de mesa, cada cazador tiene un color, y ese color te da tu DADO ESPECIAL: 4 caras de su símbolo y 2 comodines. Naranja = hachas, azul = flechas, morado = anzuelos y verde = lupas. Toca uno para empezar."
+      "title": "Elige tu color y tu misión secreta",
+      "text": "Cada cazador tiene un color, y ese color te da tu DADO ESPECIAL: 4 caras de su símbolo y 2 comodines. Naranja = hachas, azul = flechas, morado = anzuelos y verde = lupas. Al elegirlo recibes tu MISIÓN SECRETA: da puntos extra por derrotar SNACs de su tipo y por guardar trofeos de sus símbolos. Después toca ¡A CAZAR!"
     },
     "en": {
-      "title": "Choose your color",
-      "text": "Just like the board game, each hunter has a color, and that color gives you your SPECIAL DIE: 4 faces of its symbol and 2 wilds. Orange = axes, blue = arrows, purple = hooks and green = finders. Tap one to start."
-    }
+      "title": "Choose your color and secret quest",
+      "text": "Each hunter has a color, and that color gives you your SPECIAL DIE: 4 faces of its symbol and 2 wilds. Orange = axes, blue = arrows, purple = hooks and green = finders. Choosing it gives you your SECRET QUEST: bonus points for defeating SNACs of its type and keeping trophies of its symbols. Then tap LET'S HUNT!"
+    },
+    "position": "top"
   },
   {
     "id": "hunt-dice",
@@ -69,6 +70,21 @@
     "en": {
       "title": "Follow a track",
       "text": "Tap FOLLOW on one of them. The SNAC is revealed when the fight starts."
+    }
+  },
+  {
+    "id": "trail-boss",
+    "phase": "trail",
+    "when": ["bossReady"],
+    "advance": "next",
+    "highlight": "boss",
+    "es": {
+      "title": "La guarida del jefe",
+      "text": "Desde ahora, en el sendero aparece la guarida de PIEOUS ASSASSIN. Tiene 6 espacios con símbolos al azar: hay que cubrirlos TODOS para derrotarlo (no se le estudia, y las cartas de \"tres iguales\" no sirven). Derrotarlo termina la partida: entre menos expediciones te tome, más se multiplica tu puntaje."
+    },
+    "en": {
+      "title": "The boss's lair",
+      "text": "From now on, PIEOUS ASSASSIN's lair appears on the trail. It has 6 random symbol spaces: you must fill ALL of them to defeat it (it can't be studied, and \"three of a kind\" cards don't work). Defeating it ends the game: the fewer runs it takes, the bigger your score multiplier."
     }
   },
   {
@@ -150,11 +166,26 @@
     "highlight": "dice",
     "es": {
       "title": "El dado blanco",
-      "text": "Los dados blancos representan que tu personaje se está cansando y corre el riesgo de recibir daño en una pelea. Tienen 3 caras de daño, 2 caras en blanco y 1 cara de comodín. Los dados blancos se quedan en pendiente hasta que se resuelven. Se pueden resolver de dos formas: usándolos como símbolo comodín en un monstruo, o recibiendo el daño. Si vuelves a tirar con un símbolo de daño en un dado blanco en pendiente, recibes 1 de daño por cada símbolo. Para evitar este daño, puedes gastar los dados rojos de corazón para bloquearlo."
+      "text": "Los dados blancos representan que tu personaje se está cansando. Tienen 3 caras de daño, 2 en blanco y 1 comodín. El daño queda pendiente: lo recibes al relanzar o al resolver, salvo que lo cubras con un CORAZÓN de un dado rojo. Los blancos en blanco te acompañan hasta volver al pueblo."
     },
     "en": {
       "title": "The white die",
-      "text": "White dice represent your character getting tired and at risk of taking damage in a fight. They have 3 damage faces, 2 blank faces and 1 wild face. White dice sit in pending until they are resolved. They can be resolved in two ways: used as a wild symbol on a monster, or by taking the damage. If you re-roll with a damage symbol on a white die in pending, you will take 1 damage per symbol. To avoid this damage the red heart dice can be spent to block that damage."
+      "text": "White dice show your character getting tired. They have 3 damage faces, 2 blank faces and 1 wild. Damage sits pending: you take it when you re-roll or resolve, unless you cover it with a red die's HEART. Blank white dice stay with you until you return to town."
+    }
+  },
+  {
+    "id": "combat-white-wild",
+    "phase": "combat",
+    "when": ["whiteWild"],
+    "advance": "next",
+    "highlight": "dice",
+    "es": {
+      "title": "Comodín blanco",
+      "text": "Salió el COMODÍN de un dado blanco (tiene un candado). No se puede volver a tirar: al relanzar se queda en tu bandeja. Úsalo en este SNAC, porque al terminar la pelea se pierde. Solo los comodines de los dados de color se pueden relanzar."
+    },
+    "en": {
+      "title": "White wild",
+      "text": "A white die rolled its WILD (it has a padlock). It can't be re-rolled: when you re-roll it stays in your tray. Use it on this SNAC, because it's lost when the fight ends. Only wilds on colored dice can be re-rolled."
     }
   },
   {
@@ -165,11 +196,11 @@
     "highlight": "resolve",
     "es": {
       "title": "Cómo termina la caza",
-      "text": "El botón de abajo dice qué pasará: 4 espacios = DERROTAR (10 puntos y un trofeo), 2 o 3 = ESTUDIAR (3 puntos y un trofeo), 1 = HUIR (vuelves al pueblo). El daño de un SNAC cuenta como cubierto, pero te quita 1 corazón al resolver. Si el botón se pone ROJO, esa decisión te dejará KO."
+      "text": "El botón de abajo dice qué pasará: todos los espacios = DERROTAR (trofeo y puntos), 2 o 3 = ESTUDIAR (trofeo, sin puntos), 1 = HUIR (vuelves al pueblo). El daño de un SNAC cuenta como cubierto, pero te quita 1 corazón al resolver. Si el botón se pone ROJO, esa decisión te dejará KO."
     },
     "en": {
       "title": "How a hunt ends",
-      "text": "The button below shows what will happen: 4 spaces = DEFEAT (10 points and a trophy), 2 or 3 = STUDY (3 points and a trophy), 1 = FLEE (back to town). A SNAC's damage space counts as filled, but costs you 1 heart when you resolve. If the button turns RED, that decision will get you KO'd."
+      "text": "The button below shows what will happen: every space = DEFEAT (trophy and points), 2 or 3 = STUDY (trophy, no points), 1 = FLEE (back to town). A SNAC's damage space counts as filled, but costs you 1 heart when you resolve. If the button turns RED, that decision will get you KO'd."
     }
   },
   {
@@ -255,11 +286,41 @@
     "highlight": "dice",
     "es": {
       "title": "Símbolos temporales",
-      "text": "Los símbolos DORADOS los creó una habilidad. Sirven en este SNAC, también para activar otra carta, pero son temporales: desaparecen al terminar la pelea."
+      "text": "Los símbolos DORADOS los creó una carta. Sirven en este SNAC, también para activar otra carta, pero desaparecen al terminar la pelea. Si el comodín tiene COLOR (hachas naranja, flechas azul…), cuenta como el comodín de ese dado especial: una carta Lucky de ese color lo convierte en dos."
     },
     "en": {
       "title": "Temporary symbols",
-      "text": "GOLD symbols were created by an ability. They work against this SNAC, including to activate another card, but they're temporary: they disappear when the fight ends."
+      "text": "GOLD symbols were created by a card. They work against this SNAC, including to activate another card, but they disappear when the fight ends. If the wild has a COLOR (axes orange, arrows blue…), it counts as that special die's wild: a Lucky card of that color turns it into two."
+    }
+  },
+  {
+    "id": "combat-boss",
+    "phase": "combat",
+    "when": ["boss"],
+    "advance": "next",
+    "highlight": "monster",
+    "es": {
+      "title": "¡Pieous Assassin!",
+      "text": "El jefe tiene 6 espacios y no da trofeo. Solo hay dos salidas: cubrirlos TODOS para derrotarlo y terminar la partida, o huir. Usa tus trofeos y tus cartas, y cuida tu HPie: el que te quede al derrotarlo suma puntos."
+    },
+    "en": {
+      "title": "Pieous Assassin!",
+      "text": "The boss has 6 spaces and gives no trophy. There are only two ways out: fill ALL of them to defeat it and end the game, or flee. Use your trophies and cards, and watch your HP: whatever you have left when you defeat it adds points."
+    }
+  },
+  {
+    "id": "after-chain",
+    "phase": "aftermath",
+    "when": ["defeatedNow"],
+    "advance": "next",
+    "highlight": "score",
+    "es": {
+      "title": "Puntos de cadena",
+      "text": "Cada SNAC que derrotas en la MISMA expedición vale más que el anterior: 10, 20, 30, 40… Estudiar no suma ni rompe la cadena. Quedar KO no te quita puntos, pero se acaba la cadena. Si el SNAC es del tipo de tu misión secreta, +10 más."
+    },
+    "en": {
+      "title": "Chain points",
+      "text": "Each SNAC you defeat on the SAME run is worth more than the last: 10, 20, 30, 40… Studying neither adds nor breaks the chain. Getting KO'd doesn't cost points, but the chain ends. If the SNAC matches your secret quest's type, +10 more."
     }
   },
   {
@@ -270,11 +331,11 @@
     "highlight": "status",
     "es": {
       "title": "Dados gastados",
-      "text": "Los dados que usaste en el SNAC quedan GASTADOS hasta que vuelvas al pueblo y tu HPie no se recupera. Los dados BLANCOS se quedan en tu reserva hasta que regreses al pueblo: pasan de un SNAC a otro. Puedes SEGUIR CAZANDO (aunque no te queden dados: solo tirarías blancos) o VOLVER AL PUEBLO a tiempo."
+      "text": "Los dados que usaste en el SNAC quedan GASTADOS hasta que vuelvas al pueblo y tu HPie no se recupera. Los dados BLANCOS en blanco se quedan en tu reserva hasta el pueblo; el comodín blanco que no usaste se perdió. Puedes SEGUIR CAZANDO para alargar la cadena o VOLVER AL PUEBLO a tiempo."
     },
     "en": {
       "title": "Spent dice",
-      "text": "The dice you used on the SNAC stay SPENT until you return to town, and your HP doesn't recover. WHITE dice remain in your pool until you return to town: they carry over from SNAC to SNAC. You can KEEP HUNTING (even with no dice left: you'd only roll white dice) or HEAD BACK TO TOWN in time."
+      "text": "The dice you used on the SNAC stay SPENT until you return to town, and your HP doesn't recover. Blank WHITE dice remain in your pool until town; an unused white wild is lost. You can KEEP HUNTING to grow your chain or HEAD BACK TO TOWN in time."
     }
   },
   {
@@ -307,6 +368,21 @@
     }
   },
   {
+    "id": "town-quests",
+    "phase": "town",
+    "when": ["returnVisit"],
+    "advance": "next",
+    "highlight": "quests",
+    "es": {
+      "title": "El tablero de misiones",
+      "text": "Siempre hay 3 misiones. La de ALDEANO pide UNO de los trofeos o corazones que muestra y te da a elegir un OBJETO; la del HUNTMASTER pide TODO lo que muestra y te da una DESTREZA. Los corazones rotos se pagan con HPie. Al cumplir una, llega otra. Cada vez que vuelves al pueblo se retira la más antigua (marcada en naranja): ¡cúmplela antes! Puedes revisarlas con el botón de misiones de arriba."
+    },
+    "en": {
+      "title": "The quest board",
+      "text": "There are always 3 quests. A VILLAGER quest asks for ONE of the trophies or hearts it shows and lets you pick an ITEM; a HUNTMASTER quest asks for EVERYTHING it shows and gives a SKILL. Broken hearts are paid with HP. Complete one and another arrives. Each time you return to town the oldest one (marked in orange) is retired: complete it first! Check them anytime with the quests button at the top."
+    }
+  },
+  {
     "id": "town-actions",
     "phase": "town",
     "when": ["returnVisit"],
@@ -314,11 +390,11 @@
     "highlight": "actions",
     "es": {
       "title": "Acciones del pueblo",
-      "text": "En cada visita tienes 2 acciones y debes usarlas antes de salir; cada opción se usa una vez por visita. Por ahora hay dos: DESCANSAR (sanas todo tu HPie, recargas objetos y ganas un trofeo) y la MISIÓN DE ALDEANO (pagas 1 trofeo y eliges un objeto). La próxima vez que regreses se abrirá una opción nueva."
+      "text": "En cada visita tienes 2 acciones y debes usarlas antes de salir; cada opción se usa una vez por visita. Por ahora hay dos: DESCANSAR (sanas todo tu HPie, recargas objetos y ganas un trofeo) y cumplir una MISIÓN DE ALDEANO del tablero. La próxima vez que regreses se abrirá una opción nueva."
     },
     "en": {
       "title": "Town actions",
-      "text": "Each visit gives you 2 actions and you must use them before leaving; each option can be used once per visit. For now there are two: REST (heal all your HP, recharge items and gain a trophy) and the VILLAGER QUEST (pay 1 trophy, pick an item). Next time you come back a new option will open."
+      "text": "Each visit gives you 2 actions and you must use them before leaving; each option can be used once per visit. For now there are two: REST (heal all your HP, recharge items and gain a trophy) and complete a VILLAGER QUEST from the board. Next time you come back a new option will open."
     }
   },
   {
@@ -360,11 +436,11 @@
     "highlight": "actions",
     "es": {
       "title": "¡Nueva opción!",
-      "text": "Se abrió la MISIÓN DEL HUNTMASTER: pagas 2 trofeos y eliges una DESTREZA. Las destrezas no se gastan: se pueden usar con cada SNAC. Junta los trofeos que necesites para comprarlas."
+      "text": "Se abrieron las MISIONES DEL HUNTMASTER: entrega TODOS los trofeos y corazones que piden y elige una DESTREZA. Las destrezas no se gastan: se pueden usar con cada SNAC. Junta los trofeos que piden mientras cazas."
     },
     "en": {
       "title": "New option!",
-      "text": "The HUNTMASTER QUEST is now open: pay 2 trophies and pick a SKILL. Skills are never spent: you can use them against every SNAC. Collect the trophies you need to buy them."
+      "text": "HUNTMASTER QUESTS are now open: hand in ALL the trophies and hearts they ask for and pick a SKILL. Skills are never spent: you can use them against every SNAC. Collect the trophies they ask for while you hunt."
     }
   },
   {
@@ -375,11 +451,11 @@
     "highlight": "hud",
     "es": {
       "title": "Tu puntaje",
-      "text": "Cada SNAC derrotado vale 10 puntos y uno estudiado 3. Cada expedición terminada resta 5 y cada KO resta 3. Cazar muchos SNACs en pocas expediciones da más puntaje."
+      "text": "Si dejas de jugar, tu puntaje es el de tu MEJOR expedición: sus puntos de cadena más 10 por cada SNAC y cada trofeo de tu misión secreta. Si derrotas al jefe, cuenta esa última expedición, más 10 por cada HPie que te quede, y todo se multiplica: ×2 con 4 expediciones o menos, ×1.75 con 5, ×1.5 con 6 y ×1.25 con más."
     },
     "en": {
       "title": "Your score",
-      "text": "Each defeated SNAC is worth 10 points and a studied one 3. Each finished run costs 5 and each KO costs 3. Hunting many SNACs in few runs scores the most."
+      "text": "If you stop playing, your score is your BEST run: its chain points plus 10 for each SNAC and trophy of your secret quest. If you defeat the boss, that last run counts, plus 10 per HP you have left, and it all gets multiplied: ×2 with 4 runs or fewer, ×1.75 with 5, ×1.5 with 6 and ×1.25 with more."
     }
   },
   {

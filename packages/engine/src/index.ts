@@ -12,6 +12,10 @@ export type {
   Ability,
   AbilityEffect,
   SpecialDieKind,
+  PointsBy,
+  SecretQuest,
+  TownQuest,
+  QuestCost,
 } from './types.js';
 
 // RF-08: Schemas Zod de config/
@@ -22,6 +26,8 @@ export {
   TutorialSchema,
   AbilitySchema,
   GuideSchema,
+  SecretQuestSchema,
+  TownQuestSchema,
 } from './schemas.js';
 export type { MonsterFromSchema, GameConfig, TutorialStep, GuideLesson } from './schemas.js';
 
@@ -33,6 +39,8 @@ export {
   loadTutorial,
   loadAbilities,
   loadGuide,
+  loadSecretQuests,
+  loadQuests,
 } from './loader.js';
 
 // RNF-02: RNG determinista con semilla
@@ -49,7 +57,11 @@ export {
   previewOutcome,
   validSlotsFor,
   slotsForFace,
-  faceActivates,
+  dieActivates,
+  isActive,
+  isWhiteWild,
+  canReroll,
+  SYMBOL_COLOR,
   pendingDamage,
   pendingHits,
   isRollable,
@@ -69,6 +81,7 @@ export type {
   CombatEvent,
   CombatSetup,
   Outcome,
+  ActiveEffect,
 } from './combat.js';
 
 // RF-12: Expedición (run)
@@ -84,15 +97,24 @@ export {
 } from './run.js';
 export type { RunState, RunSetup, RunFight, RunEnd } from './run.js';
 
-// RF-15: Partida V0 (pueblo, expediciones, trofeos, habilidades, puntaje)
+// RF-15: Partida (pueblo, expediciones, trofeos, habilidades, misiones, jefe y puntaje)
 export {
   newGame,
   applyGameAction,
   replayGame,
   finalScore,
+  scoreBreakdown,
+  bossMultiplier,
+  questTrophiesHeld,
   trophyCapacity,
   readyAbilities,
   findAbility,
+  findQuest,
+  findSecretQuest,
+  questPayment,
+  payableOptions,
+  oldestQuest,
+  bossAvailable,
   townOptions,
   canLeaveTown,
 } from './game.js';
@@ -102,6 +124,9 @@ export type {
   GameAction,
   GamePhase,
   OwnedItem,
+  QuestSlot,
+  RunScore,
+  ScoreBreakdown,
   TownOption,
   TownOptionState,
 } from './game.js';

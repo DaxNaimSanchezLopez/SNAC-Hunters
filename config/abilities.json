@@ -47,7 +47,7 @@
   },
   {
     "id": "double-head-axe",
-    "name": "Double-head Axe",
+    "name": "Doublehead Axe",
     "kind": "item",
     "effect": {
       "type": "double",
@@ -116,13 +116,40 @@
     "bonus": "trophySlot"
   },
   {
+    "id": "cloning-tool",
+    "name": "Cloning Tool",
+    "kind": "item",
+    "effect": {
+      "type": "recharge"
+    },
+    "bonus": "trophySlot"
+  },
+  {
+    "id": "cursed-gauntlet",
+    "name": "Cursed Gauntlet",
+    "kind": "item",
+    "effect": {
+      "type": "gauntlet"
+    }
+  },
+  {
+    "id": "piebix-cube",
+    "name": "Piebix Cube",
+    "kind": "item",
+    "effect": {
+      "type": "points",
+      "by": "specialDice"
+    }
+  },
+  {
     "id": "trap-hatching",
     "name": "Trap Hatching",
     "kind": "skill",
     "effect": {
       "type": "special",
       "die": "purple"
-    }
+    },
+    "bonus": "trophySlot"
   },
   {
     "id": "axe-sharpening",
@@ -131,7 +158,8 @@
     "effect": {
       "type": "special",
       "die": "orange"
-    }
+    },
+    "bonus": "trophySlot"
   },
   {
     "id": "detective-work",
@@ -140,7 +168,8 @@
     "effect": {
       "type": "special",
       "die": "green"
-    }
+    },
+    "bonus": "trophySlot"
   },
   {
     "id": "pierfect-shot",
@@ -149,7 +178,8 @@
     "effect": {
       "type": "special",
       "die": "blue"
-    }
+    },
+    "bonus": "trophySlot"
   },
   {
     "id": "scent-and-sound",
@@ -185,6 +215,69 @@
     "effect": {
       "type": "convert",
       "symbol": "Wing"
+    }
+  },
+  {
+    "id": "lucky-catch",
+    "name": "Lucky Catch",
+    "kind": "skill",
+    "effect": {
+      "type": "lucky",
+      "die": "purple"
+    }
+  },
+  {
+    "id": "lucky-find",
+    "name": "Lucky Find",
+    "kind": "skill",
+    "effect": {
+      "type": "lucky",
+      "die": "green"
+    }
+  },
+  {
+    "id": "lucky-hit",
+    "name": "Lucky Hit",
+    "kind": "skill",
+    "effect": {
+      "type": "lucky",
+      "die": "orange"
+    }
+  },
+  {
+    "id": "lucky-shot",
+    "name": "Lucky Shot",
+    "kind": "skill",
+    "effect": {
+      "type": "lucky",
+      "die": "blue"
+    }
+  },
+  {
+    "id": "double-healing",
+    "name": "Double Healing",
+    "kind": "skill",
+    "effect": {
+      "type": "double",
+      "symbol": "heart"
+    }
+  },
+  {
+    "id": "varied-samples",
+    "name": "Varied Samples",
+    "kind": "skill",
+    "effect": {
+      "type": "points",
+      "by": "trophyTypes"
+    }
+  },
+  {
+    "id": "well-traveled",
+    "name": "Well Traveled",
+    "kind": "skill",
+    "effect": {
+      "type": "points",
+      "by": "monsterTypes"
     }
   }
 ]

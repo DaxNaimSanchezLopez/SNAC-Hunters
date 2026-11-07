@@ -358,4 +358,70 @@ El riesgo de D-11 (seeds elegidas por el cliente) sigue igual.
 
 ---
 
-*Última actualización: 2026-10-27 — feedback del cliente: dados blancos entre combates, curar, pueblo por partes, puntaje ×10, mejores puntuaciones.*
+
+## D-38 — Feedback del cliente del 2026-11-03: comodín blanco
+
+**Decisión:** el comodín de un dado blanco **no se relanza** (`isWhiteWild`, `canReroll`): al relanzar se queda en la bandeja con un candado. Se usa en el monstruo actual o **se pierde** al terminar la pelea (`remainingPool` ya no lo pasa al siguiente combate), igual que los dorados. Los blancos que salen en blanco siguen pasando de un monstruo a otro hasta el pueblo (D-35). Si en la bandeja solo quedan comodines blancos, relanzar tira únicamente el dado blanco nuevo.
+
+---
+
+## D-39 — Misión secreta (sección 2.1)
+
+**Decisión:** 8 cartas en `config/secret-quests.json` (el cliente habla de 12, pero en _Image files/secret quest cards_ solo hay 8; las que falten se agregan como datos). Cada carta = tipo de monstruo + dos símbolos de trofeo. Se entrega al elegir el color: la acción `start` lleva `quest`; el engine ofrece 2 (`secretOffer`, con una semilla derivada para no mover el resto del azar). En la **primera partida** la UI solo muestra la primera; desde la segunda se elige entre las dos.
+
+**Interpretación:** la fila "Quests" de la carta (símbolos entregados en misiones) no aparece en la sección 3 del puntaje, así que no suma.
+
+---
+
+## D-40 — Misiones del pueblo (sección 2.2)
+
+**Decisión:** 32 misiones recreadas de los escaneos en `config/quests.json` (16 de aldeano y 16 del Huntmaster, con nombre ES/EN). Reemplazan a "comprar" (`buy` → `quest`):
+
+- **Aldeano:** se entrega UNO de los trofeos/corazones que muestra → 3 objetos, elegir 1.
+- **Huntmaster:** se entrega TODO → 3 destrezas, elegir 1.
+- Siempre hay **3** a la vista (`town.questSlots`); la partida empieza con al menos una de cada tipo. Al cumplir una, otra toma su lugar de inmediato. **Cada regreso al pueblo retira la más antigua** (`oldestQuest`), que lleva el aviso del cliente. Si el mazo se acaba, se rearma con las que no están en el tablero.
+- Las cumplidas se pueden consultar (`completedQuests`). El tablero, las cumplidas y la misión secreta también se ven desde el botón de misiones del HUD.
+- Siguen siendo opciones del pueblo: cada tipo una vez por visita, dentro de las 2 acciones (D-36).
+
+**Interpretación pendiente de Alex:** cada corazón roto se paga con **1 HPie**, y nunca puede dejar KO en el pueblo (hay que tener más HPie que corazones).
+
+---
+
+## D-41 — Cartas nuevas (sección 2.3)
+
+**Decisión:** arte nuevo de las 30 cartas (Itm- = 15 objetos de aldeano, Sk- = 15 destrezas del Huntmaster). Efectos nuevos en el engine:
+
+- **Lucky Catch/Find/Hit/Shot:** un comodín de su color (el de su dado especial o uno creado por una carta de ese color) → 2 comodines.
+- **Auto-Aimer, Lasso Trap, Sentient Sword, Telemonocle:** el arte nuevo pinta el comodín de color, así que dan el comodín **de ese color** (`Die.color`), que una Lucky del mismo color puede duplicar.
+- **Double Healing:** 1 corazón → 2 corazones (como los objetos 1 → 2).
+- **Cursed Gauntlet:** pierde 1 HPie → 1 comodín (no se puede con 1 HPie; deshacerla devuelve el HPie).
+- **Cloning Tool:** fuera de combate recarga otro objeto gastado, sin gastar acción.
+- **Piebix Cube, Varied Samples, Well Traveled:** +10 por cada color de dado especial / tipo de trofeo / tipo de SNAC derrotado (máx. 4), sumado a los extras del puntaje.
+
+**Interpretaciones pendientes de Alex:** el frasco con "+" de las destrezas de dado especial = +1 espacio para trofeos (como en los objetos); la escarapela de las Lucky no tiene efecto propio; el valor de las cartas de puntos.
+
+---
+
+## D-42 — Arte del pueblo (sección 2.4)
+
+**Decisión:** se usa la versión con **personaje, ilustración y letrero** para las tres opciones que existen en la app (descansar, aldeano y Huntmaster). Forja, alquimista, saqueo y entrenamiento todavía no son opciones del juego.
+
+---
+
+## D-43 — Puntaje (sección 3) y jefe
+
+**Decisión:** se implementó tal cual la especificación (valores en `config/game.json` → `scoring`):
+
+- Por run: `chain` (+1 por SNAC derrotado, incluido el jefe), `runHuntPoints` (+chain × 10) y `runQuestKills`. Estudiar no cambia nada; el KO no resta.
+- **Partida sin terminar:** al cerrar cada run (volver al pueblo o dejar de jugar) se guarda `bestRun` = cadena + misión × 10 + trofeos de misión × 10. Un run a medias cuenta como terminado al dejar la partida.
+- **Jefe derrotado:** floor((cadena + misión × 10 + trofeos × 10 + HPie × 10) × multiplicador), con 2 / 1.75 / 1.5 / 1.25 según las expediciones. Los tres casos de prueba del cliente están como test.
+- **Ranking:** primero quien derrotó al jefe, luego por puntaje.
+- Se quitaron las penalizaciones por KO y por expedición de D-37.
+
+**Jefe (necesario para el puntaje final):** Pieous Assassin, 6 espacios con símbolos al azar, solo derrotar o huir, sin trofeo; "tres iguales" no sirve contra él. Su guarida aparece en el sendero **desde la expedición 2** (`boss.fromRun`, toggle `features.boss`). Derrotarlo termina la partida. Basado en la versión de `feat/V1`, sin el mapa.
+
+**Menú principal:** empezar otra partida ahora termina y guarda la actual también a mitad de una expedición (fuera de combate), porque su puntaje es el del mejor run.
+
+---
+
+_Última actualización: 2026-11-04 — feedback del cliente del 2026-11-03: comodín blanco, misión secreta, tablero de misiones, 30 cartas, arte del pueblo, puntaje por cadena y jefe._

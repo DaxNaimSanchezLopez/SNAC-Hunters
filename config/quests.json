@@ -1,0 +1,263 @@
+[
+  {
+    "id": "spiked-nectar",
+    "kind": "villager",
+    "name": { "es": "Averigua quién envenenó el néctar", "en": "Find out who spiked the Nectar" },
+    "cost": ["Claw", "Claw"]
+  },
+  {
+    "id": "missing-arrows",
+    "kind": "villager",
+    "name": {
+      "es": "Encuentra el cargamento de flechas perdido",
+      "en": "Find the missing shipment of arrows"
+    },
+    "cost": ["Claw", "Wing"]
+  },
+  {
+    "id": "bramble-route",
+    "kind": "villager",
+    "name": {
+      "es": "Encuentra un atajo por Bramble Forest",
+      "en": "Find a faster route through Bramble Forest"
+    },
+    "cost": ["Claw", "heart"]
+  },
+  {
+    "id": "north-wall",
+    "kind": "villager",
+    "name": { "es": "Reconstruye la muralla norte", "en": "Rebuild the north wall" },
+    "cost": ["Horn", "Horn"]
+  },
+  {
+    "id": "pierates",
+    "kind": "villager",
+    "name": {
+      "es": "Recupera los pays robados por los Pieratas",
+      "en": "Retrieve the stolen pies from the Pierates"
+    },
+    "cost": ["Horn", "Wing"]
+  },
+  {
+    "id": "pie-thief",
+    "kind": "villager",
+    "name": {
+      "es": "¡Averigua quién se robó todos los pays!",
+      "en": "Find out who stole all the pies!"
+    },
+    "cost": ["Horn", "heart"]
+  },
+  {
+    "id": "trap-defenses",
+    "kind": "villager",
+    "name": { "es": "Repara las trampas del pueblo", "en": "Repair the town's trap defenses" },
+    "cost": ["Tail", "Tail"]
+  },
+  {
+    "id": "zompies",
+    "kind": "villager",
+    "name": {
+      "es": "Defiende el pueblo de los Zompies errantes",
+      "en": "Defend the town from wandering Zompies"
+    },
+    "cost": ["Tail", "Horn"]
+  },
+  {
+    "id": "fishing-contest",
+    "kind": "villager",
+    "name": {
+      "es": "Gánale al Pielander en el concurso de pesca",
+      "en": "Beat the Pielander in a fishing contest"
+    },
+    "cost": ["Tail", "heart"]
+  },
+  {
+    "id": "pumpkin-pop",
+    "kind": "villager",
+    "name": { "es": "Gana el concurso de Pumpkin-pop", "en": "Win the Pumpkin-pop competition" },
+    "cost": ["Wing", "Wing"]
+  },
+  {
+    "id": "vampier-lair",
+    "kind": "villager",
+    "name": {
+      "es": "Rescata a un Pieson de la guarida Vampier",
+      "en": "Rescue a Pieson from the Vampier lair"
+    },
+    "cost": ["Wing", "Horn"]
+  },
+  {
+    "id": "ice-cream-wagon",
+    "kind": "villager",
+    "name": {
+      "es": "Encuentra el carrito de helados perdido",
+      "en": "Find the missing ice cream wagon"
+    },
+    "cost": ["Wing", "heart"]
+  },
+  {
+    "id": "pie-filling-donation",
+    "kind": "villager",
+    "name": { "es": "¡Dona relleno de pay!", "en": "Make a Pie-filling donation!" },
+    "cost": ["heart"]
+  },
+  {
+    "id": "pieson-for-office",
+    "kind": "villager",
+    "name": {
+      "es": "Investiga al Pieson que se postula al cargo",
+      "en": "Investigate the Pieson running for office"
+    },
+    "cost": ["Tail", "Claw"]
+  },
+  {
+    "id": "farmer-wagon",
+    "kind": "villager",
+    "name": {
+      "es": "Consigue un carro nuevo para el granjero Pieson",
+      "en": "Obtain a new wagon for farmer Pieson"
+    },
+    "cost": ["Horn", "Claw"]
+  },
+  {
+    "id": "feast-catch",
+    "kind": "villager",
+    "name": {
+      "es": "¡Trae la mejor presa para el banquete!",
+      "en": "Bring back the best catch for the feast!"
+    },
+    "cost": ["Wing", "Tail"]
+  },
+  {
+    "id": "hm-claw-claw",
+    "kind": "huntmaster",
+    "name": {
+      "es": "Llévale al Huntmaster DOS trofeos",
+      "en": "Bring the Huntmaster TWO trophies"
+    },
+    "cost": ["Claw", "Claw"]
+  },
+  {
+    "id": "hm-claw-tail",
+    "kind": "huntmaster",
+    "name": {
+      "es": "Llévale al Huntmaster DOS trofeos",
+      "en": "Bring the Huntmaster TWO trophies"
+    },
+    "cost": ["Claw", "Tail"]
+  },
+  {
+    "id": "hm-claw-hearts",
+    "kind": "huntmaster",
+    "name": { "es": "Llévale al Huntmaster:", "en": "Bring the Huntmaster:" },
+    "cost": ["Claw", "heart", "heart"]
+  },
+  {
+    "id": "hm-horn-horn",
+    "kind": "huntmaster",
+    "name": {
+      "es": "Llévale al Huntmaster DOS trofeos",
+      "en": "Bring the Huntmaster TWO trophies"
+    },
+    "cost": ["Horn", "Horn"]
+  },
+  {
+    "id": "hm-horn-claw",
+    "kind": "huntmaster",
+    "name": {
+      "es": "Llévale al Huntmaster DOS trofeos",
+      "en": "Bring the Huntmaster TWO trophies"
+    },
+    "cost": ["Horn", "Claw"]
+  },
+  {
+    "id": "hm-horn-hearts",
+    "kind": "huntmaster",
+    "name": { "es": "Llévale al Huntmaster:", "en": "Bring the Huntmaster:" },
+    "cost": ["Horn", "heart", "heart"]
+  },
+  {
+    "id": "hm-wing-wing",
+    "kind": "huntmaster",
+    "name": {
+      "es": "Llévale al Huntmaster DOS trofeos",
+      "en": "Bring the Huntmaster TWO trophies"
+    },
+    "cost": ["Wing", "Wing"]
+  },
+  {
+    "id": "hm-wing-horn",
+    "kind": "huntmaster",
+    "name": {
+      "es": "Llévale al Huntmaster DOS trofeos",
+      "en": "Bring the Huntmaster TWO trophies"
+    },
+    "cost": ["Wing", "Horn"]
+  },
+  {
+    "id": "hm-wing-hearts",
+    "kind": "huntmaster",
+    "name": { "es": "Llévale al Huntmaster:", "en": "Bring the Huntmaster:" },
+    "cost": ["Wing", "heart", "heart"]
+  },
+  {
+    "id": "hm-tail-tail",
+    "kind": "huntmaster",
+    "name": {
+      "es": "Llévale al Huntmaster DOS trofeos",
+      "en": "Bring the Huntmaster TWO trophies"
+    },
+    "cost": ["Tail", "Tail"]
+  },
+  {
+    "id": "hm-tail-wing",
+    "kind": "huntmaster",
+    "name": {
+      "es": "Llévale al Huntmaster DOS trofeos",
+      "en": "Bring the Huntmaster TWO trophies"
+    },
+    "cost": ["Tail", "Wing"]
+  },
+  {
+    "id": "hm-tail-hearts",
+    "kind": "huntmaster",
+    "name": { "es": "Llévale al Huntmaster:", "en": "Bring the Huntmaster:" },
+    "cost": ["Tail", "heart", "heart"]
+  },
+  {
+    "id": "hm-fresh-filling",
+    "kind": "huntmaster",
+    "name": {
+      "es": "Llévale al Huntmaster relleno FRESCO",
+      "en": "Bring the Huntmaster FRESH filling"
+    },
+    "cost": ["heart", "heart", "heart"]
+  },
+  {
+    "id": "hm-wing-claw",
+    "kind": "huntmaster",
+    "name": {
+      "es": "Llévale al Huntmaster DOS trofeos",
+      "en": "Bring the Huntmaster TWO trophies"
+    },
+    "cost": ["Wing", "Claw"]
+  },
+  {
+    "id": "hm-tail-horn",
+    "kind": "huntmaster",
+    "name": {
+      "es": "Llévale al Huntmaster DOS trofeos",
+      "en": "Bring the Huntmaster TWO trophies"
+    },
+    "cost": ["Tail", "Horn"]
+  },
+  {
+    "id": "hm-horn-wing",
+    "kind": "huntmaster",
+    "name": {
+      "es": "Llévale al Huntmaster DOS trofeos",
+      "en": "Bring the Huntmaster TWO trophies"
+    },
+    "cost": ["Horn", "Wing"]
+  }
+]

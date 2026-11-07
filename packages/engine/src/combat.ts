@@ -13,6 +13,7 @@ import type {
   GameSymbol,
   Monster,
   Slot,
+  SpecialDieKind,
 } from './types.js';
 
 export type Outcome = 'defeat' | 'study' | 'flee' | 'ko';
@@ -97,7 +98,7 @@ export interface CombatState {
   readonly hp: number;
   readonly maxHp: number;
   readonly dice: readonly Die[];
-  /** Id del dado asignado a cada uno de los 4 slots, o null. */
+  /** Id del dado asignado a cada espacio del monstruo (4, o más el jefe), o null. */
   readonly assignments: readonly (string | null)[];
   /** Dados fuera de juego: corazones usados como escudo, dados de daño que ya hirieron
    * y símbolos consumidos por una habilidad. */
@@ -141,6 +142,27 @@ function isSymbol(face: Face): face is GameSymbol {
 export function isRollable(kind: DieSource): kind is DieKind {
   return kind !== 'trophy' && kind !== 'token';
 }
+
+/**
+ * Feedback del cliente (2026-11-03): el comodín de un dado blanco no se relanza. Se queda en la
+ * bandeja hasta usarlo en este monstruo, o se pierde al terminar la pelea (como los dorados).
+ */
+export function isWhiteWild(die: Die): boolean {
+  return die.kind === 'white' && die.face === 'wild';
+}
+
+/** ¿Este dado se puede volver a tirar? Dados físicos, salvo el comodín blanco. */
+export function canReroll(die: Die): boolean {
+  return isRollable(die.kind) && !isWhiteWild(die);
+}
+
+/** Color de cada símbolo: el dado especial que lo trae (Dice-guide-V03). */
+export const SYMBOL_COLOR: Readonly<Record<GameSymbol, SpecialDieKind>> = {
+  Horn: 'orange',
+  Wing: 'blue',
+  Tail: 'purple',
+  Claw: 'green',
+};
 
 /**
  * RF-11.1: ¿Puede esta cara cubrir este slot?
@@ -213,8 +235,9 @@ export function pendingDamage(state: CombatState): number {
 export function previewOutcome(state: CombatState): Exclude<Outcome, 'ko'> | null {
   if (coveredSlots(state) === 0) return null;
   const covered = coveredSlots(state) + pendingDamage(state);
-  if (covered >= 4) return 'defeat';
-  if (covered >= 2) return 'study';
+  if (covered >= state.monster.slots.length) return 'defeat';
+  // RF-16: al jefe no se le estudia: o se le derrota o se huye
+  if (covered >= 2 && !state.monster.boss) return 'study';
   return 'flee';
 }
 
@@ -232,21 +255,49 @@ export function validSlotsFor(state: CombatState, dieId: string): number[] {
   return die ? slotsForFace(state, die.face) : [];
 }
 
-/** Cuántos símbolos consume cada tipo de habilidad activable. */
-export const ABILITY_INPUTS = { triple: 3, double: 1, wild: 1, convert: 2 } as const;
+/** Cuántos símbolos consume cada tipo de habilidad que se activa en combate. */
+export const ABILITY_INPUTS = {
+  triple: 3,
+  double: 1,
+  wild: 1,
+  convert: 2,
+  lucky: 1,
+  gauntlet: 0,
+} as const;
 
-/** ¿Esta cara sirve para activar la habilidad? El comodín cuenta como cualquier símbolo. */
-export function faceActivates(face: Face, ability: Ability): boolean {
-  if (ability.effect.type === 'special') return false;
-  return face === ability.effect.symbol || face === 'wild';
+export type ActiveEffect = Extract<Ability['effect'], { type: keyof typeof ABILITY_INPUTS }>;
+
+/** ¿Se activa en combate? Las demás son pasivas o se usan fuera de combate. */
+export function isActive(ability: Ability): ability is Ability & { effect: ActiveEffect } {
+  return ability.effect.type in ABILITY_INPUTS;
+}
+
+/**
+ * ¿Este dado (o trofeo) sirve para activar la habilidad? El comodín cuenta como cualquier
+ * símbolo, pero no como corazón. Las cartas Lucky piden un comodín de su color: el de su dado
+ * especial o uno que creó una carta de ese color.
+ */
+export function dieActivates(die: Pick<Die, 'kind' | 'face' | 'color'>, ability: Ability): boolean {
+  const { effect } = ability;
+  if (effect.type === 'lucky') {
+    return die.face === 'wild' && (die.kind === effect.die || die.color === effect.die);
+  }
+  if (!('symbol' in effect)) return false;
+  if (effect.symbol === 'heart') return die.face === 'heart';
+  return die.face === effect.symbol || die.face === 'wild';
 }
 
 /** ¿Hay símbolos suficientes (dados de la reserva o trofeos) para activar la habilidad? */
 export function canActivate(state: CombatState, ability: Ability): boolean {
+  if (!isActive(ability) || state.usedAbilities.includes(ability.id)) return false;
   const { effect } = ability;
-  if (effect.type === 'special' || state.usedAbilities.includes(ability.id)) return false;
-  const faces = [...availableDice(state).map((d) => d.face), ...state.trophies];
-  return faces.filter((f) => faceActivates(f, ability)).length >= ABILITY_INPUTS[effect.type];
+  if (effect.type === 'triple' && state.monster.boss) return false;
+  if (effect.type === 'gauntlet') return state.hp > 1;
+  const pieces = [
+    ...availableDice(state),
+    ...state.trophies.map((face) => ({ kind: 'trophy' as const, face })),
+  ];
+  return pieces.filter((d) => dieActivates(d, ability)).length >= ABILITY_INPUTS[effect.type];
 }
 
 /**
@@ -329,7 +380,7 @@ function takeWhiteDamage(state: CombatState): CombatState {
 /** RF-11.6: KO al relanzar. Si el monstruo ya quedaba derrotado, se conservan los beneficios. */
 function knockOut(state: CombatState): CombatState {
   const defeated = previewOutcome(state) === 'defeat';
-  const trophy = defeated ? (state.monster.trophies[0] ?? null) : null;
+  const trophy = defeated && !state.monster.boss ? (state.monster.trophies[0] ?? null) : null;
   const outcome: Outcome = defeated ? 'defeat' : 'ko';
   return {
     ...state,
@@ -401,12 +452,12 @@ export function startCombat(
     hp: setup.hp,
     maxHp: setup.maxHp,
     dice,
-    assignments: [null, null, null, null],
+    assignments: monster.slots.map(() => null),
     spent: [],
     blocks: [],
     trophies: [...(setup.trophies ?? [])],
-    // Las destrezas de dado especial son pasivas: no se activan en combate
-    abilities: (setup.abilities ?? []).filter((a) => a.effect.type !== 'special'),
+    // Las cartas pasivas o de fuera de combate no aparecen como activables
+    abilities: (setup.abilities ?? []).filter(isActive),
     usedAbilities: [],
     serial: dice.length,
     rngState: rng.currentState,
@@ -421,7 +472,7 @@ export function startCombat(
 
 /** ¿Queda algún dado físico en la reserva que se pueda relanzar? */
 export function canRerollAny(state: CombatState): boolean {
-  return availableDice(state).some((d) => isRollable(d.kind));
+  return availableDice(state).some(canReroll);
 }
 
 /**
@@ -441,6 +492,9 @@ function reroll(state: CombatState, dieIds: readonly string[], table: DiceTable)
     const die = getDie(state, id);
     if (!available.has(id)) throw new CombatError(`El dado "${id}" no está en la reserva`);
     if (!isRollable(die.kind)) throw new CombatError('Los trofeos y símbolos no se relanzan');
+    if (isWhiteWild(die)) {
+      throw new CombatError('El comodín blanco no se relanza: úsalo en este monstruo o se pierde');
+    }
   }
 
   // Relanzar es una decisión: primero se recibe el daño pendiente
@@ -470,9 +524,12 @@ function reroll(state: CombatState, dieIds: readonly string[], table: DiceTable)
   };
 }
 
+function validSlotIndex(state: CombatState, slot: number): boolean {
+  return Number.isInteger(slot) && slot >= 0 && slot < state.monster.slots.length;
+}
+
 function checkSlot(state: CombatState, slot: number): Slot {
-  if (!Number.isInteger(slot) || slot < 0 || slot > 3)
-    throw new CombatError(`Slot inválido: ${slot}`);
+  if (!validSlotIndex(state, slot)) throw new CombatError(`Slot inválido: ${slot}`);
   if (state.assignments[slot] !== null) throw new CombatError(`El slot ${slot} ya está cubierto`);
   return state.monster.slots[slot] as Slot;
 }
@@ -513,8 +570,7 @@ function placeTrophy(state: CombatState, index: number, slot: number): CombatSta
 }
 
 function unassign(state: CombatState, slot: number): CombatState {
-  if (!Number.isInteger(slot) || slot < 0 || slot > 3)
-    throw new CombatError(`Slot inválido: ${slot}`);
+  if (!validSlotIndex(state, slot)) throw new CombatError(`Slot inválido: ${slot}`);
   const dieId = state.assignments[slot];
   if (dieId === null || dieId === undefined) throw new CombatError(`El slot ${slot} está vacío`);
   const assignments = [...state.assignments];
@@ -536,7 +592,7 @@ function unassign(state: CombatState, slot: number): CombatState {
  * (el comodín cuenta como cualquier símbolo). Los símbolos consumidos quedan gastados y los
  * creados aparecen como dados nuevos que no se pueden relanzar. "Tres iguales" derrota al
  * monstruo de inmediato, ignorando sus espacios (incluido el de daño), y el trofeo puede
- * ser cualquiera.
+ * ser cualquiera; contra el jefe no sirve. Cursed Gauntlet no consume símbolos: cuesta 1 HPie.
  */
 function useAbility(
   state: CombatState,
@@ -546,11 +602,18 @@ function useAbility(
   trophy: GameSymbol | undefined,
 ): CombatState {
   const ability = state.abilities.find((a) => a.id === abilityId);
-  if (!ability) throw new CombatError(`No tienes la habilidad "${abilityId}"`);
+  if (!ability || !isActive(ability)) {
+    throw new CombatError(`No tienes la habilidad "${abilityId}"`);
+  }
   const { effect } = ability;
-  if (effect.type === 'special') throw new CombatError(`${ability.name} es pasiva`);
   if (state.usedAbilities.includes(abilityId)) {
     throw new CombatError(`Ya usaste ${ability.name} con este monstruo`);
+  }
+  if (effect.type === 'triple' && state.monster.boss) {
+    throw new CombatError(`${ability.name} no sirve contra el jefe`);
+  }
+  if (effect.type === 'gauntlet' && state.hp <= 1) {
+    throw new CombatError(`No te queda HPie para pagar ${ability.name}`);
   }
   const need = ABILITY_INPUTS[effect.type];
   const inputs = dieIds.length + trophyIndexes.length;
@@ -559,20 +622,21 @@ function useAbility(
     new Set(dieIds).size !== dieIds.length ||
     new Set(trophyIndexes).size !== trophyIndexes.length
   ) {
-    throw new CombatError(`${ability.name} necesita ${need} símbolo(s) ${effect.symbol}`);
+    const what = 'symbol' in effect ? ` ${effect.symbol}` : '';
+    throw new CombatError(`${ability.name} necesita ${need} símbolo(s)${what}`);
   }
   const available = new Set(availableDice(state).map((d) => d.id));
   for (const id of dieIds) {
     const die = getDie(state, id);
     if (!available.has(id)) throw new CombatError(`El dado "${id}" no está en la reserva`);
-    if (!faceActivates(die.face, ability)) {
+    if (!dieActivates(die, ability)) {
       throw new CombatError(`La cara "${die.face}" no activa ${ability.name}`);
     }
   }
   for (const index of trophyIndexes) {
     const symbol = Number.isInteger(index) ? state.trophies[index] : undefined;
     if (symbol === undefined) throw new CombatError(`No tienes el trofeo ${index}`);
-    if (!faceActivates(symbol, ability)) {
+    if (!dieActivates({ kind: 'trophy', face: symbol }, ability)) {
       throw new CombatError(`El trofeo "${symbol}" no activa ${ability.name}`);
     }
   }
@@ -592,18 +656,24 @@ function useAbility(
   const faces: Face[] =
     effect.type === 'double'
       ? [effect.symbol, effect.symbol]
-      : effect.type === 'wild'
-        ? ['wild']
-        : effect.type === 'convert'
-          ? ['wild', 'wild', 'wild']
-          : [];
-  const created = faces.map((face, i) => ({
+      : effect.type === 'convert'
+        ? ['wild', 'wild', 'wild']
+        : effect.type === 'lucky'
+          ? ['wild', 'wild']
+          : effect.type === 'triple'
+            ? []
+            : ['wild'];
+  // Las cartas de comodín (1 símbolo → comodín) dan el comodín del color de ese símbolo
+  const color = effect.type === 'wild' ? SYMBOL_COLOR[effect.symbol] : undefined;
+  const created: Die[] = faces.map((face, i) => ({
     id: `d${serial + i}`,
     kind: 'token' as const,
     face,
+    ...(color ? { color } : {}),
   }));
   const next: CombatState = {
     ...state,
+    hp: effect.type === 'gauntlet' ? state.hp - 1 : state.hp,
     dice: [...state.dice, ...paid, ...created],
     spent: [...state.spent, ...consumed],
     trophies: state.trophies.filter((_, i) => !trophyIndexes.includes(i)),
@@ -663,8 +733,11 @@ function undoAbility(state: CombatState, abilityId: string): CombatState {
   const consumed = new Set(entry.dieIds);
   const returned = state.dice.filter((d) => consumed.has(d.id) && d.kind === 'trophy');
   const removed = new Set([...created, ...returned.map((d) => d.id)]);
+  const gauntlet = state.abilities.find((a) => a.id === abilityId)?.effect.type === 'gauntlet';
   return {
     ...state,
+    // Cursed Gauntlet devuelve el HPie que costó
+    hp: gauntlet ? state.hp + 1 : state.hp,
     dice: state.dice.filter((d) => !removed.has(d.id)),
     assignments: state.assignments.map((id) => (id !== null && created.has(id) ? null : id)),
     spent: state.spent.filter((id) => !consumed.has(id)),
@@ -683,7 +756,7 @@ function resolve(state: CombatState, trophy: GameSymbol | undefined): CombatStat
   const outcome = previewOutcome(state);
   if (outcome === null) throw new CombatError('Necesitas al menos un símbolo para resolver');
   let chosen: GameSymbol | null = null;
-  if (outcome !== 'flee') {
+  if (outcome !== 'flee' && !state.monster.boss) {
     if (trophy === undefined) throw new CombatError('Elige un trofeo');
     if (!state.monster.trophies.includes(trophy)) {
       throw new CombatError(`"${trophy}" no es un trofeo de ${state.monster.name}`);

@@ -1,7 +1,7 @@
 // Router HTTP independiente de AWS: lo usan la Lambda, el servidor local y los tests.
 import { z } from 'zod';
 import { CombatError, finalScore, replayGame } from '@snac-hunters/engine';
-import { gameConfig, gameData, monsters } from './game.js';
+import { gameData, monsters } from './game.js';
 import type { Store } from './store.js';
 
 export interface ApiRequest {
@@ -18,6 +18,8 @@ export interface ApiResponse {
 }
 
 const SymbolSchema = z.enum(['Horn', 'Wing', 'Claw', 'Tail']);
+const QuestCostSchema = z.enum(['Horn', 'Wing', 'Claw', 'Tail', 'heart']);
+const Id = z.string().max(64);
 const DieId = z.string().max(8);
 const Index = z.number().int();
 
@@ -45,13 +47,12 @@ const GameActionSchema = z.discriminatedUnion('type', [
     type: z.literal('start'),
     die: z.enum(['orange', 'blue', 'purple', 'green']),
     guided: z.boolean().optional(),
+    quest: Id.optional(),
   }),
   z.object({ type: z.literal('rest') }),
-  z.object({
-    type: z.literal('buy'),
-    kind: z.enum(['item', 'skill']),
-    pay: z.array(Index).max(10),
-  }),
+  z.object({ type: z.literal('quest'), id: Id, pay: QuestCostSchema.optional() }),
+  z.object({ type: z.literal('recharge'), target: Id }),
+  z.object({ type: z.literal('boss') }),
   z.object({
     type: z.literal('pick'),
     abilityId: z.string().max(64),
@@ -111,8 +112,8 @@ async function submitGame(req: ApiRequest, store: Store): Promise<ApiResponse> {
       gameId: seed,
       userId: req.userId,
       phase: final.phase,
-      score: finalScore(final, gameConfig),
-      points: final.points,
+      score: finalScore(final, gameData),
+      bossDefeated: final.bossDefeated,
       kos: final.kos,
       runs: final.runs,
       fights: final.fights,

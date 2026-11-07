@@ -3,9 +3,17 @@
 // condiciones viven en config/guide.json; aquí solo se decide qué lección toca mostrar.
 // Feedback del cliente (2026-10-27): cada parte aparece cuando el jugador la necesita, no
 // todas en el primer combate.
-import { availableDice, canActivate, coveredSlots, loadGuide } from '@snac-hunters/engine';
+import {
+  availableDice,
+  bossAvailable,
+  canActivate,
+  coveredSlots,
+  isWhiteWild,
+  loadGuide,
+} from '@snac-hunters/engine';
 import type { GameAction, GameState, GuideLesson } from '@snac-hunters/engine';
 import rawGuide from '@snac-hunters/config/guide.json';
+import { gameData } from './config';
 
 export const guide: readonly GuideLesson[] = loadGuide(rawGuide);
 
@@ -33,6 +41,11 @@ const CONDITIONS: Record<Condition, (g: GameState) => boolean> = {
   covered: (g) => (g.combat ? coveredSlots(g.combat) > 0 : false),
   runActive: (g) => g.run?.status === 'active',
   runEnded: (g) => g.run?.status === 'ended',
+  // Feedback 2026-11-03: comodín blanco, guarida del jefe y puntos de cadena
+  whiteWild: (g) => (g.combat ? availableDice(g.combat).some(isWhiteWild) : false),
+  bossReady: (g) => bossAvailable(g, gameData),
+  boss: (g) => g.combat?.monster.boss === true,
+  defeatedNow: (g) => g.combat?.outcome === 'defeat',
 };
 
 /** Primera lección no vista cuya fase y condiciones se cumplen ahora mismo. */

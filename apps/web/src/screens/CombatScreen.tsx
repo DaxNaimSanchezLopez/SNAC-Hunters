@@ -2,9 +2,10 @@ import { useState } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import {
   availableDice,
+  canReroll as dieCanReroll,
   canRerollAny,
   canUndo,
-  isRollable,
+  isWhiteWild,
   pendingDamage,
   pendingHits,
   previewOutcome,
@@ -77,7 +78,11 @@ export function CombatScreen() {
   const pool = availableDice(combat);
   const spent = combat.dice.filter((d) => combat.spent.includes(d.id));
   const preview = previewOutcome(combat);
-  const rerollCount = pool.filter((d) => isRollable(d.kind) && !selected.includes(d.id)).length;
+  // El comodín blanco no se relanza: se queda en la bandeja (feedback 2026-11-03)
+  const rerollCount = pool.filter((d) => dieCanReroll(d) && !selected.includes(d.id)).length;
+  const whiteWild = pool.some(isWhiteWild);
+  const slotCount = combat.monster.slots.length;
+  const boss = combat.monster.boss === true;
   const whiteOnly = !canRerollAny(combat);
 
   const snacDamage = pendingDamage(combat);
@@ -88,7 +93,7 @@ export function CombatScreen() {
   // Avisos de KO: relanzar cobra el daño pendiente; resolver, también el de los espacios
   const rerollKills = whiteHits >= combat.hp;
   const resolveKills = preview !== null && whiteHits + snacDamage >= combat.hp;
-  const tokens = pool.some((d) => d.kind === 'token');
+  const tokens = pool.some((d) => d.kind === 'token' && !d.color);
 
   // Con una sola pieza elegida (dado o trofeo) se iluminan los espacios donde cabe
   const picked = selected.length + selectedTrophies.length;
@@ -115,7 +120,8 @@ export function CombatScreen() {
 
   function onResolve() {
     confirmLethal('resolve', resolveKills, () => {
-      if (preview === 'flee') resolve();
+      // Huir no da trofeo, y el jefe tampoco
+      if (preview === 'flee' || boss) resolve();
       else setChoosing({ kind: 'resolve' });
     });
   }
@@ -238,6 +244,12 @@ export function CombatScreen() {
         {tokens && (
           <p className="mt-2 rounded-lg bg-amber-300/90 px-2 py-1 text-[11px] font-bold leading-tight text-bark">
             {t('combat.tempWild')}
+          </p>
+        )}
+        {whiteWild && (
+          <p className="mt-2 flex items-center gap-1 rounded-lg bg-white/90 px-2 py-1 text-[11px] font-bold leading-tight text-bark">
+            <Icon name="lock" className="h-4 w-4" />
+            {t('combat.whiteWild')}
           </p>
         )}
         {hits.length > 0 && (
@@ -369,7 +381,7 @@ export function CombatScreen() {
               {resolveKills
                 ? t(armed === 'resolve' ? 'combat.koConfirm' : 'combat.koWarning')
                 : preview
-                  ? t('combat.spaces', { n: covered }) +
+                  ? t('combat.spaces', { n: covered, max: slotCount }) +
                     (snacDamage + whiteHits > 0
                       ? ` · ${t('combat.hit', { n: snacDamage + whiteHits })}`
                       : '')

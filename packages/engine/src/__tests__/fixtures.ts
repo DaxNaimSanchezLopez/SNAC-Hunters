@@ -1,7 +1,15 @@
 // Datos de prueba compartidos. Copia de config/ para que los tests del engine no dependan de I/O.
 import * as fc from 'fast-check';
 import type { GameConfig } from '../schemas.js';
-import type { Ability, DiceTable, GameSymbol, Monster, Slot } from '../types.js';
+import type {
+  Ability,
+  DiceTable,
+  GameSymbol,
+  Monster,
+  SecretQuest,
+  Slot,
+  TownQuest,
+} from '../types.js';
 
 export const SYMBOLS: readonly GameSymbol[] = ['Horn', 'Wing', 'Claw', 'Tail'];
 export const VALID_SLOTS: readonly Slot[] = ['Horn', 'Wing', 'Claw', 'Tail', 'all', 'damage'];
@@ -113,6 +121,53 @@ export const ABILITIES: readonly Ability[] = [
     kind: 'skill',
     effect: { type: 'convert', symbol: 'Horn' },
   },
+  // Resto de las cartas (V02)
+  {
+    id: 'sentient-sword',
+    name: 'Sentient Sword',
+    kind: 'item',
+    effect: { type: 'wild', symbol: 'Horn' },
+    bonus: 'trophySlot',
+  },
+  { id: 'lucky-hit', name: 'Lucky Hit', kind: 'skill', effect: { type: 'lucky', die: 'orange' } },
+  { id: 'lucky-find', name: 'Lucky Find', kind: 'skill', effect: { type: 'lucky', die: 'green' } },
+  { id: 'cursed-gauntlet', name: 'Cursed Gauntlet', kind: 'item', effect: { type: 'gauntlet' } },
+  {
+    id: 'double-healing',
+    name: 'Double Healing',
+    kind: 'skill',
+    effect: { type: 'double', symbol: 'heart' },
+  },
+  {
+    id: 'cloning-tool',
+    name: 'Cloning Tool',
+    kind: 'item',
+    effect: { type: 'recharge' },
+    bonus: 'trophySlot',
+  },
+  {
+    id: 'varied-samples',
+    name: 'Varied Samples',
+    kind: 'skill',
+    effect: { type: 'points', by: 'trophyTypes' },
+  },
+];
+
+// RF-17: Cartas de misión secreta de prueba
+export const SECRET_QUESTS: readonly SecretQuest[] = [
+  { id: 'axe-and-claw', name: 'Axe and Claw', monsterType: 'Claw', symbols: ['Horn', 'Claw'] },
+  { id: 'axe-throwing', name: 'Axe Throwing', monsterType: 'Wing', symbols: ['Horn', 'Wing'] },
+  { id: 'longclaw', name: 'Longclaw', monsterType: 'Claw', symbols: ['Wing', 'Claw'] },
+];
+
+// RF-18: Misiones del pueblo de prueba
+const questName = { es: 'Misión', en: 'Quest' };
+export const QUESTS: readonly TownQuest[] = [
+  { id: 'v-claw', kind: 'villager', name: questName, cost: ['Claw', 'heart'] },
+  { id: 'v-horn', kind: 'villager', name: questName, cost: ['Horn', 'Wing'] },
+  { id: 'h-two', kind: 'huntmaster', name: questName, cost: ['Horn', 'Wing'] },
+  { id: 'h-hearts', kind: 'huntmaster', name: questName, cost: ['Claw', 'heart', 'heart'] },
+  { id: 'v-wing', kind: 'villager', name: questName, cost: ['Wing', 'Wing'] },
 ];
 
 export function ability(id: string): Ability {
@@ -133,14 +188,27 @@ export const CONFIG: GameConfig = {
   },
   town: {
     actionsPerVisit: 2,
-    itemCost: 1,
-    skillCost: 2,
+    questSlots: 3,
     offerSize: 3,
     maxItems: 3,
     maxSkills: 3,
     guidedStartOptions: 2,
   },
+  boss: { id: 'pieous', name: 'Pieous Assassin', pun: 'Pun', slots: 6, fromRun: 2 },
   tutorial: { monsterId: 'garden-salaad', seed: 'tutorial' },
   features: {},
-  scoring: { defeat: 1, study: 0, flee: 0, ko: -1, koWeight: 3, runWeight: 1 },
+  scoring: {
+    chainStep: 10,
+    questKill: 10,
+    questTrophy: 10,
+    hp: 10,
+    pointsCard: 10,
+    pointsCardMax: 4,
+    bossMultiplier: [
+      { maxRuns: 4, multiplier: 2 },
+      { maxRuns: 5, multiplier: 1.75 },
+      { maxRuns: 6, multiplier: 1.5 },
+    ],
+    slowMultiplier: 1.25,
+  },
 };

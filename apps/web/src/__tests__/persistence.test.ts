@@ -1,14 +1,15 @@
 // Integración: persistencia de la partida, sesiones interrumpidas, estado corrupto e idioma.
 // En jsdom no hay IndexedDB, así que idbStorage usa su respaldo en memoria (mismo contrato).
 import { describe, it, expect, beforeEach } from 'vitest';
-import { availableDice, isRollable } from '@snac-hunters/engine';
+import { availableDice, canReroll, finalScore, payableOptions } from '@snac-hunters/engine';
+import { gameData, getQuest } from '../game/config';
 import { summarize } from '../game/analytics';
 import type { AnalyticsEvent } from '../game/analytics';
 import { activeLesson, guide } from '../game/guide';
 import { translate } from '../game/i18n';
 import type { MessageKey } from '../game/i18n';
 import { idbStorage } from '../game/persistence';
-import { rebuild, topOf, useGame } from '../game/store';
+import { canFinish, rebuild, topOf, useGame } from '../game/store';
 
 const KEY = 'snac-hunters:v2';
 
@@ -65,7 +66,7 @@ describe('persistencia de la partida', () => {
       JSON.stringify({
         state: {
           saved: { seed: 'x', actions: [{ type: 'rest' }] },
-          history: [{ gameId: 'a', score: 5, points: 9, kos: 1, runs: 1, defeated: 9, at: 1 }],
+          history: [{ gameId: 'a', score: 5, kos: 1, runs: 1, defeated: 9, at: 1 }],
           lang: 'en',
           langChosen: true,
         },
@@ -94,7 +95,7 @@ describe('controles del combate', () => {
     useGame.getState().act({ type: 'start', die: 'green' });
     useGame.getState().act({ type: 'follow', index: 0 });
     const combat = useGame.getState().game!.combat!;
-    const keep = availableDice(combat).filter((d) => isRollable(d.kind))[0]!;
+    const keep = availableDice(combat).filter(canReroll)[0]!;
     useGame.getState().toggleDie(keep.id);
     useGame.getState().rerollRest();
     const after = useGame.getState().game!.combat!;
@@ -111,8 +112,27 @@ describe('controles del combate', () => {
     useGame.getState().act({ type: 'finish' });
     const s = useGame.getState();
     expect(s.game?.phase).toBe('over');
-    expect(s.history[0]).toMatchObject({ runs: 1, score: -5 });
+    // Sin jefe: cuenta el mejor run (aquí solo los trofeos de la misión secreta)
+    expect(s.history[0]).toMatchObject({
+      runs: 1,
+      score: finalScore(s.game!, gameData),
+      bossDefeated: false,
+    });
     expect(s.topScores[0]).toEqual(s.history[0]);
+  });
+
+  it('empezar otra partida a mitad de una expedición (fuera de combate) también la guarda', () => {
+    useGame.getState().newGame();
+    useGame.getState().act({ type: 'start', die: 'green' });
+    expect(canFinish(useGame.getState().game!)).toBe(true);
+    useGame.getState().act({ type: 'follow', index: 0 });
+    // En combate no se puede: esa partida se descartaría
+    expect(canFinish(useGame.getState().game!)).toBe(false);
+    useGame.setState({ history: [], topScores: [] });
+    useGame.getState().newGame();
+    useGame.getState().act({ type: 'start', die: 'green' });
+    useGame.getState().newGame();
+    expect(useGame.getState().history).toHaveLength(1);
   });
 
   it('menú principal: la partida sigue abierta; empezar otra desde el pueblo guarda su puntaje', () => {
@@ -125,12 +145,21 @@ describe('controles del combate', () => {
     const s = useGame.getState();
     expect(s.game?.phase).toBe('setup');
     expect(s.topScores).toHaveLength(1);
+    const base = s.topScores[0]!;
     expect(
       topOf([
         ...s.topScores,
-        ...[3, 9, -2, 7].map((score, at) => ({ ...s.topScores[0]!, score, at })),
+        ...[3000, 9000, -2, 7000].map((score, at) => ({ ...base, score, at })),
       ]).map((g) => g.score),
-    ).toEqual([9, 7, 3]);
+    ).toEqual([9000, 7000, 3000]);
+    // Quien derrotó al jefe va arriba de todos los que no, sin importar los números
+    expect(
+      topOf([
+        { ...base, score: 9000, at: 1 },
+        { ...base, score: 500, bossDefeated: true, at: 2 },
+        { ...base, score: 700, bossDefeated: true, at: 3 },
+      ]).map((g) => g.score),
+    ).toEqual([700, 500, 9000]);
   });
 
   it('una acción inválida muestra un aviso y no cambia la partida', () => {
@@ -208,9 +237,18 @@ describe('partida guiada (V0 = tutorial del juego de mesa)', () => {
     expect(useGame.getState().guideOn).toBe(true);
     expect(useGame.getState().guideSeen).not.toContain('town-huntmaster');
     useGame.getState().act({ type: 'rest' });
-    useGame.getState().act({ type: 'buy', kind: 'item', pay: [0] });
-    dismissAll();
-    useGame.getState().act({ type: 'pick', abilityId: useGame.getState().game!.offer!.ids[0]! });
+    // Misión de aldeano del tablero, si alguna se puede pagar
+    const game = useGame.getState().game!;
+    const villager = game.quests
+      .map((q) => getQuest(q.id)!)
+      .find((q) => q.kind === 'villager' && payableOptions(game, q).length > 0);
+    if (villager) {
+      useGame
+        .getState()
+        .act({ type: 'quest', id: villager.id, pay: payableOptions(game, villager)[0] });
+      dismissAll();
+      useGame.getState().act({ type: 'pick', abilityId: useGame.getState().game!.offer!.ids[0]! });
+    }
     useGame.getState().act({ type: 'leave' });
     expect(useGame.getState().game?.phase).toBe('trail');
     useGame.getState().act({ type: 'return' });
@@ -224,7 +262,7 @@ describe('partida guiada (V0 = tutorial del juego de mesa)', () => {
 
   it('después de terminar una partida, la nueva ya no es guiada; se puede saltar la guía', () => {
     useGame.setState({
-      history: [{ gameId: 'a', score: 1, points: 1, kos: 0, runs: 0, defeated: 1, at: 1 }],
+      history: [{ gameId: 'a', score: 1, kos: 0, runs: 0, defeated: 1, at: 1 }],
     });
     useGame.getState().newGame();
     expect(useGame.getState().guideOn).toBe(false);

@@ -187,10 +187,12 @@ describe('partida guiada (V0 = tutorial del juego de mesa)', () => {
     expect(useGame.getState().game?.phase).toBe('setup');
     expect(lessonNow()?.id).toBe('hunt-welcome');
     useGame.getState().dismissLesson('hunt-welcome');
-    // Lección "hazlo tú": elegir el color del cazador
-    expect(lessonNow()?.id).toBe('setup-color');
+    // Explica el color y la misión secreta y se cierra antes de elegir: si se quedara
+    // abierta mientras se elige, taparía las cartas
+    expect(lessonNow()).toMatchObject({ id: 'setup-color', advance: 'next' });
+    useGame.getState().dismissLesson('setup-color');
+    expect(lessonNow()).toBeNull();
     useGame.getState().act({ type: 'start', die: 'orange' });
-    expect(useGame.getState().guideSeen).toContain('setup-color');
     expect(useGame.getState().game).toMatchObject({ phase: 'trail' });
     expect(useGame.getState().game?.dice).toContain('orange');
     const seen: string[] = [];

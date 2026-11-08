@@ -5,15 +5,15 @@
 // todas en el primer combate.
 import {
   availableDice,
-  bossAvailable,
+  BOSS_NODE,
   canActivate,
   coveredSlots,
   isWhiteWild,
   loadGuide,
+  reachableNodes,
 } from '@snac-hunters/engine';
 import type { GameAction, GameState, GuideLesson } from '@snac-hunters/engine';
 import rawGuide from '@snac-hunters/config/guide.json';
-import { gameData } from './config';
 
 export const guide: readonly GuideLesson[] = loadGuide(rawGuide);
 
@@ -43,7 +43,9 @@ const CONDITIONS: Record<Condition, (g: GameState) => boolean> = {
   runEnded: (g) => g.run?.status === 'ended',
   // Feedback 2026-11-03: comodín blanco, guarida del jefe y puntos de cadena
   whiteWild: (g) => (g.combat ? availableDice(g.combat).some(isWhiteWild) : false),
-  bossReady: (g) => bossAvailable(g, gameData),
+  // V1: el siguiente paso del mapa es la guarida del jefe; se perdió una vida
+  bossReady: (g) => g.phase === 'trail' && reachableNodes(g).includes(BOSS_NODE),
+  lifeLost: (g) => g.combat?.ko === true,
   boss: (g) => g.combat?.monster.boss === true,
   defeatedNow: (g) => g.combat?.outcome === 'defeat',
 };

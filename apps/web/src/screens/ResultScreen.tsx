@@ -1,5 +1,10 @@
 import { motion } from 'framer-motion';
-import { canHunt, findSecretQuest, hasHuntingDice, scoreBreakdown } from '@snac-hunters/engine';
+import {
+  findSecretQuest,
+  hasHuntingDice,
+  reachableNodes,
+  scoreBreakdown,
+} from '@snac-hunters/engine';
 import type { CombatState, Outcome } from '@snac-hunters/engine';
 import { Button } from '../components/Button';
 import { Hud } from '../components/Hud';
@@ -59,6 +64,8 @@ export function ResultScreen() {
   const run = game?.run;
   if (!game || !combat || !run) return null;
   const ended = run.status === 'ended';
+  // V1: se sigue por el mapa mientras haya un camino (el engine decide cuáles)
+  const canGo = reachableNodes(game).length > 0;
   const { chainStep, questKill } = gameConfig.scoring;
   // Puntaje (feedback 2026-11-03): cada SNAC derrotado del run vale más que el anterior
   const defeated = combat.outcome === 'defeat';
@@ -97,6 +104,21 @@ export function ResultScreen() {
             {run.endedBy === 'ko' ? t('result.runOver.ko') : t('result.runOver.flee')}
           </p>
         )}
+        {combat.ko && (
+          <p
+            data-guide-target="threat"
+            className="mt-2 rounded-xl border-2 border-black bg-red-200 px-3 py-2 text-sm font-bold text-red-900"
+          >
+            {game.result === 'lives'
+              ? t('result.noLives')
+              : t('result.lifeLost', { n: game.lives })}
+          </p>
+        )}
+        {!ended && !canGo && (
+          <p className="mt-2 rounded-xl border-2 border-black bg-yellow-200 px-3 py-2 text-sm font-bold">
+            {t('map.end')}
+          </p>
+        )}
         {!ended && !hasHuntingDice(run) && (
           <p className="mt-2 rounded-xl border-2 border-black bg-red-200 px-3 py-2 text-sm font-bold text-red-900">
             {t('result.noDice')}
@@ -104,7 +126,7 @@ export function ResultScreen() {
         )}
       </OutcomeCard>
       <div className="mt-auto grid gap-3">
-        {canHunt(run) && (
+        {canGo && (
           <Button
             variant={hasHuntingDice(run) ? 'primary' : 'secondary'}
             onClick={() => act({ type: 'continue' })}
@@ -113,10 +135,10 @@ export function ResultScreen() {
           </Button>
         )}
         <Button
-          variant={canHunt(run) && hasHuntingDice(run) ? 'secondary' : 'primary'}
+          variant={canGo && hasHuntingDice(run) ? 'secondary' : 'primary'}
           onClick={() => act({ type: 'return' })}
         >
-          {t('result.town')}
+          {game.result ? t('result.score') : t('result.town')}
         </Button>
       </div>
     </div>

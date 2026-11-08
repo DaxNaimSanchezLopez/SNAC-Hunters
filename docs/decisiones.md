@@ -424,4 +424,34 @@ El riesgo de D-11 (seeds elegidas por el cliente) sigue igual.
 
 ---
 
-_Última actualización: 2026-11-04 — feedback del cliente del 2026-11-03: comodín blanco, misión secreta, tablero de misiones, 30 cartas, arte del pueblo, puntaje por cadena y jefe._
+
+## D-44 — V1 completa: mapa FTL de Sherbert Forest
+
+**Fuente:** feedback del 2026-10-20, sección 7; retoma D-28 de la rama `feat/V1`.
+
+**Decisión:** el sendero de 2 rastros se reemplaza por un **mapa nuevo en cada expedición** (`GameState.map`): 3 columnas de 2–3 nodos (`config/game.json` → `map`) y la guarida de Pieous Assassin al final.
+
+- Cada nodo tiene un tipo de monstruo al azar y esconde un monstruo de ese tipo; solo se ve el tipo hasta pelear.
+- Desde el pueblo se va a cualquier nodo de la primera columna; después, solo por los caminos del nodo actual (`reachableNodes`). La acción `follow` lleva el id del nodo (`{ type: 'follow', node }`) y desaparece la acción `boss`.
+- Al final del mapa (sin el toggle del jefe) ya no se puede seguir: hay que volver al pueblo.
+- **Reemplaza a D-43:** la guarida del jefe ya no aparece "desde la expedición 2" (`boss.fromRun` se quitó). El largo del mapa es lo que la hace difícil de alcanzar (balance de D-28). Sus espacios siguen siendo aleatorios en cada combate.
+
+---
+
+## D-45 — V1 completa: vidas, Pieland y fin de partida
+
+**Fuente:** feedback del 2026-10-20, secciones 8 y 9; retoma D-31.
+
+**Decisión:**
+
+- **Vidas:** 3 (`lives`). Cada KO cuesta una; no resta puntos (D-43). Sin vidas, la expedición termina y al volver se va a la pantalla de puntaje.
+- **Pieland:** 5 PV con la cuenta regresiva 6 → 5 → 4 → 3 → 2 (`pieland`). Cada expedición que termina sin derrotar al jefe descuenta una al volver al pueblo; al agotarse, Pieland pierde 1 PV y empieza la siguiente. Con Pieland en 0 la partida termina: son 20 expediciones como máximo, igual que el límite del feedback.
+- **Resultado** (`result`): `victory`, `lives`, `pieland` o `abandon` (dejar la partida desde el menú). El servidor lo guarda y la pantalla final dice por qué terminó.
+- El puntaje no cambia: sin derrotar al jefe cuenta el mejor run (D-43).
+- HUD: una fila con las vidas, los PV de Pieland y cuántas expediciones faltan para que pierda uno. La guía explica las vidas y Pieland en la primera expedición, el mapa al verlo, y avisa al perder una vida.
+
+**Pendiente de validar con Alex:** el tamaño del mapa (D-28) y si la cuenta regresiva de Pieland debe seguir con el puntaje nuevo.
+
+---
+
+_Última actualización: 2026-11-07 — V1 completa: mapa FTL, vidas y Pieland sobre el feedback del 2026-11-03._

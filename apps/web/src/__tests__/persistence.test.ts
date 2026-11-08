@@ -30,7 +30,7 @@ describe('persistencia de la partida', () => {
     const store = useGame.getState();
     store.newGame();
     useGame.getState().act({ type: 'start', die: 'green' });
-    useGame.getState().act({ type: 'follow', index: 0 });
+    useGame.getState().act({ type: 'follow', node: 'c0n0' });
     const before = useGame.getState().game!;
     expect(before.phase).toBe('combat');
 
@@ -93,7 +93,7 @@ describe('controles del combate', () => {
   it('relanzar conserva los dados seleccionados y relanza el resto', () => {
     useGame.getState().newGame();
     useGame.getState().act({ type: 'start', die: 'green' });
-    useGame.getState().act({ type: 'follow', index: 0 });
+    useGame.getState().act({ type: 'follow', node: 'c0n0' });
     const combat = useGame.getState().game!.combat!;
     const keep = availableDice(combat).filter(canReroll)[0]!;
     useGame.getState().toggleDie(keep.id);
@@ -125,7 +125,7 @@ describe('controles del combate', () => {
     useGame.getState().newGame();
     useGame.getState().act({ type: 'start', die: 'green' });
     expect(canFinish(useGame.getState().game!)).toBe(true);
-    useGame.getState().act({ type: 'follow', index: 0 });
+    useGame.getState().act({ type: 'follow', node: 'c0n0' });
     // En combate no se puede: esa partida se descartaría
     expect(canFinish(useGame.getState().game!)).toBe(false);
     useGame.setState({ history: [], topScores: [] });
@@ -200,10 +200,10 @@ describe('partida guiada (V0 = tutorial del juego de mesa)', () => {
       seen.push(lessonNow()!.id);
       useGame.getState().dismissLesson(lessonNow()!.id);
     }
-    expect(seen).toEqual(['hunt-dice', 'trail-hidden']);
+    expect(seen).toEqual(['hunt-dice', 'hunt-threat', 'trail-hidden']);
     // Lección "hazlo tú": se cumple al seguir un rastro
     expect(lessonNow()?.id).toBe('trail-follow');
-    useGame.getState().act({ type: 'follow', index: 0 });
+    useGame.getState().act({ type: 'follow', node: 'c0n0' });
     expect(useGame.getState().guideSeen).toContain('trail-follow');
     expect(lessonNow()?.id).toBe('combat-monster');
   });
@@ -211,7 +211,7 @@ describe('partida guiada (V0 = tutorial del juego de mesa)', () => {
   it('en combate explica el SNAC, los dados y cómo colocar uno', () => {
     useGame.getState().newGame(true);
     useGame.getState().act({ type: 'start', die: 'green' });
-    useGame.getState().act({ type: 'follow', index: 0 });
+    useGame.getState().act({ type: 'follow', node: 'c0n0' });
     const ids: string[] = [];
     for (let i = 0; i < 3 && lessonNow()?.advance === 'next'; i++) {
       ids.push(lessonNow()!.id);

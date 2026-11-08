@@ -74,7 +74,10 @@ describe('DiceTableSchema / GameConfigSchema', () => {
       maxItems: 3,
       maxSkills: 3,
     },
-    boss: { id: 'pieous', name: 'Pieous Assassin', pun: '', slots: 6, fromRun: 2 },
+    lives: 3,
+    pieland: { hp: 5, countdown: [6, 5, 4, 3, 2] },
+    map: { columns: 3, minNodes: 2, maxNodes: 3 },
+    boss: { id: 'pieous', name: 'Pieous Assassin', pun: '', slots: 6 },
     tutorial: { monsterId: 'garden-salaad', seed: 'seed' },
     features: { town: false },
     scoring: {

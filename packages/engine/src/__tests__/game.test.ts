@@ -4,7 +4,7 @@ import * as fc from 'fast-check';
 import { availableDice, canRerollAny, coveredSlots, validSlotsFor } from '../combat.js';
 import {
   applyGameAction,
-  bossAvailable,
+  BOSS_NODE,
   bossMultiplier,
   finalScore,
   canLeaveTown,
@@ -12,6 +12,7 @@ import {
   newGame,
   oldestQuest,
   payableOptions,
+  reachableNodes,
   readyAbilities,
   replayGame,
   scoreBreakdown,
@@ -66,7 +67,22 @@ function begin(data: GameData, seed: string): GameState {
  * (listo para salir). Los tests del pueblo le dan acciones con `townActions`.
  */
 function townGame(data: GameData, seed: string): GameState {
-  return { ...begin(data, seed), phase: 'town', run: null, trail: null, runs: 0, townActions: 0 };
+  return {
+    ...begin(data, seed),
+    phase: 'town',
+    run: null,
+    map: null,
+    position: null,
+    runs: 0,
+    townActions: 0,
+  };
+}
+
+/** Primer nodo al que se puede ir ahora en el mapa. */
+function nextNode(state: GameState): GameAction {
+  const [node] = reachableNodes(state);
+  if (node === undefined) throw new Error('test: no hay nodos alcanzables');
+  return { type: 'follow', node };
 }
 
 /** Estado de partida (en el pueblo) con valores arbitrarios para probar casos concretos. */
@@ -117,7 +133,7 @@ describe('nueva partida', () => {
   it('primero se elige el color del cazador: su dado especial', () => {
     const g = newGame(DATA, 'seed-1');
     expect(g).toMatchObject({ phase: 'setup', dice: ['red', 'red', 'red', 'red'], runs: 0 });
-    expect(() => applyGameAction(g, { type: 'follow', index: 0 }, DATA)).toThrow(/fase/);
+    expect(() => applyGameAction(g, { type: 'follow', node: 'c0n0' }, DATA)).toThrow(/fase/);
     expect(() =>
       applyGameAction(g, { type: 'start', die: 'white' } as unknown as GameAction, DATA),
     ).toThrow(/no es un dado especial/);
@@ -161,7 +177,9 @@ describe('nueva partida', () => {
       runHuntPoints: 0,
     });
     expect(g.run).toMatchObject({ hp: 4, pool: ['red', 'red', 'red', 'red', 'green'], fights: 0 });
-    expect(g.trail).toHaveLength(2);
+    expect(g.map?.columns).toBe(CONFIG.map.columns);
+    expect(reachableNodes(g).length).toBeGreaterThanOrEqual(2);
+    expect(g).toMatchObject({ lives: 3, pieland: { hp: 5, stage: 0, left: 6 }, result: null });
     expect(() => applyGameAction(g, { type: 'rest' }, DATA)).toThrow(/fase/);
     expect(g.trophies).toHaveLength(1);
     expect(g.items).toHaveLength(1);
@@ -430,35 +448,54 @@ describe('tablero de misiones', () => {
 });
 
 describe('expedición', () => {
-  it('salir del pueblo abre el sendero con dos rastros de tipos distintos', () => {
-    const g = applyGameAction(townGame(DATA, 's'), { type: 'leave' }, DATA);
-    expect(g).toMatchObject({ phase: 'trail', runs: 1, hp: 4 });
-    const [a, b] = (g.trail ?? []).map((id) => DATA.monsters.find((m) => m.id === id));
-    expect(a?.type).not.toBe(b?.type);
+  it('salir del pueblo abre un mapa FTL nuevo: columnas de 2–3 nodos hasta el jefe', () => {
+    const data: GameData = { ...DATA, config: { ...CONFIG, features: { boss: true } } };
+    const g = applyGameAction(townGame(data, 's'), { type: 'leave' }, data);
+    expect(g).toMatchObject({ phase: 'trail', runs: 1, hp: 4, position: null });
+    const map = g.map!;
+    for (let c = 0; c < map.columns; c++) {
+      const column = map.nodes.filter((n) => n.column === c);
+      expect(column.length).toBeGreaterThanOrEqual(CONFIG.map.minNodes);
+      expect(column.length).toBeLessThanOrEqual(CONFIG.map.maxNodes);
+    }
+    // Cada nodo esconde un monstruo de su tipo y lleva a la siguiente columna (o al jefe)
+    for (const node of map.nodes) {
+      // (los monstruos de prueba no tienen tipo Cola: ese nodo esconde uno cualquiera)
+      const ofType = DATA.monsters.filter((m) => m.type === node.type);
+      if (ofType.length > 0) expect(ofType.map((m) => m.id)).toContain(node.monsterId);
+      expect(node.next.length).toBeGreaterThan(0);
+      if (node.column === map.columns - 1) expect(node.next).toEqual([BOSS_NODE]);
+    }
+    expect(reachableNodes(g)).toEqual(map.nodes.filter((n) => n.column === 0).map((n) => n.id));
     expect(g.run?.pool).toEqual(g.dice);
+    // Sin el toggle del jefe, el mapa termina en la última columna
+    const plain = applyGameAction(townGame(DATA, 's'), { type: 'leave' }, DATA);
+    const last = plain.map!.nodes.filter((n) => n.column === plain.map!.columns - 1);
+    expect(last.every((n) => n.next.length === 0)).toBe(true);
   });
 
-  it('seguir un rastro revela el monstruo y empieza el combate con trofeos y habilidades', () => {
+  it('ir a un nodo revela su monstruo y empieza el combate con trofeos y habilidades', () => {
     const trail = run(
       withState({ trophies: ['Claw'], items: [{ id: 'extra-ammo', ready: true }] }),
       [{ type: 'leave' }],
     );
-    const g = applyGameAction(trail, { type: 'follow', index: 1 }, DATA);
+    const g = applyGameAction(trail, { type: 'follow', node: 'c0n1' }, DATA);
     expect(g.phase).toBe('combat');
-    expect(g.trail).toBeNull();
-    expect(g.combat?.monster.id).toBe(trail.trail?.[1]);
-    expect(() => applyGameAction(trail, { type: 'follow', index: 2 }, DATA)).toThrow(
-      /No hay rastro/,
+    expect(g.position).toBe('c0n1');
+    expect(g.combat?.monster.id).toBe(trail.map?.nodes.find((n) => n.id === 'c0n1')?.monsterId);
+    // Solo se avanza por los caminos: nada de saltar columnas
+    expect(() => applyGameAction(trail, { type: 'follow', node: 'c1n0' }, DATA)).toThrow(
+      /No hay camino/,
     );
     expect(g.combat?.trophies).toEqual(['Claw']);
     expect(g.combat?.abilities.map((a) => a.id)).toEqual(['extra-ammo']);
-    expect(() => applyGameAction(g, { type: 'follow', index: 0 }, DATA)).toThrow(/fase/);
+    expect(() => applyGameAction(g, { type: 'follow', node: 'c0n0' }, DATA)).toThrow(/fase/);
   });
 
   it('derrotar da 10 puntos de cadena y trofeo; los dados usados no vuelven', () => {
     const g0 = run(
       withState({ trophies: [] }, WILDS),
-      [{ type: 'leave' }, { type: 'follow', index: 0 }],
+      [{ type: 'leave' }, { type: 'follow', node: 'c0n0' }],
       WILDS,
     );
     const monster = g0.combat!.monster;
@@ -474,7 +511,8 @@ describe('expedición', () => {
     expect(g1.run?.pool).toEqual(['green']);
     const g2 = applyGameAction(g1, { type: 'continue' }, WILDS);
     expect(g2.phase).toBe('trail');
-    const g3 = applyGameAction(g2, { type: 'follow', index: 0 }, WILDS);
+    expect(reachableNodes(g2)).toEqual(g2.map!.nodes.find((n) => n.id === g2.position)!.next);
+    const g3 = applyGameAction(g2, nextNode(g2), WILDS);
     expect(g3.combat?.dice.map((d) => d.kind)).toEqual(['green']);
   });
 
@@ -484,7 +522,7 @@ describe('expedición', () => {
       withState({}, data),
       [
         { type: 'leave' },
-        { type: 'follow', index: 1 },
+        { type: 'follow', node: 'c0n1' },
         { type: 'combat', action: { type: 'assign', dieId: 'd0', slot: 0 } },
         { type: 'combat', action: { type: 'resolve' } },
       ],
@@ -500,7 +538,7 @@ describe('expedición', () => {
     const data = rigged({ red: 'Tail', green: 'Tail', white: 'damage' });
     let g = run(
       withState({ trophies: [] }, data),
-      [{ type: 'leave' }, { type: 'follow', index: 0 }],
+      [{ type: 'leave' }, { type: 'follow', node: 'c0n0' }],
       data,
     );
     for (let i = 0; i < 8 && g.phase === 'combat'; i++) {
@@ -540,7 +578,7 @@ describe('expedición', () => {
       withState({ items: [{ id: 'extra-ammo', ready: true }], skills: ['double-damage'] }, data),
       [
         { type: 'leave' },
-        { type: 'follow', index: 0 },
+        { type: 'follow', node: 'c0n0' },
         { type: 'combat', action: { type: 'ability', abilityId: 'extra-ammo', dieIds: ['d0'] } },
         {
           type: 'combat',
@@ -571,7 +609,7 @@ describe('expedición', () => {
     };
     const g0 = run(
       withState({ trophies: ['Claw', 'Wing'] }, data),
-      [{ type: 'leave' }, { type: 'follow', index: 0 }],
+      [{ type: 'leave' }, { type: 'follow', node: 'c0n0' }],
       data,
     );
     const slot = g0.combat!.monster.slots.findIndex((s) => s === 'Claw' || s === 'all');
@@ -610,14 +648,16 @@ describe('puntaje (feedback 2026-11-03)', () => {
     const quest = SECRET_QUESTS[0]!; // Axe and Claw: monstruos de tipo Garra
     let g = longRun({ secretQuest: quest.id });
     let claws = 0;
-    // Derrotar, estudiar, derrotar, derrotar = 10 + 20 + 30
-    for (const covered of [4, 2, 4, 4]) {
+    // Derrotar, estudiar, derrotar (las 3 columnas del mapa) = 10 + 20
+    for (const covered of [4, 2, 4]) {
       if (g.phase === 'aftermath') g = applyGameAction(g, { type: 'continue' }, WILDS);
-      g = applyGameAction(g, { type: 'follow', index: 0 }, WILDS);
+      g = applyGameAction(g, nextNode(g), WILDS);
       if (covered === 4 && g.combat!.monster.type === quest.monsterType) claws++;
       g = hunt(g, covered, WILDS);
     }
-    expect(g).toMatchObject({ chain: 3, runHuntPoints: 60, runQuestKills: claws });
+    expect(g).toMatchObject({ chain: 2, runHuntPoints: 30, runQuestKills: claws });
+    // Al final del mapa (sin jefe) ya no se puede seguir
+    expect(() => applyGameAction(g, { type: 'continue' }, WILDS)).toThrow(/final del mapa/);
     // Un run nuevo empieza la cadena de cero
     const town = applyGameAction(g, { type: 'return' }, WILDS);
     const next = applyGameAction({ ...town, townActions: 0 }, { type: 'leave' }, WILDS);
@@ -702,31 +742,108 @@ describe('jefe', () => {
     config: { ...CONFIG, features: { boss: true } },
   };
 
-  it('la guarida aparece desde la segunda expedición si el toggle está encendido', () => {
-    const first = begin(BOSS_ON, 'b');
-    expect(bossAvailable(first, BOSS_ON)).toBe(false);
-    expect(() => applyGameAction(first, { type: 'boss' }, BOSS_ON)).toThrow(/aún no está/);
-    const town = applyGameAction(first, { type: 'return' }, BOSS_ON);
-    const out = applyGameAction({ ...town, townActions: 0 }, { type: 'leave' }, BOSS_ON);
-    expect(bossAvailable(out, BOSS_ON)).toBe(true);
-    expect(bossAvailable(out, WILDS)).toBe(false);
-    const fight = applyGameAction(out, { type: 'boss' }, BOSS_ON);
+  /** Expedición con muchos dados (comodines), jefe encendido y el mapa ya generado. */
+  function bossRun(patch: Partial<GameState> = {}): GameState {
+    const out = run(
+      withState({ trophies: [], items: [], ...patch }, BOSS_ON),
+      [{ type: 'leave' }],
+      BOSS_ON,
+    );
+    const pool: DieKind[] = Array.from({ length: 30 }, () => 'red');
+    return { ...out, run: { ...out.run!, pool } };
+  }
+
+  it('la guarida del jefe está al final del mapa: solo se llega por los caminos', () => {
+    let s = bossRun();
+    expect(() => applyGameAction(s, { type: 'follow', node: BOSS_NODE }, BOSS_ON)).toThrow(
+      /No hay camino/,
+    );
+    for (let c = 0; c < CONFIG.map.columns; c++) {
+      if (s.phase === 'aftermath') s = applyGameAction(s, { type: 'continue' }, BOSS_ON);
+      s = hunt(applyGameAction(s, nextNode(s), BOSS_ON), 2, BOSS_ON);
+    }
+    s = applyGameAction(s, { type: 'continue' }, BOSS_ON);
+    expect(reachableNodes(s)).toEqual([BOSS_NODE]);
+    const fight = applyGameAction(s, { type: 'follow', node: BOSS_NODE }, BOSS_ON);
     expect(fight.combat?.monster).toMatchObject({ id: 'pieous', boss: true });
     expect(fight.combat?.monster.slots).toHaveLength(6);
   });
 
   it('derrotar al jefe termina la partida con el puntaje final', () => {
-    const g = { ...longRun({ runs: 0, secretQuest: 'axe-and-claw', trophies: ['Claw'] }), runs: 5 };
-    let s = applyGameAction(g, { type: 'follow', index: 0 }, BOSS_ON);
-    s = hunt(s, 4, BOSS_ON);
+    let s = { ...bossRun({ secretQuest: 'axe-and-claw', trophies: ['Claw'] }), runs: 5 };
+    // Una columna derrotando y dos estudiando: cadena 1 antes del jefe
+    for (const covered of [4, 2, 2]) {
+      if (s.phase === 'aftermath') s = applyGameAction(s, { type: 'continue' }, BOSS_ON);
+      s = hunt(applyGameAction(s, nextNode(s), BOSS_ON), covered, BOSS_ON);
+    }
     s = applyGameAction(s, { type: 'continue' }, BOSS_ON);
-    s = applyGameAction(s, { type: 'boss' }, BOSS_ON);
-    s = hunt(s, 6, BOSS_ON);
-    expect(s).toMatchObject({ phase: 'over', bossDefeated: true, chain: 2, runHuntPoints: 30 });
+    s = hunt(applyGameAction(s, { type: 'follow', node: BOSS_NODE }, BOSS_ON), 6, BOSS_ON);
+    expect(s).toMatchObject({
+      phase: 'over',
+      result: 'victory',
+      bossDefeated: true,
+      chain: 2,
+      runHuntPoints: 30,
+    });
     const score = scoreBreakdown(s, BOSS_ON);
     expect(score).toMatchObject({ final: true, hp: 4, multiplier: 1.75 });
     expect(finalScore(s, BOSS_ON)).toBe(score.total);
     expect(() => applyGameAction(s, { type: 'return' }, BOSS_ON)).toThrow(/terminó/);
+  });
+});
+
+describe('vidas y Pieland (V1)', () => {
+  it('cada KO cuesta una vida; sin vidas la partida termina al volver al pueblo', () => {
+    const data = rigged({ red: 'Tail', green: 'Tail', white: 'damage' });
+    const ko = (state: GameState): GameState => {
+      let g = applyGameAction(state, { type: 'follow', node: 'c0n0' }, data);
+      for (let i = 0; i < 8 && g.phase === 'combat'; i++) {
+        g = applyGameAction(
+          g,
+          { type: 'combat', action: { type: 'reroll', dieIds: ['d0'] } },
+          data,
+        );
+      }
+      return g;
+    };
+    const g = ko(run(withState({ trophies: [], lives: 2 }, data), [{ type: 'leave' }], data));
+    expect(g).toMatchObject({ lives: 1, result: null, kos: 1 });
+    const town = applyGameAction(g, { type: 'return' }, data);
+    expect(town.phase).toBe('town');
+    const last = ko(applyGameAction({ ...town, townActions: 0 }, { type: 'leave' }, data));
+    expect(last).toMatchObject({ phase: 'aftermath', lives: 0, result: 'lives' });
+    expect(() => applyGameAction(last, { type: 'continue' }, data)).toThrow(/terminó/);
+    const over = applyGameAction(last, { type: 'return' }, data);
+    expect(over).toMatchObject({ phase: 'over', result: 'lives' });
+    expect(over.bestRun).not.toBeNull();
+  });
+
+  it('cuenta regresiva 6/5/4/3/2: al agotarse, Pieland pierde 1 PV; en 0, fin de la partida', () => {
+    const back = (g: GameState) =>
+      run({ ...g, townActions: 0 }, [{ type: 'leave' }, { type: 'return' }]);
+    let g = withState({});
+    const seen: [number, number][] = [];
+    for (let i = 0; i < 20 && g.phase === 'town'; i++) {
+      g = back(g);
+      seen.push([g.pieland.hp, g.pieland.left]);
+    }
+    expect(seen.slice(0, 7)).toEqual([
+      [5, 5],
+      [5, 4],
+      [5, 3],
+      [5, 2],
+      [5, 1],
+      [4, 5],
+      [4, 4],
+    ]);
+    // 6 + 5 + 4 + 3 + 2 = 20 expediciones sin derrotar al jefe
+    expect(seen).toHaveLength(20);
+    expect(g).toMatchObject({ phase: 'over', result: 'pieland', pieland: { hp: 0 } });
+  });
+
+  it('dejar la partida la marca como abandonada', () => {
+    const over = applyGameAction(townGame(DATA, 's'), { type: 'finish' }, DATA);
+    expect(over.result).toBe('abandon');
   });
 });
 
@@ -739,7 +856,7 @@ describe('fin de partida', () => {
     const quit = applyGameAction(trail, { type: 'finish' }, DATA);
     expect(quit).toMatchObject({ phase: 'over', run: null });
     expect(quit.bestRun).toMatchObject({ run: 1 });
-    const fighting = applyGameAction(trail, { type: 'follow', index: 0 }, DATA);
+    const fighting = applyGameAction(trail, nextNode(trail), DATA);
     expect(() => applyGameAction(fighting, { type: 'finish' }, DATA)).toThrow(/fase/);
   });
 
@@ -793,7 +910,8 @@ function autoplay(data: GameData, seed: string, choices: readonly number[]): Gam
       else if (c === 19) act({ type: 'finish' });
       else act({ type: 'leave' });
     } else if (s.phase === 'trail') {
-      if (s.run && c % 5 !== 0) act({ type: 'follow', index: c % 2 });
+      const nodes = reachableNodes(s);
+      if (nodes.length > 0 && c % 5 !== 0) act({ type: 'follow', node: nodes[c % nodes.length]! });
       else act({ type: 'return' });
     } else if (s.phase === 'combat') {
       const combat = s.combat!;
@@ -816,7 +934,7 @@ function autoplay(data: GameData, seed: string, choices: readonly number[]): Gam
         });
       }
     } else if (s.phase === 'aftermath') {
-      const canGo = s.run?.status === 'active';
+      const canGo = s.run?.status === 'active' && s.result === null && reachableNodes(s).length > 0;
       act(canGo && c % 3 !== 0 ? { type: 'continue' } : { type: 'return' });
     }
   }
@@ -838,7 +956,7 @@ describe('replayGame (validación en servidor)', () => {
   it('un cliente tramposo que inventa acciones es rechazado', () => {
     expect(() =>
       replayGame(DATA, 'demo', [
-        { type: 'follow', index: 0 },
+        { type: 'follow', node: 'c0n0' },
         { type: 'combat', action: { type: 'resolve', trophy: 'Horn' } },
       ]),
     ).toThrow();

@@ -44,31 +44,46 @@
     }
   },
   {
+    "id": "hunt-threat",
+    "phase": "trail",
+    "when": ["firstHunt"],
+    "advance": "next",
+    "highlight": "threat",
+    "es": {
+      "title": "Vidas y Pieland",
+      "text": "Tienes 3 VIDAS: cada KO cuesta una, y sin vidas la partida termina. Además Pieland está amenazada: cada expedición que termina sin derrotar al jefe acerca su cuenta regresiva. Cuando llega a 0, Pieland pierde 1 PV; si pierde los 5, la partida termina."
+    },
+    "en": {
+      "title": "Lives and Pieland",
+      "text": "You have 3 LIVES: each KO costs one, and with none left the game is over. Pieland is also under threat: every run that ends without defeating the boss moves its countdown forward. When it hits 0, Pieland loses 1 HP; if it loses all 5, the game is over."
+    }
+  },
+  {
     "id": "trail-hidden",
     "phase": "trail",
     "advance": "next",
-    "highlight": "tracks",
+    "highlight": "map",
     "es": {
-      "title": "El sendero",
-      "text": "En cada paso verás dos rastros. Solo sabes el TIPO de SNAC, no cuál es. Cada tipo pide sobre todo un símbolo: Cuerno → Hacha, Ala → Flecha, Garra → Lupa y Cola → Anzuelo. Elige según tus dados."
+      "title": "El mapa",
+      "text": "Cada expedición tiene un mapa nuevo de Sherbert Forest: columnas de SNACs del pueblo (izquierda) hasta la guarida del jefe (derecha). Solo sabes el TIPO de cada SNAC. Cada tipo pide sobre todo un símbolo: Cuerno → Hacha, Ala → Flecha, Garra → Lupa y Cola → Anzuelo. Avanzas por los caminos, una columna a la vez."
     },
     "en": {
-      "title": "The trail",
-      "text": "At each step you'll see two tracks. You only know the TYPE of SNAC, not which one. Each type mostly asks for one symbol: Horn → Axe, Wing → Arrow, Claw → Finder, Tail → Hook. Choose based on your dice."
+      "title": "The map",
+      "text": "Each run has a new map of Sherbert Forest: columns of SNACs from town (left) to the boss's lair (right). You only know each SNAC's TYPE. Each type mostly asks for one symbol: Horn → Axe, Wing → Arrow, Claw → Finder, Tail → Hook. You move along the paths, one column at a time."
     }
   },
   {
     "id": "trail-follow",
     "phase": "trail",
     "advance": "follow",
-    "highlight": "tracks",
+    "highlight": "map",
     "es": {
-      "title": "Sigue un rastro",
-      "text": "Toca SEGUIR en uno de los dos. El SNAC se revela cuando empieza el combate."
+      "title": "Elige un camino",
+      "text": "Toca uno de los nodos que brillan. El SNAC se revela cuando empieza el combate."
     },
     "en": {
-      "title": "Follow a track",
-      "text": "Tap FOLLOW on one of them. The SNAC is revealed when the fight starts."
+      "title": "Pick a path",
+      "text": "Tap one of the glowing nodes. The SNAC is revealed when the fight starts."
     }
   },
   {
@@ -79,11 +94,11 @@
     "highlight": "boss",
     "es": {
       "title": "La guarida del jefe",
-      "text": "Desde ahora, en el sendero aparece la guarida de PIEOUS ASSASSIN. Tiene 6 espacios con símbolos al azar: hay que cubrirlos TODOS para derrotarlo (no se le estudia, y las cartas de \"tres iguales\" no sirven). Derrotarlo termina la partida: entre menos expediciones te tome, más se multiplica tu puntaje."
+      "text": "El siguiente paso es la guarida de PIEOUS ASSASSIN. Tiene 6 espacios con símbolos al azar: hay que cubrirlos TODOS para derrotarlo (no se le estudia, y las cartas de \"tres iguales\" no sirven). Derrotarlo termina la partida: entre menos expediciones te tome, más se multiplica tu puntaje. Si no estás listo, vuelve al pueblo."
     },
     "en": {
       "title": "The boss's lair",
-      "text": "From now on, PIEOUS ASSASSIN's lair appears on the trail. It has 6 random symbol spaces: you must fill ALL of them to defeat it (it can't be studied, and \"three of a kind\" cards don't work). Defeating it ends the game: the fewer runs it takes, the bigger your score multiplier."
+      "text": "The next step is PIEOUS ASSASSIN's lair. It has 6 random symbol spaces: you must fill ALL of them to defeat it (it can't be studied, and \"three of a kind\" cards don't work). Defeating it ends the game: the fewer runs it takes, the bigger your score multiplier. If you're not ready, head back to town."
     }
   },
   {
@@ -320,6 +335,21 @@
     "en": {
       "title": "Chain points",
       "text": "Each SNAC you defeat on the SAME run is worth more than the last: 10, 20, 30, 40… Studying neither adds nor breaks the chain. Getting KO'd doesn't cost points, but the chain ends. If the SNAC matches your secret quest's type, +10 more."
+    }
+  },
+  {
+    "id": "after-life",
+    "phase": "aftermath",
+    "when": ["lifeLost"],
+    "advance": "next",
+    "highlight": "threat",
+    "es": {
+      "title": "Perdiste una vida",
+      "text": "Quedar KO te quita una de tus 3 vidas (no te quita puntos). La expedición termina y en el pueblo recuperas tu HPie. Si te quedas sin vidas, la partida termina."
+    },
+    "en": {
+      "title": "You lost a life",
+      "text": "Getting KO'd costs one of your 3 lives (not points). The run ends and you recover your HP in town. If you run out of lives, the game is over."
     }
   },
   {

@@ -58,6 +58,10 @@ export function OverScreen({ game }: { game: GameState }) {
         <h1 className="font-comic text-4xl text-bark">
           {game.bossDefeated ? t('over.victory', { name: gameConfig.boss.name }) : t('over.title')}
         </h1>
+        {/* V1: por qué terminó (sin vidas o Pieland cayó) */}
+        {(game.result === 'lives' || game.result === 'pieland') && (
+          <p className="font-comic text-lg text-red-700">{t(`over.result.${game.result}`)}</p>
+        )}
         <p className="text-sm text-bark/70">
           {final
             ? t('over.finalText')

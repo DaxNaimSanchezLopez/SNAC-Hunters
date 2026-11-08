@@ -1,10 +1,11 @@
 // RF-15: Partida — máquina de estados pura sobre todo el juego.
-//   Color del cazador y misión secreta → expedición (sendero con 2 rastros ocultos o la guarida
-//   del jefe) → combate → resultado → seguir cazando o volver al pueblo (descansar y misiones).
+//   Color del cazador y misión secreta → expedición (mapa estilo FTL con monstruos ocultos y el
+//   jefe al final) → combate → resultado → seguir por el mapa o volver al pueblo.
+// V1 (roguelite sencillo): 3 vidas y Pieland amenazada con su cuenta regresiva.
 // Toda la aleatoriedad sale de la seed de la partida, así que el servidor re-simula
 // seed + acciones con `replayGame` exactamente igual que el cliente (Regla de oro 2).
 
-import { applyAction, CombatError, pickEncounterPair, startCombat } from './combat.js';
+import { applyAction, CombatError, startCombat } from './combat.js';
 import type { CombatAction, CombatState, Outcome } from './combat.js';
 import { canHunt, endCombat, runCombatSetup, startRun } from './run.js';
 import type { RunState } from './run.js';
@@ -33,8 +34,41 @@ export interface GameData {
   readonly dice: DiceTable;
 }
 
-/** 'setup' = elegir el color del cazador (su dado especial) y la misión secreta. */
+/**
+ * 'setup' = elegir el color del cazador (su dado especial) y la misión secreta;
+ * 'trail' = en el mapa de la región, eligiendo el siguiente nodo.
+ */
 export type GamePhase = 'setup' | 'town' | 'trail' | 'combat' | 'aftermath' | 'over';
+
+/** Cómo terminó la partida (V1): ganó, se quedó sin vidas, cayó Pieland o la dejó. */
+export type GameResult = 'victory' | 'lives' | 'pieland' | 'abandon';
+
+/** Nodo del mapa de la región: solo se conoce el tipo de monstruo hasta pelear. */
+export interface MapNode {
+  readonly id: string;
+  readonly column: number;
+  readonly type: GameSymbol;
+  readonly monsterId: string;
+  /** Nodos de la siguiente columna a los que lleva un camino (o el jefe, desde la última). */
+  readonly next: readonly string[];
+}
+
+/** Mapa estilo FTL (feedback 2026-10-20, sección 7): columnas de nodos del pueblo al jefe. */
+export interface GameMap {
+  readonly nodes: readonly MapNode[];
+  readonly columns: number;
+}
+
+export const BOSS_NODE = 'boss';
+
+/** Pieland amenazada (feedback 2026-10-20, sección 9). */
+export interface Pieland {
+  readonly hp: number;
+  /** Cuenta regresiva en curso (índice en config.pieland.countdown). */
+  readonly stage: number;
+  /** Expediciones que faltan para que Pieland pierda 1 PV. */
+  readonly left: number;
+}
 
 export interface OwnedItem {
   readonly id: string;
@@ -83,8 +117,10 @@ export interface GameState {
   readonly guided: boolean;
   /** Cartas ofrecidas tras cumplir una misión del pueblo; hay que elegir una. */
   readonly offer: { readonly kind: Ability['kind']; readonly ids: readonly string[] } | null;
-  /** Ids de los dos monstruos del sendero; la UI solo muestra su tipo (monstruos ocultos). */
-  readonly trail: readonly [string, string] | null;
+  /** Mapa de la expedición en curso (uno nuevo en cada expedición); la UI solo muestra tipos. */
+  readonly map: GameMap | null;
+  /** Nodo del mapa donde está el cazador (null = recién salió del pueblo). */
+  readonly position: string | null;
   readonly combat: CombatState | null;
   /** Trofeo ganado sin espacio libre: hay que decidir cuál conservar. */
   readonly pendingTrophy: GameSymbol | null;
@@ -105,6 +141,10 @@ export interface GameState {
   readonly bossDefeated: boolean;
   /** Tipos de los monstruos derrotados en la partida (para Well Traveled). */
   readonly defeatedTypes: readonly GameSymbol[];
+  /** V1: vidas del cazador (cada KO cuesta una) y Pieland con su cuenta regresiva. */
+  readonly lives: number;
+  readonly pieland: Pieland;
+  readonly result: GameResult | null;
   readonly kos: number;
   readonly runs: number;
   readonly fights: number;
@@ -137,8 +177,8 @@ export type GameAction =
   | { readonly type: 'pick'; readonly abilityId: string; readonly replace?: string }
   | { readonly type: 'recharge'; readonly target: string }
   | { readonly type: 'leave' }
-  | { readonly type: 'follow'; readonly index: number }
-  | { readonly type: 'boss' }
+  /** Va a un nodo del mapa (o al jefe, `BOSS_NODE`). */
+  | { readonly type: 'follow'; readonly node: string }
   | { readonly type: 'combat'; readonly action: CombatAction }
   | { readonly type: 'keep'; readonly discard: number | null }
   | { readonly type: 'continue' }
@@ -422,26 +462,77 @@ function makeBoss(data: GameData, rng: SeededRng): Monster {
   };
 }
 
-/** ¿Se puede ir a la guarida del jefe desde el sendero? */
-export function bossAvailable(state: GameState, data: GameData): boolean {
-  return (
-    data.config.features.boss === true &&
-    state.phase === 'trail' &&
-    state.run !== null &&
-    canHunt(state.run) &&
-    state.runs >= data.config.boss.fromRun &&
-    !state.bossDefeated
-  );
+/** Índice equivalente en una columna de otro tamaño (para trazar caminos sin cruces). */
+function scale(i: number, from: number, to: number): number {
+  return from <= 1 ? Math.floor((to - 1) / 2) : Math.round((i * (to - 1)) / (from - 1));
+}
+
+/**
+ * Mapa estilo FTL: columnas de 2–3 nodos; cada nodo lleva a los más cercanos de la siguiente
+ * columna y todos los de la última llevan al jefe (si el toggle `boss` está encendido). Los
+ * tipos (y el monstruo oculto de cada nodo) son aleatorios y cambian en cada expedición.
+ */
+function makeMap(data: GameData, rng: SeededRng): GameMap {
+  const { columns, minNodes, maxNodes } = data.config.map;
+  const boss = data.config.features.boss === true;
+  const sizes = Array.from({ length: columns }, () => rng.nextInt(minNodes, maxNodes));
+  const id = (c: number, i: number) => `c${c}n${i}`;
+  const nodes: MapNode[] = [];
+  sizes.forEach((size, c) => {
+    const nextSize = sizes[c + 1];
+    for (let i = 0; i < size; i++) {
+      const type = randomTrophy(rng);
+      const ofType = data.monsters.filter((m) => m.type === type);
+      const pool = ofType.length > 0 ? ofType : data.monsters;
+      const monster = pool[rng.nextInt(0, pool.length - 1)] as Monster;
+      const next = new Set<string>();
+      if (nextSize === undefined) {
+        if (boss) next.add(BOSS_NODE);
+      } else {
+        next.add(id(c + 1, scale(i, size, nextSize)));
+        for (let j = 0; j < nextSize; j++) {
+          if (scale(j, nextSize, size) === i) next.add(id(c + 1, j));
+        }
+      }
+      nodes.push({ id: id(c, i), column: c, type, monsterId: monster.id, next: [...next].sort() });
+    }
+  });
+  return { nodes, columns };
+}
+
+/**
+ * Nodos a los que se puede ir ahora: la primera columna al salir del pueblo, o los conectados
+ * al nodo actual. Sin expedición activa (huida, KO, partida terminada), ninguno.
+ */
+export function reachableNodes(state: GameState): string[] {
+  const { map, run } = state;
+  if (!map || !run || !canHunt(run) || state.result !== null) return [];
+  if (state.position === null) return map.nodes.filter((n) => n.column === 0).map((n) => n.id);
+  if (state.position === BOSS_NODE) return [];
+  return [...(map.nodes.find((n) => n.id === state.position)?.next ?? [])];
+}
+
+/** Monstruo oculto de un nodo del mapa (el jefe se arma al entrar a su nodo). */
+export function nodeMonster(state: GameState, data: GameData, nodeId: string): Monster {
+  const node = state.map?.nodes.find((n) => n.id === nodeId) ?? fail(`No hay nodo ${nodeId}`);
+  return findMonster(data, node.monsterId);
+}
+
+/**
+ * Cuenta regresiva de Pieland: cada expedición que termina sin derrotar al jefe descuenta una;
+ * al agotarse, Pieland pierde 1 PV y empieza la siguiente (más corta). Si se acaban todas, se
+ * repite la última.
+ */
+function countDown(pieland: Pieland, countdown: readonly number[]): Pieland {
+  if (pieland.left > 1) return { ...pieland, left: pieland.left - 1 };
+  const stage = pieland.stage + 1;
+  const left = countdown[Math.min(stage, countdown.length - 1)] as number;
+  return { hp: pieland.hp - 1, stage, left };
 }
 
 // ---------------------------------------------------------------------------------------
 // Partida
 // ---------------------------------------------------------------------------------------
-
-function newTrail(data: GameData, rng: SeededRng): [string, string] {
-  const [a, b] = pickEncounterPair(data.monsters, rng.nextInt(0, UINT32_MAX));
-  return [a.id, b.id];
-}
 
 /** Gana un trofeo: si no hay espacio, queda pendiente hasta decidir cuál conservar. */
 function gainTrophy(state: GameState, data: GameData, symbol: GameSymbol): GameState {
@@ -459,7 +550,7 @@ function gainTrophy(state: GameState, data: GameData, symbol: GameSymbol): GameS
  * tablero salen de semillas derivadas, para no cambiar el resto de la secuencia aleatoria.
  */
 export function newGame(data: GameData, seed: string): GameState {
-  const { player, town } = data.config;
+  const { player, town, pieland } = data.config;
   const rng = new SeededRng(seed);
   const trophies = Array.from({ length: player.startingTrophies }, () => randomTrophy(rng));
   const catalog = data.abilities.filter((a) => a.kind === 'item');
@@ -484,7 +575,8 @@ export function newGame(data: GameData, seed: string): GameState {
     townVisits: 0,
     guided: false,
     offer: null,
-    trail: null,
+    map: null,
+    position: null,
     combat: null,
     pendingTrophy: null,
     secretOffer,
@@ -499,6 +591,9 @@ export function newGame(data: GameData, seed: string): GameState {
     bestRun: null,
     bossDefeated: false,
     defeatedTypes: [],
+    lives: data.config.lives,
+    pieland: { hp: pieland.hp, stage: 0, left: pieland.countdown[0] as number },
+    result: null,
     kos: 0,
     runs: 0,
     fights: 0,
@@ -702,7 +797,7 @@ function leave(state: GameState, data: GameData): GameState {
     fail('Usa tus acciones en el pueblo antes de salir');
   }
   const rng = new SeededRng(state.rngState);
-  const trail = newTrail(data, rng);
+  const map = makeMap(data, rng);
   return {
     ...state,
     rngState: rng.currentState,
@@ -712,14 +807,16 @@ function leave(state: GameState, data: GameData): GameState {
     chain: 0,
     runHuntPoints: 0,
     runQuestKills: 0,
-    trail,
+    map,
+    position: null,
   };
 }
 
 /**
  * Lleva el resultado del combate a la partida: dados, HPie, trofeos, objetos y puntaje. Cada
  * monstruo derrotado del run vale más que el anterior (10, 20, 30…); estudiar no cambia la
- * cadena y quedar KO no resta. Derrotar al jefe termina la partida.
+ * cadena y quedar KO no resta, pero cuesta una vida. Derrotar al jefe termina la partida; sin
+ * vidas, termina al volver al pueblo.
  */
 function settle(state: GameState, data: GameData, combat: CombatState): GameState {
   const run = endCombat(state.run as RunState, combat);
@@ -730,6 +827,7 @@ function settle(state: GameState, data: GameData, combat: CombatState): GameStat
   const chain = defeated ? state.chain + 1 : state.chain;
   const secret = state.secretQuest ? findSecretQuest(data, state.secretQuest) : null;
   const questKill = defeated && !boss && secret?.monsterType === monster.type;
+  const lives = state.lives - (combat.ko ? 1 : 0);
   const next: GameState = {
     ...state,
     phase: defeated && boss ? 'over' : 'aftermath',
@@ -745,6 +843,8 @@ function settle(state: GameState, data: GameData, combat: CombatState): GameStat
     runHuntPoints: state.runHuntPoints + (defeated ? chain * data.config.scoring.chainStep : 0),
     runQuestKills: state.runQuestKills + (questKill ? 1 : 0),
     bossDefeated: state.bossDefeated || (defeated && boss),
+    lives,
+    result: defeated && boss ? 'victory' : lives <= 0 ? 'lives' : state.result,
     defeatedTypes: defeated && !boss ? [...state.defeatedTypes, monster.type] : state.defeatedTypes,
     kos: state.kos + (combat.ko ? 1 : 0),
     fights: state.fights + 1,
@@ -770,27 +870,21 @@ function fight(state: GameState, data: GameData, monster: Monster, rng: SeededRn
     ...state,
     rngState: rng.currentState,
     phase: 'combat',
-    trail: null,
     combat,
   };
   // Los blancos que quedaron en la reserva pueden dejarte KO al lanzar
   return combat.status === 'resolved' ? settle(next, data, combat) : next;
 }
 
-/** Sigue el rastro elegido: el monstruo se revela y empieza el combate. */
-function follow(state: GameState, data: GameData, index: number): GameState {
-  const run = state.run as RunState;
-  if (!canHunt(run)) fail('La expedición terminó: vuelve al pueblo');
-  const id = state.trail?.[index];
-  if (id === undefined) fail(`No hay rastro ${index}`);
-  return fight(state, data, findMonster(data, id), new SeededRng(state.rngState));
-}
-
-/** RF-16: Entra a la guarida de Pieous Assassin; sus espacios son aleatorios cada vez. */
-function challengeBoss(state: GameState, data: GameData): GameState {
-  if (!bossAvailable(state, data)) fail('La guarida del jefe aún no está disponible');
+/**
+ * Va al nodo elegido del mapa: el monstruo se revela y empieza el combate. El nodo final es la
+ * guarida de Pieous Assassin (RF-16), con espacios aleatorios cada vez.
+ */
+function follow(state: GameState, data: GameData, nodeId: string): GameState {
+  if (!reachableNodes(state).includes(nodeId)) fail(`No hay camino al nodo ${nodeId}`);
   const rng = new SeededRng(state.rngState);
-  return fight(state, data, makeBoss(data, rng), rng);
+  const monster = nodeId === BOSS_NODE ? makeBoss(data, rng) : nodeMonster(state, data, nodeId);
+  return fight({ ...state, position: nodeId }, data, monster, rng);
 }
 
 function keep(state: GameState, discardIndex: number | null): GameState {
@@ -807,23 +901,40 @@ function keep(state: GameState, discardIndex: number | null): GameState {
   };
 }
 
-/** Siguiente encuentro de la misma expedición. */
-function next(state: GameState, data: GameData): GameState {
+/** Seguir por el mapa en la misma expedición. */
+function next(state: GameState): GameState {
   const run = state.run as RunState;
+  if (state.result !== null) fail('La partida terminó: vuelve al pueblo para ver el puntaje');
   if (!canHunt(run)) fail('La expedición terminó: vuelve al pueblo');
-  const rng = new SeededRng(state.rngState);
-  const trail = newTrail(data, rng);
-  return { ...state, rngState: rng.currentState, phase: 'trail', combat: null, trail };
+  if (reachableNodes(state).length === 0) fail('Llegaste al final del mapa: vuelve al pueblo');
+  return { ...state, phase: 'trail', combat: null };
 }
 
 /**
  * Volver al pueblo termina el run (se guarda si fue el mejor). Se recuperan los dados y se
  * retiran los blancos. El HPie no se recupera solo: hay que descansar (D-21), salvo tras un
  * KO, que lo recupera todo (manual p. 11). La misión más antigua del tablero se retira y
- * llega una nueva (feedback del cliente, 2026-11-03).
+ * llega una nueva (feedback del cliente, 2026-11-03). Aquí se decide el game over de V1: sin
+ * vidas, o con Pieland en 0 tras su cuenta regresiva → puntaje.
  */
 function goToTown(state: GameState, data: GameData): GameState {
   const closed = closeRun(state, data);
+  if (state.result !== null) {
+    return { ...closed, phase: 'over', run: null, combat: null, map: null, position: null };
+  }
+  const pieland = countDown(state.pieland, data.config.pieland.countdown);
+  if (pieland.hp <= 0) {
+    return {
+      ...closed,
+      phase: 'over',
+      result: 'pieland',
+      pieland,
+      run: null,
+      combat: null,
+      map: null,
+      position: null,
+    };
+  }
   const oldest = oldestQuest(closed);
   const rotated = oldest
     ? replaceQuest(
@@ -837,8 +948,10 @@ function goToTown(state: GameState, data: GameData): GameState {
     phase: 'town',
     run: null,
     hp: state.run?.endedBy === 'ko' ? state.maxHp : state.hp,
+    pieland,
     combat: null,
-    trail: null,
+    map: null,
+    position: null,
     townActions: data.config.town.actionsPerVisit,
     townUsed: [],
     townVisits: state.townVisits + 1,
@@ -848,7 +961,14 @@ function goToTown(state: GameState, data: GameData): GameState {
 /** Dejar de jugar: el run a medias cuenta como terminado y queda el mejor puntaje. */
 function finish(state: GameState, data: GameData): GameState {
   if (state.offer) fail('Primero elige una de las cartas ofrecidas');
-  return { ...closeRun(state, data), phase: 'over', run: null, trail: null };
+  return {
+    ...closeRun(state, data),
+    phase: 'over',
+    result: 'abandon',
+    run: null,
+    map: null,
+    position: null,
+  };
 }
 
 /**
@@ -898,10 +1018,7 @@ export function applyGameAction(state: GameState, action: GameAction, data: Game
       return leave(state, data);
     case 'follow':
       requirePhase(state, 'trail');
-      return follow(state, data, action.index);
-    case 'boss':
-      requirePhase(state, 'trail');
-      return challengeBoss(state, data);
+      return follow(state, data, action.node);
     case 'combat': {
       requirePhase(state, 'combat');
       const combat = applyAction(state.combat as CombatState, action.action, data.dice);
@@ -911,7 +1028,7 @@ export function applyGameAction(state: GameState, action: GameAction, data: Game
       return keep(state, action.discard);
     case 'continue':
       requirePhase(state, 'aftermath');
-      return next(state, data);
+      return next(state);
     case 'return':
       requirePhase(state, 'trail', 'aftermath');
       return goToTown(state, data);

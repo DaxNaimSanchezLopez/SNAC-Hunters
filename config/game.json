@@ -7,6 +7,16 @@
     "startingTrophies": 1,
     "startingItems": 1
   },
+  "lives": 3,
+  "pieland": {
+    "hp": 5,
+    "countdown": [6, 5, 4, 3, 2]
+  },
+  "map": {
+    "columns": 3,
+    "minNodes": 2,
+    "maxNodes": 3
+  },
   "town": {
     "actionsPerVisit": 2,
     "questSlots": 3,
@@ -19,8 +29,7 @@
     "id": "pieous",
     "name": "Pieous Assassin",
     "pun": "The last slice is always the deadliest",
-    "slots": 6,
-    "fromRun": 2
+    "slots": 6
   },
   "tutorial": {
     "monsterId": "garden-salaad",

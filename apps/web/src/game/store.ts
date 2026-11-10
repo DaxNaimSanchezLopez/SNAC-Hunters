@@ -54,6 +54,8 @@ export interface FinishedGame {
   readonly score: number;
   /** Derrotó al jefe: en el ranking va por encima de cualquiera que no (feedback 2026-11-03). */
   readonly bossDefeated?: boolean;
+  /** V1: cómo terminó (victoria, sin vidas, cayó Pieland o la dejó). */
+  readonly result?: GameState['result'];
   readonly kos: number;
   readonly runs: number;
   readonly defeated: number;
@@ -270,6 +272,7 @@ export const useGame = create<GameStore>()(
           gameId: game.seed,
           score: finalScore(game, gameData),
           bossDefeated: game.bossDefeated,
+          result: game.result,
           kos: game.kos,
           runs: game.runs,
           defeated: game.outcomes.defeat ?? 0,

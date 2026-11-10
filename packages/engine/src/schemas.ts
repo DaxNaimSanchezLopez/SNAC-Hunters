@@ -96,14 +96,27 @@ export const GameConfigSchema = z
       monsterId: z.string().min(1),
       seed: z.string().min(1),
     }),
-    // RF-16: Pieous Assassin, el jefe de Sherbert Forest ("Any type, Random symbols")
+    // V1 (roguelite): vidas, Pieland amenazada y mapa FTL (feedback 2026-10-20, secciones 7–9)
+    lives: z.number().int().min(1),
+    pieland: z.object({
+      hp: z.number().int().min(1),
+      // Expediciones sin vencer al jefe antes de que Pieland pierda 1 PV; la última se repite
+      countdown: z.array(z.number().int().min(1)).min(1),
+    }),
+    map: z
+      .object({
+        columns: z.number().int().min(1),
+        minNodes: z.number().int().min(1),
+        maxNodes: z.number().int().min(1),
+      })
+      .refine((m) => m.minNodes <= m.maxNodes, { message: 'minNodes no puede superar maxNodes' }),
+    // RF-16: Pieous Assassin, el jefe de Sherbert Forest ("Any type, Random symbols"), al final
+    // del mapa
     boss: z.object({
       id: z.string().min(1),
       name: z.string().min(1),
       pun: z.string(),
       slots: z.number().int().min(1),
-      // Desde qué expedición aparece su guarida en el sendero
-      fromRun: z.number().int().min(1),
     }),
     features: z.record(z.string(), z.boolean()),
     // Puntaje (feedback del cliente, 2026-11-03, sección 3)
@@ -196,6 +209,7 @@ export const GuideSchema = z
             'skillUnlocked',
             'whiteWild',
             'bossReady',
+            'lifeLost',
             'boss',
             'defeatedNow',
           ]),
@@ -222,6 +236,8 @@ export const GuideSchema = z
           'hp',
           'quests',
           'boss',
+          'map',
+          'threat',
           'score',
         ])
         .optional(),

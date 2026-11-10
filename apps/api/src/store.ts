@@ -1,5 +1,5 @@
 // Puerto de persistencia: la lógica HTTP no sabe si guarda en DynamoDB o en memoria.
-import type { GamePhase, Outcome } from '@snac-hunters/engine';
+import type { GamePhase, GameResult, Outcome } from '@snac-hunters/engine';
 
 /** Resumen de una partida re-simulada por el servidor (se actualiza en cada envío). */
 export interface GameRecord {
@@ -9,6 +9,8 @@ export interface GameRecord {
   readonly score: number;
   /** El ranking pone primero a quien derrotó al jefe (feedback del cliente, 2026-11-03). */
   readonly bossDefeated: boolean;
+  /** V1: victoria, sin vidas, cayó Pieland o abandonada (null = en curso). */
+  readonly result: GameResult | null;
   readonly kos: number;
   readonly runs: number;
   readonly fights: number;

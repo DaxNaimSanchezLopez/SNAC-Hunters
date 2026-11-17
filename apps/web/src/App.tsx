@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { DevPanel } from './components/DevPanel';
 import { GuideCoach } from './components/GuideCoach';
 import { KeepTrophy } from './components/KeepTrophy';
+import { showsStartGear, StartGear } from './components/StartGear';
 import { flush, track } from './game/analytics';
 import { useGame } from './game/store';
 import { useT } from './game/useT';
@@ -40,6 +41,9 @@ export function App() {
   // El fondo cubre toda la ventana (en escritorio la columna del juego es angosta)
   const phase = useGame((s) => s.game?.phase);
   const inTown = screen === 'game' && phase === 'town';
+  const game = useGame((s) => s.game);
+  const startSeen = useGame((s) => s.startSeen);
+  const startGear = screen === 'game' && game !== null && showsStartGear(game, startSeen);
 
   useEffect(() => {
     document.documentElement.lang = lang;
@@ -71,7 +75,8 @@ export function App() {
           : 'linear-gradient(rgba(20,10,0,.25),rgba(20,10,0,.55)),url(/assets/bg/sherbert-forest.png)',
       }}
     >
-      <main className="mx-auto max-w-md">
+      {/* Feedback 2026-11-11: en computadora la interfaz usa más ancho */}
+      <main className="mx-auto max-w-md md:max-w-3xl">
         {!hydrated ? (
           <p className="grid min-h-[100dvh] place-items-center font-comic text-2xl text-white">
             {t('loading')}
@@ -87,7 +92,9 @@ export function App() {
       </main>
 
       {screen === 'game' && <KeepTrophy />}
-      {screen === 'game' && <GuideCoach />}
+      {/* El equipo inicial va antes que la guía (feedback 2026-11-11) */}
+      <AnimatePresence>{startGear && game && <StartGear game={game} />}</AnimatePresence>
+      {screen === 'game' && !startGear && <GuideCoach />}
 
       <AnimatePresence>
         {toast && (

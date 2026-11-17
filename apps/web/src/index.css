@@ -8,6 +8,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Feedback 2026-11-11: que el modo oscuro del sistema no recoloree el juego (los símbolos
+   negros de los dados deben verse siempre negros). Además, ninguna imagen usa filtros CSS:
+   los navegadores con oscuro forzado las dejaban en blanco. */
+:root {
+  color-scheme: only light;
+}
+
 html,
 body {
   -webkit-tap-highlight-color: transparent;

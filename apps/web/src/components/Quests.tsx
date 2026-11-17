@@ -1,6 +1,6 @@
-import { oldestQuest } from '@snac-hunters/engine';
-import type { GameState, QuestCost, QuestSlot } from '@snac-hunters/engine';
-import { gameConfig, getQuest, getSecretQuest } from '../game/config';
+import { oldestQuests } from '@snac-hunters/engine';
+import type { GameState, QuestCost, QuestSlot, TownQuest } from '@snac-hunters/engine';
+import { gameConfig, gameData, getQuest, getSecretQuest } from '../game/config';
 import { costName, typeName } from '../game/i18n';
 import { useGame } from '../game/store';
 import { useT } from '../game/useT';
@@ -106,20 +106,26 @@ export function QuestCard({
   );
 }
 
-/** Tablero de misiones a la vista (la más antigua lleva el aviso). */
+/**
+ * Tablero de misiones a la vista (la más antigua de cada tipo lleva el aviso). Con `kind`, solo
+ * las de ese tipo (feedback 2026-11-11: 3 de aldeano y 3 del Huntmaster).
+ */
 export function QuestBoard({
   game,
+  kind,
   action,
 }: {
   game: GameState;
+  kind?: TownQuest['kind'];
   /** Botones para cumplir la misión (solo en el pueblo). */
   action?: (slot: QuestSlot) => React.ReactNode;
 }) {
-  const oldest = oldestQuest(game);
+  const oldest = oldestQuests(game, gameData);
+  const slots = kind ? game.quests.filter((q) => getQuest(q.id)?.kind === kind) : game.quests;
   return (
     <div className="grid gap-2">
-      {game.quests.map((slot) => (
-        <QuestCard key={slot.id} slot={slot} oldest={slot.id === oldest}>
+      {slots.map((slot) => (
+        <QuestCard key={slot.id} slot={slot} oldest={oldest.includes(slot.id)}>
           {action?.(slot)}
         </QuestCard>
       ))}
@@ -167,8 +173,10 @@ export function QuestsModal({ game, onClose }: { game: GameState; onClose: () =>
         </section>
       )}
       <section className="mt-3">
-        <h4 className="font-comic text-lg text-bark">{t('quests.board')}</h4>
-        <QuestBoard game={game} />
+        <h4 className="font-comic text-lg text-bark">{t('town.villager')}</h4>
+        <QuestBoard game={game} kind="villager" />
+        <h4 className="mt-3 font-comic text-lg text-bark">{t('town.huntmaster')}</h4>
+        <QuestBoard game={game} kind="huntmaster" />
       </section>
       <div className="mt-3">
         <CompletedQuests game={game} />

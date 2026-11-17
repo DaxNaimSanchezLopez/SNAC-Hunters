@@ -84,13 +84,13 @@ export const GameConfigSchema = z
     // Fase en el pueblo (manual p. 14–16): acciones por visita y cartas por misión
     town: z.object({
       actionsPerVisit: z.number().int().min(1),
-      // Misiones a la vista en el tablero (feedback 2026-11-03: siempre 3)
+      // Misiones a la vista de cada tipo (feedback 2026-11-11: 3 de aldeano y 3 del Huntmaster)
       questSlots: z.number().int().min(1),
       offerSize: z.number().int().min(1),
       maxItems: z.number().int().min(1),
       maxSkills: z.number().int().min(1),
       // Partida guiada: opciones del pueblo en la primera visita (se suma una por regreso)
-      guidedStartOptions: z.number().int().min(1).max(3).default(2),
+      guidedStartOptions: z.number().int().min(1).max(7).default(2),
     }),
     tutorial: z.object({
       monsterId: z.string().min(1),
@@ -100,8 +100,8 @@ export const GameConfigSchema = z
     lives: z.number().int().min(1),
     pieland: z.object({
       hp: z.number().int().min(1),
-      // Expediciones sin vencer al jefe antes de que Pieland pierda 1 PV; la última se repite
-      countdown: z.array(z.number().int().min(1)).min(1),
+      // Feedback 2026-11-11: Pieland pierde 1 PV al volver al pueblo tras estos runs
+      damageAfterRuns: z.array(z.number().int().min(1)).min(1),
     }),
     map: z
       .object({
@@ -129,9 +129,12 @@ export const GameConfigSchema = z
       // Cartas de puntos (Piebix Cube, Varied Samples, Well Traveled): por cada tipo, máx. 4
       pointsCard: z.number().int().min(0),
       pointsCardMax: z.number().int().min(0),
-      // Multiplicador al derrotar al jefe según las expediciones usadas; con más, slowMultiplier
+      // Bono por cada vida que le quede al cazador al derrotar al jefe (feedback 2026-11-11)
+      life: z.number().int().min(0).default(10),
+      // Multiplicador al derrotar al jefe según los PV que le quedan a Pieland; con menos,
+      // slowMultiplier (feedback 2026-11-11)
       bossMultiplier: z
-        .array(z.object({ maxRuns: z.number().int().min(1), multiplier: z.number().min(1) }))
+        .array(z.object({ minPielandHp: z.number().int().min(0), multiplier: z.number().min(1) }))
         .min(1),
       slowMultiplier: z.number().min(1),
     }),
@@ -212,6 +215,7 @@ export const GuideSchema = z
             'lifeLost',
             'boss',
             'defeatedNow',
+            'spacesUnlocked',
           ]),
         )
         .default([]),

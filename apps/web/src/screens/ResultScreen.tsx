@@ -41,7 +41,7 @@ function OutcomeCard({ combat, children }: { combat: CombatState; children?: Rea
       )}
       <MonsterPortrait
         monster={combat.monster}
-        className={`mx-auto my-3 h-32 ${outcome === 'defeat' ? 'grayscale' : ''}`}
+        className={`mx-auto my-3 h-32 ${outcome === 'defeat' ? 'opacity-60' : ''}`}
       />
       {combat.trophy && (
         <div className="flex items-center justify-center gap-3">
@@ -97,7 +97,12 @@ export function ResultScreen() {
           )}
         </div>
         <p data-guide-target="status" className="mt-2 text-sm text-bark/80">
-          {t('result.status', { hp: game.hp, max: game.maxHp, dice: run.pool.length })}
+          {/* Feedback 2026-11-11: los blancos no cuentan como dados disponibles */}
+          {t('result.status', {
+            hp: game.hp,
+            max: game.maxHp,
+            dice: run.pool.filter((k) => k !== 'white').length,
+          })}
         </p>
         {ended && run.endedBy !== 'town' && (
           <p className="mt-2 rounded-xl border-2 border-black bg-orange-200 px-3 py-2 text-sm font-bold">

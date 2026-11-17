@@ -10,10 +10,10 @@
   "lives": 3,
   "pieland": {
     "hp": 5,
-    "countdown": [6, 5, 4, 3, 2]
+    "damageAfterRuns": [4, 6, 8, 10, 12]
   },
   "map": {
-    "columns": 3,
+    "columns": 4,
     "minNodes": 2,
     "maxNodes": 3
   },
@@ -52,18 +52,19 @@
     "pointsCardMax": 4,
     "bossMultiplier": [
       {
-        "maxRuns": 4,
+        "minPielandHp": 5,
         "multiplier": 2
       },
       {
-        "maxRuns": 5,
+        "minPielandHp": 4,
         "multiplier": 1.75
       },
       {
-        "maxRuns": 6,
+        "minPielandHp": 3,
         "multiplier": 1.5
       }
     ],
-    "slowMultiplier": 1.25
+    "slowMultiplier": 1.25,
+    "life": 10
   }
 }

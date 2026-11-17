@@ -168,6 +168,7 @@ export const QUESTS: readonly TownQuest[] = [
   { id: 'h-two', kind: 'huntmaster', name: questName, cost: ['Horn', 'Wing'] },
   { id: 'h-hearts', kind: 'huntmaster', name: questName, cost: ['Claw', 'heart', 'heart'] },
   { id: 'v-wing', kind: 'villager', name: questName, cost: ['Wing', 'Wing'] },
+  { id: 'h-claw', kind: 'huntmaster', name: questName, cost: ['Claw', 'Claw'] },
 ];
 
 export function ability(id: string): Ability {
@@ -188,14 +189,14 @@ export const CONFIG: GameConfig = {
   },
   town: {
     actionsPerVisit: 2,
-    questSlots: 3,
+    questSlots: 2,
     offerSize: 3,
     maxItems: 3,
     maxSkills: 3,
     guidedStartOptions: 2,
   },
   lives: 3,
-  pieland: { hp: 5, countdown: [6, 5, 4, 3, 2] },
+  pieland: { hp: 5, damageAfterRuns: [4, 6, 8, 10, 12] },
   map: { columns: 3, minNodes: 2, maxNodes: 3 },
   boss: { id: 'pieous', name: 'Pieous Assassin', pun: 'Pun', slots: 6 },
   tutorial: { monsterId: 'garden-salaad', seed: 'tutorial' },
@@ -207,10 +208,11 @@ export const CONFIG: GameConfig = {
     hp: 10,
     pointsCard: 10,
     pointsCardMax: 4,
+    life: 10,
     bossMultiplier: [
-      { maxRuns: 4, multiplier: 2 },
-      { maxRuns: 5, multiplier: 1.75 },
-      { maxRuns: 6, multiplier: 1.5 },
+      { minPielandHp: 5, multiplier: 2 },
+      { minPielandHp: 4, multiplier: 1.75 },
+      { minPielandHp: 3, multiplier: 1.5 },
     ],
     slowMultiplier: 1.25,
   },

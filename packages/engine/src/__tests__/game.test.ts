@@ -10,7 +10,8 @@ import {
   canLeaveTown,
   findQuest,
   newGame,
-  oldestQuest,
+  oldestQuests,
+  runsUntilPielandHit,
   payableOptions,
   reachableNodes,
   readyAbilities,
@@ -179,7 +180,7 @@ describe('nueva partida', () => {
     expect(g.run).toMatchObject({ hp: 4, pool: ['red', 'red', 'red', 'red', 'green'], fights: 0 });
     expect(g.map?.columns).toBe(CONFIG.map.columns);
     expect(reachableNodes(g).length).toBeGreaterThanOrEqual(2);
-    expect(g).toMatchObject({ lives: 3, pieland: { hp: 5, stage: 0, left: 6 }, result: null });
+    expect(g).toMatchObject({ lives: 3, pieland: { hp: 5 }, result: null });
     expect(() => applyGameAction(g, { type: 'rest' }, DATA)).toThrow(/fase/);
     expect(g.trophies).toHaveLength(1);
     expect(g.items).toHaveLength(1);
@@ -187,13 +188,13 @@ describe('nueva partida', () => {
     expect(DATA.abilities.find((a) => a.id === g.items[0]?.id)?.kind).toBe('item');
   });
 
-  it('el tablero empieza con 3 misiones: al menos una de aldeano y una del Huntmaster', () => {
+  it('el tablero empieza con questSlots misiones de cada tipo (aldeano y Huntmaster)', () => {
     const g = newGame(DATA, 'seed-1');
-    expect(g.quests).toHaveLength(3);
+    expect(g.quests).toHaveLength(4);
     const kinds = g.quests.map((q) => findQuest(DATA, q.id).kind);
-    expect(kinds).toContain('villager');
-    expect(kinds).toContain('huntmaster');
-    expect(g.questDeck).toHaveLength(QUESTS.length - 3);
+    expect(kinds.filter((k) => k === 'villager')).toHaveLength(2);
+    expect(kinds.filter((k) => k === 'huntmaster')).toHaveLength(2);
+    expect(g.questDeck).toHaveLength(QUESTS.length - 4);
     expect([...g.quests.map((q) => q.id), ...g.questDeck].sort()).toEqual(
       QUESTS.map((q) => q.id).sort(),
     );
@@ -256,7 +257,8 @@ describe('pueblo', () => {
     expect(b.offer?.ids).not.toContain('extra-ammo');
     // La misión se retira y otra toma su lugar de inmediato (la más nueva)
     expect(b.completedQuests).toEqual(['v-horn']);
-    expect(b.quests[0]).toEqual({ id: g.questDeck[0], since: 3 });
+    // La sustituye una del mismo tipo
+    expect(b.quests[0]).toEqual({ id: 'v-wing', since: 3 });
     expect(b.quests).toHaveLength(3);
     // Mientras haya cartas ofrecidas no se puede hacer otra cosa
     expect(() => applyGameAction(b, { type: 'leave' }, DATA)).toThrow(/elige una/);
@@ -313,8 +315,11 @@ describe('pueblo', () => {
     expect(canLeaveTown(g, DATA)).toBe(false);
     expect(() => applyGameAction(g, { type: 'leave' }, DATA)).toThrow(/antes de salir/);
     const rested = applyGameAction(g, { type: 'rest' }, DATA);
-    // Ya descansó y no tiene con qué cumplir una misión: puede salir con una acción sin usar
-    expect(canLeaveTown({ ...rested, trophies: [] }, DATA)).toBe(true);
+    // Feedback 2026-11-11: saqueo, alquimista y entrenamiento siempre se pueden elegir
+    expect(canLeaveTown({ ...rested, trophies: [] }, DATA)).toBe(false);
+    // Sin esos espacios (partida guiada al principio) y sin con qué pagar, puede salir
+    const early: GameState = { ...rested, trophies: [], guided: true, townVisits: 1 };
+    expect(canLeaveTown(early, DATA)).toBe(true);
     // Con un trofeo que pide una misión, todavía le queda algo por hacer
     const wing: GameState = { ...rested, trophies: ['Wing'] };
     expect(canLeaveTown(wing, DATA)).toBe(false);
@@ -421,15 +426,15 @@ describe('pueblo', () => {
 });
 
 describe('tablero de misiones', () => {
-  it('al volver al pueblo se retira la misión más antigua y llega una nueva', () => {
+  it('al volver al pueblo se retira la misión más antigua de cada tipo y llegan nuevas', () => {
     const g = run(withState({ ...board('v-horn', 'h-two', 'v-claw') }), [{ type: 'leave' }]);
-    expect(oldestQuest(g)).toBe('v-horn');
+    expect(oldestQuests(g, DATA)).toEqual(['v-horn', 'h-two']);
     const t = applyGameAction(g, { type: 'return' }, DATA);
-    expect(t.quests.map((q) => q.id)).toEqual([g.questDeck[0], 'h-two', 'v-claw']);
-    expect(t.quests[0]?.since).toBe(3);
+    expect(t.quests.map((q) => q.id)).toEqual(['v-wing', 'h-hearts', 'v-claw']);
+    expect(t.quests.map((q) => q.since)).toEqual([3, 4, 2]);
     // La retirada no cuenta como cumplida; la siguiente en irse es la que sigue en antigüedad
     expect(t.completedQuests).toEqual([]);
-    expect(oldestQuest(t)).toBe('h-two');
+    expect(oldestQuests(t, DATA)).toEqual(['v-claw', 'h-hearts']);
   });
 
   it('si el mazo se acaba, se rearma con las misiones que no están en el tablero', () => {
@@ -443,7 +448,7 @@ describe('tablero de misiones', () => {
     const b = applyGameAction(g, { type: 'quest', id: 'v-horn', pay: 'Horn' }, DATA);
     expect(b.quests).toHaveLength(1);
     expect(b.quests[0]?.id).toBe('v-claw');
-    expect(b.questDeck).toEqual(['h-two', 'h-hearts', 'v-wing']);
+    expect(b.questDeck).toEqual(['v-wing']);
   });
 });
 
@@ -666,33 +671,37 @@ describe('puntaje (feedback 2026-11-03)', () => {
 
   it('casos de prueba del cliente (jefe derrotado)', () => {
     const final = (
-      runs: number,
+      pielandHp: number,
       hunt: number,
       kills: number,
       trophies: GameState['trophies'],
       hp: number,
+      lives = 0,
     ) =>
       finalScore(
         withState({
           bossDefeated: true,
-          runs,
+          pieland: { hp: pielandHp },
           runHuntPoints: hunt,
           runQuestKills: kills,
           trophies,
           secretQuest: 'axe-and-claw',
           hp,
+          lives,
         }),
         DATA,
       );
     // A: (450 + 50) × 2.0; B: (280 + 70) × 1.5; C: (360 + 100) × 1.25
-    expect(final(4, 450, 2, ['Horn', 'Tail'], 2)).toBe(1000);
-    expect(final(6, 280, 2, ['Horn', 'Claw'], 3)).toBe(525);
-    expect(final(10, 360, 2, ['Claw', 'Claw'], 6)).toBe(575);
+    expect(final(5, 450, 2, ['Horn', 'Tail'], 2)).toBe(1000);
+    expect(final(3, 280, 2, ['Horn', 'Claw'], 3)).toBe(525);
+    expect(final(2, 360, 2, ['Claw', 'Claw'], 6)).toBe(575);
+    // Feedback 2026-11-11: +10 por vida restante, antes del multiplicador
+    expect(final(4, 100, 0, [], 1, 2)).toBe(Math.floor((100 + 10 + 20) * 1.75));
   });
 
-  it('multiplicador del jefe: 2 / 1.75 / 1.5 y se detiene en 1.25', () => {
-    expect([1, 4, 5, 6, 7, 12].map((r) => bossMultiplier(r, CONFIG))).toEqual([
-      2, 2, 1.75, 1.5, 1.25, 1.25,
+  it('multiplicador del jefe según los PV de Pieland: 2 / 1.75 / 1.5 / 1.25', () => {
+    expect([5, 4, 3, 2, 1, 0].map((hp) => bossMultiplier(hp, CONFIG))).toEqual([
+      2, 1.75, 1.5, 1.25, 1.25, 1.25,
     ]);
   });
 
@@ -770,7 +779,11 @@ describe('jefe', () => {
   });
 
   it('derrotar al jefe termina la partida con el puntaje final', () => {
-    let s = { ...bossRun({ secretQuest: 'axe-and-claw', trophies: ['Claw'] }), runs: 5 };
+    let s = {
+      ...bossRun({ secretQuest: 'axe-and-claw', trophies: ['Claw'] }),
+      runs: 5,
+      pieland: { hp: 4 },
+    };
     // Una columna derrotando y dos estudiando: cadena 1 antes del jefe
     for (const covered of [4, 2, 2]) {
       if (s.phase === 'aftermath') s = applyGameAction(s, { type: 'continue' }, BOSS_ON);
@@ -818,26 +831,18 @@ describe('vidas y Pieland (V1)', () => {
     expect(over.bestRun).not.toBeNull();
   });
 
-  it('cuenta regresiva 6/5/4/3/2: al agotarse, Pieland pierde 1 PV; en 0, fin de la partida', () => {
+  it('Pieland pierde 1 PV al volver tras los runs 4, 6, 8, 10 y 12; en 0, fin de la partida', () => {
     const back = (g: GameState) =>
       run({ ...g, townActions: 0 }, [{ type: 'leave' }, { type: 'return' }]);
     let g = withState({});
-    const seen: [number, number][] = [];
+    expect(runsUntilPielandHit(g, DATA)).toBe(4);
+    const seen: number[] = [];
     for (let i = 0; i < 20 && g.phase === 'town'; i++) {
       g = back(g);
-      seen.push([g.pieland.hp, g.pieland.left]);
+      seen.push(g.pieland.hp);
     }
-    expect(seen.slice(0, 7)).toEqual([
-      [5, 5],
-      [5, 4],
-      [5, 3],
-      [5, 2],
-      [5, 1],
-      [4, 5],
-      [4, 4],
-    ]);
-    // 6 + 5 + 4 + 3 + 2 = 20 expediciones sin derrotar al jefe
-    expect(seen).toHaveLength(20);
+    expect(seen).toEqual([5, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0]);
+    // 12 runs como máximo
     expect(g).toMatchObject({ phase: 'over', result: 'pieland', pieland: { hp: 0 } });
   });
 
@@ -907,6 +912,12 @@ function autoplay(data: GameData, seed: string, choices: readonly number[]): Gam
       else if (villager) act(villager);
       else if (options.rest.available) act({ type: 'rest' });
       else if (huntmaster) act(huntmaster);
+      else if (options.scavenge.available && c % 3 === 0) act({ type: 'scavenge' });
+      else if (options.forge.available && c % 3 === 1) act({ type: 'forge', die: 'blue' });
+      else if (options.alchemist.available && c % 2 === 1) {
+        act({ type: 'alchemist', picks: c % 4 === 1 ? ['hp', 'slot'] : ['trophy', 'slot'] });
+      } else if (options.training.available) act({ type: 'training' });
+      else if (options.scavenge.available) act({ type: 'scavenge' });
       else if (c === 19) act({ type: 'finish' });
       else act({ type: 'leave' });
     } else if (s.phase === 'trail') {
@@ -976,7 +987,7 @@ describe('replayGame (validación en servidor)', () => {
             expect(s.hp).toBeLessThanOrEqual(s.maxHp);
             expect(s.trophies.length).toBeLessThanOrEqual(trophyCapacity(s, DATA));
             expect(s.items.length).toBeLessThanOrEqual(CONFIG.town.maxItems);
-            expect(s.quests).toHaveLength(CONFIG.town.questSlots);
+            expect(s.quests).toHaveLength(CONFIG.town.questSlots * 2);
             expect(finalScore(s, DATA)).toBeGreaterThanOrEqual(0);
           }
           expect(replayGame(DATA, seed, actions)).toEqual(s);

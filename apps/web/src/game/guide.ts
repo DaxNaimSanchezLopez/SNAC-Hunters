@@ -11,7 +11,9 @@ import {
   isWhiteWild,
   loadGuide,
   reachableNodes,
+  townOptions,
 } from '@snac-hunters/engine';
+import { gameData } from './config';
 import type { GameAction, GameState, GuideLesson } from '@snac-hunters/engine';
 import rawGuide from '@snac-hunters/config/guide.json';
 
@@ -48,6 +50,8 @@ const CONDITIONS: Record<Condition, (g: GameState) => boolean> = {
   lifeLost: (g) => g.combat?.ko === true,
   boss: (g) => g.combat?.monster.boss === true,
   defeatedNow: (g) => g.combat?.outcome === 'defeat',
+  // Feedback 2026-11-11: espacios del tablero (saqueo, alquimista, entrenamiento, forja)
+  spacesUnlocked: (g) => townOptions(g, gameData).scavenge.unlocked,
 };
 
 /** Primera lección no vista cuya fase y condiciones se cumplen ahora mismo. */

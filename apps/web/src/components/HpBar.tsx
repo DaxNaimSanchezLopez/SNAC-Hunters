@@ -15,7 +15,6 @@ export function HpBar({ hp, maxHp, glow = false }: { hp: number; maxHp: number; 
           animate={{
             opacity: i < hp ? 1 : 0.2,
             scale: i < hp ? 1 : 0.8,
-            filter: i < hp ? 'none' : 'grayscale(1)',
           }}
           className="h-5 w-5 object-contain"
         />

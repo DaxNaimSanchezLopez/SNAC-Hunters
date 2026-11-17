@@ -44,6 +44,7 @@ describe('persistencia de la partida', () => {
       'lang',
       'langChosen',
       'saved',
+      'startSeen',
       'topScores',
       'tutorialDone',
     ]);

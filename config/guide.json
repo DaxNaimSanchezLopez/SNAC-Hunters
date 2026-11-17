@@ -51,11 +51,11 @@
     "highlight": "threat",
     "es": {
       "title": "Vidas y Pieland",
-      "text": "Tienes 3 VIDAS: cada KO cuesta una, y sin vidas la partida termina. Además Pieland está amenazada: cada expedición que termina sin derrotar al jefe acerca su cuenta regresiva. Cuando llega a 0, Pieland pierde 1 PV; si pierde los 5, la partida termina."
+      "text": "Tienes 3 VIDAS: cada KO cuesta una, y sin vidas la partida termina. Además Pieland está amenazada: empieza con 5 PV y pierde 1 al volver al pueblo después de los runs 4, 6, 8, 10 y 12. Si llega a 0, la partida termina. Arriba ves cuántos runs faltan."
     },
     "en": {
       "title": "Lives and Pieland",
-      "text": "You have 3 LIVES: each KO costs one, and with none left the game is over. Pieland is also under threat: every run that ends without defeating the boss moves its countdown forward. When it hits 0, Pieland loses 1 HP; if it loses all 5, the game is over."
+      "text": "You have 3 LIVES: each KO costs one, and with none left the game is over. Pieland is also under threat: it starts with 5 HP and loses 1 when you return to town after runs 4, 6, 8, 10 and 12. If it hits 0, the game is over. The bar at the top shows how many runs are left."
     }
   },
   {
@@ -94,11 +94,11 @@
     "highlight": "boss",
     "es": {
       "title": "La guarida del jefe",
-      "text": "El siguiente paso es la guarida de PIEOUS ASSASSIN. Tiene 6 espacios con símbolos al azar: hay que cubrirlos TODOS para derrotarlo (no se le estudia, y las cartas de \"tres iguales\" no sirven). Derrotarlo termina la partida: entre menos expediciones te tome, más se multiplica tu puntaje. Si no estás listo, vuelve al pueblo."
+      "text": "El siguiente paso es la guarida de PIEOUS ASSASSIN. Tiene 6 espacios con símbolos al azar: hay que cubrirlos TODOS para derrotarlo (no se le estudia, y las cartas de \"tres iguales\" no sirven). Derrotarlo termina la partida: entre más PV le queden a Pieland, más se multiplica tu puntaje. Si no estás listo, vuelve al pueblo."
     },
     "en": {
       "title": "The boss's lair",
-      "text": "The next step is PIEOUS ASSASSIN's lair. It has 6 random symbol spaces: you must fill ALL of them to defeat it (it can't be studied, and \"three of a kind\" cards don't work). Defeating it ends the game: the fewer runs it takes, the bigger your score multiplier. If you're not ready, head back to town."
+      "text": "The next step is PIEOUS ASSASSIN's lair. It has 6 random symbol spaces: you must fill ALL of them to defeat it (it can't be studied, and \"three of a kind\" cards don't work). Defeating it ends the game: the more HP Pieland has left, the bigger your score multiplier. If you're not ready, head back to town."
     }
   },
   {
@@ -123,11 +123,11 @@
     "highlight": "monster",
     "es": {
       "title": "Espacio de daño",
-      "text": "Este SNAC tiene un espacio de daño (marcado en rojo). Al resolver cuenta como cubierto, pero te hace 1 de daño. Si pones ahí un CORAZÓN de un dado rojo, anulas ese daño. Así, con sus otros 3 símbolos ya puedes DERROTARLO."
+      "text": "Este SNAC tiene un espacio de daño (marcado en rojo). Es OPCIONAL: puedes pagarlo con 1 HPie para contarlo como cubierto, o no usarlo. Un CORAZÓN de un dado rojo lo cubre sin daño. Así, con un solo dado puedes HUIR sin daño o ESTUDIAR pagando 1 HPie; con dos dados estudias sin daño."
     },
     "en": {
       "title": "Damage space",
-      "text": "This SNAC has a damage space (marked in red). When you resolve it counts as filled, but it deals you 1 damage. Put a HEART from a red die there to cancel that damage. So with its other 3 symbols you can already DEFEAT it."
+      "text": "This SNAC has a damage space (marked in red). It's OPTIONAL: pay 1 HP to count it as filled, or leave it. A HEART from a red die covers it with no damage. So with one die you can FLEE with no damage or STUDY paying 1 HP; with two dice you study with no damage."
     }
   },
   {
@@ -210,11 +210,11 @@
     "highlight": "resolve",
     "es": {
       "title": "Cómo termina la caza",
-      "text": "El botón de abajo dice qué pasará: todos los espacios = DERROTAR (trofeo y puntos), 2 o 3 = ESTUDIAR (trofeo, sin puntos), 1 = HUIR (vuelves al pueblo). El daño de un SNAC cuenta como cubierto, pero te quita 1 corazón al resolver. Si el botón se pone ROJO, esa decisión te dejará KO."
+      "text": "El botón de abajo dice qué pasará: todos los espacios = DERROTAR (trofeo y puntos), 2 o 3 = ESTUDIAR (trofeo, sin puntos), 1 = HUIR (vuelves al pueblo). Si el SNAC tiene espacio de daño, al resolver eliges si lo pagas con HPie o no. Si el botón se pone ROJO, esa decisión te dejará KO."
     },
     "en": {
       "title": "How a hunt ends",
-      "text": "The button below shows what will happen: every space = DEFEAT (trophy and points), 2 or 3 = STUDY (trophy, no points), 1 = FLEE (back to town). A SNAC's damage space counts as filled, but costs you 1 heart when you resolve. If the button turns RED, that decision will get you KO'd."
+      "text": "The button below shows what will happen: every space = DEFEAT (trophy and points), 2 or 3 = STUDY (trophy, no points), 1 = FLEE (back to town). If the SNAC has a damage space, when you resolve you choose whether to pay it with HP. If the button turns RED, that decision will get you KO'd."
     }
   },
   {
@@ -285,11 +285,11 @@
     "highlight": "abilities",
     "es": {
       "title": "Usa tus cartas",
-      "text": "Selecciona los dados o trofeos que pide la carta (el comodín también sirve) y toca la carta. Por ejemplo, 1 → 2 convierte un símbolo en dos. Cada carta se usa una vez por SNAC. Puedes deshacerla tocándola otra vez, pero solo hasta que vuelvas a relanzar."
+      "text": "Selecciona los dados o trofeos que pide la carta (el comodín también sirve) y toca la carta. Por ejemplo, 1 → 2 convierte un símbolo en dos. Cada carta se usa una vez por SNAC; las que no puedes usar ahora se ven en gris. Puedes deshacerla tocándola otra vez, pero solo hasta que vuelvas a relanzar. AUTO usa primero los comodines dorados y blancos."
     },
     "en": {
       "title": "Use your cards",
-      "text": "Select the dice or trophies the card asks for (a wild works too) and tap the card. For example, 1 → 2 turns one symbol into two. Each card is used once per SNAC. You can undo it by tapping it again, but only until you re-roll."
+      "text": "Select the dice or trophies the card asks for (a wild works too) and tap the card. For example, 1 → 2 turns one symbol into two. Each card is used once per SNAC; the ones you can't use right now are greyed out. You can undo it by tapping it again, but only until you re-roll. AUTO uses gold and white wilds first."
     }
   },
   {
@@ -404,11 +404,11 @@
     "highlight": "quests",
     "es": {
       "title": "El tablero de misiones",
-      "text": "Siempre hay 3 misiones. La de ALDEANO pide UNO de los trofeos o corazones que muestra y te da a elegir un OBJETO; la del HUNTMASTER pide TODO lo que muestra y te da una DESTREZA. Los corazones rotos se pagan con HPie. Al cumplir una, llega otra. Cada vez que vuelves al pueblo se retira la más antigua (marcada en naranja): ¡cúmplela antes! Puedes revisarlas con el botón de misiones de arriba."
+      "text": "Hay 3 misiones de ALDEANO y 3 del HUNTMASTER: toca su casa para ver la lista. La de aldeano pide UNO de los trofeos o corazones que muestra y te da a elegir un OBJETO; la del Huntmaster pide TODO lo que muestra y te da una DESTREZA. Los corazones rotos se pagan con HPie. Cada vez que vuelves al pueblo se retira la más antigua de cada casa (marcada en naranja). También las ves con el botón de misiones de arriba."
     },
     "en": {
       "title": "The quest board",
-      "text": "There are always 3 quests. A VILLAGER quest asks for ONE of the trophies or hearts it shows and lets you pick an ITEM; a HUNTMASTER quest asks for EVERYTHING it shows and gives a SKILL. Broken hearts are paid with HP. Complete one and another arrives. Each time you return to town the oldest one (marked in orange) is retired: complete it first! Check them anytime with the quests button at the top."
+      "text": "There are 3 VILLAGER quests and 3 HUNTMASTER quests: tap their house to see the list. A villager quest asks for ONE of the trophies or hearts it shows and lets you pick an ITEM; a Huntmaster quest asks for EVERYTHING it shows and gives a SKILL. Broken hearts are paid with HP. Each time you return to town the oldest quest of each house (marked in orange) is retired. You can also check them with the quests button at the top."
     }
   },
   {
@@ -465,11 +465,11 @@
     "highlight": "actions",
     "es": {
       "title": "¡Nueva opción!",
-      "text": "Se abrieron las MISIONES DEL HUNTMASTER: entrega TODOS los trofeos y corazones que piden y elige una DESTREZA. Las destrezas no se gastan: se pueden usar con cada SNAC. Junta los trofeos que piden mientras cazas."
+      "text": "Se abrieron las MISIONES DEL HUNTMASTER: entrega TODOS los trofeos y corazones que piden y elige una DESTREZA. Las destrezas no se gastan: se pueden usar con cada SNAC. Las que dan un dado especial también te dan un trofeo de su color."
     },
     "en": {
       "title": "New option!",
-      "text": "HUNTMASTER QUESTS are now open: hand in ALL the trophies and hearts they ask for and pick a SKILL. Skills are never spent: you can use them against every SNAC. Collect the trophies they ask for while you hunt."
+      "text": "HUNTMASTER QUESTS are now open: hand in ALL the trophies and hearts they ask for and pick a SKILL. Skills are never spent: you can use them against every SNAC. The ones that give a special die also give you a trophy of its color."
     }
   },
   {
@@ -480,11 +480,26 @@
     "highlight": "hud",
     "es": {
       "title": "Tu puntaje",
-      "text": "Si dejas de jugar, tu puntaje es el de tu MEJOR expedición: sus puntos de cadena más 10 por cada SNAC y cada trofeo de tu misión secreta. Si derrotas al jefe, cuenta esa última expedición, más 10 por cada HPie que te quede, y todo se multiplica: ×2 con 4 expediciones o menos, ×1.75 con 5, ×1.5 con 6 y ×1.25 con más."
+      "text": "Arriba ves tu puntaje ACTUAL (el del run en curso) y el MEJOR. Si dejas de jugar, cuenta tu mejor run: sus puntos de cadena más 10 por cada SNAC y cada trofeo de tu misión secreta. Si derrotas al jefe, cuenta ese run, más 10 por cada HPie y cada vida que te queden, y todo se multiplica según los PV de Pieland: ×2 con 5, ×1.75 con 4, ×1.5 con 3 y ×1.25 con 2 o menos."
     },
     "en": {
       "title": "Your score",
-      "text": "If you stop playing, your score is your BEST run: its chain points plus 10 for each SNAC and trophy of your secret quest. If you defeat the boss, that last run counts, plus 10 per HP you have left, and it all gets multiplied: ×2 with 4 runs or fewer, ×1.75 with 5, ×1.5 with 6 and ×1.25 with more."
+      "text": "At the top you see your CURRENT score (the run in progress) and your BEST. If you stop playing, your best run counts: its chain points plus 10 for each SNAC and trophy of your secret quest. If you defeat the boss, that run counts, plus 10 per HP and per life you have left, and it all gets multiplied by Pieland's HP: ×2 with 5, ×1.75 with 4, ×1.5 with 3 and ×1.25 with 2 or less."
+    }
+  },
+  {
+    "id": "town-spaces",
+    "phase": "town",
+    "when": ["spacesUnlocked"],
+    "advance": "next",
+    "highlight": "actions",
+    "es": {
+      "title": "¡Nueva opción!",
+      "text": "Desde ahora se abre un lugar nuevo del pueblo en cada regreso, como en el tablero del juego de mesa: SAQUEO (+2 trofeos), ALQUIMISTA (elige 2: +1 HPie, +1 trofeo o +1 espacio), ENTRENAMIENTO (+1 dado rojo) y FORJA (cambia un dado rojo por uno de color y gana un trofeo). Siempre tendrás algo útil que hacer con tus 2 acciones."
+    },
+    "en": {
+      "title": "New option!",
+      "text": "From now on a new town spot opens each time you return, just like on the board game: SCAVENGE (+2 trophies), ALCHEMIST (choose 2: +1 HP, +1 trophy or +1 space), TRAINING (+1 red die) and FORGE (swap a red die for a colored one and gain a trophy). You will always have something useful to do with your 2 actions."
     }
   },
   {

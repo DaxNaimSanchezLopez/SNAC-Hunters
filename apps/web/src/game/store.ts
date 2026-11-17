@@ -40,6 +40,7 @@ import {
 import { activeLesson, completesLesson, guide } from './guide';
 import { faceName, kindName, translate } from './i18n';
 import type { Lang, MessageKey, Vars } from './i18n';
+import type { Rejected } from './log';
 import { idbStorage } from './persistence';
 
 export type Screen = 'home' | 'game' | 'tutorial';
@@ -90,6 +91,10 @@ interface GameStore {
   /** Trofeos del inventario seleccionados: uno para colocarlo, o varios para una habilidad. */
   selectedTrophies: number[];
   server: ServerStatus;
+  /** Acciones rechazadas por el engine en esta sesión (para el registro de acciones). */
+  rejected: readonly Rejected[];
+  /** Partida cuyo equipo inicial ya se mostró (feedback 2026-11-11). */
+  startSeen: string | null;
   toast: string | null;
   toastSeq: number;
 
@@ -113,7 +118,10 @@ interface GameStore {
   rerollRest(): void;
   activateAbility(abilityId: string, trophy?: GameSymbol): void;
   undoAbility(abilityId: string): void;
-  resolve(trophy?: GameSymbol): void;
+  /** Resuelve; `damage` = espacios de daño que se pagan con HPie (son opcionales). */
+  resolve(trophy?: GameSymbol, damage?: number): void;
+  /** Cierra la pantalla del equipo inicial. */
+  seeStart(): void;
   goHome(): void;
   resetAll(): void;
   clearToast(): void;
@@ -293,7 +301,18 @@ export const useGame = create<GameStore>()(
         try {
           next = applyGameAction(game, action, gameData);
         } catch (e) {
-          setState({ selected: [], selectedTrophies: [] });
+          setState({
+            selected: [],
+            selectedTrophies: [],
+            rejected: [
+              ...getState().rejected,
+              {
+                after: saved.actions.length,
+                action,
+                message: e instanceof Error ? e.message : String(e),
+              },
+            ],
+          });
           toast(errorText(e));
           return;
         }
@@ -383,6 +402,8 @@ export const useGame = create<GameStore>()(
         selected: [],
         selectedTrophies: [],
         server: { state: 'idle' },
+        rejected: [],
+        startSeen: null,
         toast: null,
         toastSeq: 0,
 
@@ -408,6 +429,7 @@ export const useGame = create<GameStore>()(
             server: { state: 'idle' },
             selected: [],
             selectedTrophies: [],
+            rejected: [],
           });
           void track('game_start', { guided: guideOn });
           if (guideOn) void track('tutorial_start', { mode: 'guided' });
@@ -575,8 +597,12 @@ export const useGame = create<GameStore>()(
           combatDispatch({ type: 'undo', abilityId });
         },
 
-        resolve(trophy) {
-          combatDispatch({ type: 'resolve', trophy });
+        resolve(trophy, damage) {
+          combatDispatch({ type: 'resolve', trophy, ...(damage !== undefined ? { damage } : {}) });
+        },
+
+        seeStart() {
+          setState({ startSeen: getState().saved?.seed ?? null });
         },
 
         goHome() {
@@ -615,6 +641,7 @@ export const useGame = create<GameStore>()(
         topScores: s.topScores,
         guideOn: s.guideOn,
         guideSeen: s.guideSeen,
+        startSeen: s.startSeen,
       }),
       merge: (persisted, current) => {
         const p = (persisted ?? {}) as Partial<GameStore>;
@@ -631,6 +658,7 @@ export const useGame = create<GameStore>()(
           topScores: topOf(Array.isArray(p.topScores) ? p.topScores : history),
           guideOn: game !== null && p.guideOn === true,
           guideSeen: Array.isArray(p.guideSeen) ? p.guideSeen : [],
+          startSeen: typeof p.startSeen === 'string' ? p.startSeen : null,
           saved: game ? (p.saved ?? null) : null,
           game,
           screen: 'home',

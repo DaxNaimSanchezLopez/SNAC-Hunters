@@ -148,8 +148,7 @@
     "effect": {
       "type": "special",
       "die": "purple"
-    },
-    "bonus": "trophySlot"
+    }
   },
   {
     "id": "axe-sharpening",
@@ -158,8 +157,7 @@
     "effect": {
       "type": "special",
       "die": "orange"
-    },
-    "bonus": "trophySlot"
+    }
   },
   {
     "id": "detective-work",
@@ -168,8 +166,7 @@
     "effect": {
       "type": "special",
       "die": "green"
-    },
-    "bonus": "trophySlot"
+    }
   },
   {
     "id": "pierfect-shot",
@@ -178,8 +175,7 @@
     "effect": {
       "type": "special",
       "die": "blue"
-    },
-    "bonus": "trophySlot"
+    }
   },
   {
     "id": "scent-and-sound",

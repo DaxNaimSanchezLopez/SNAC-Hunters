@@ -49,7 +49,15 @@ export type CombatAction =
   /** Un corazón de la reserva cubre el daño pendiente de un dado blanco (D-08). */
   | { readonly type: 'block'; readonly dieId: string; readonly damageId: string }
   | { readonly type: 'unblock'; readonly damageId: string }
-  | { readonly type: 'resolve'; readonly trophy?: GameSymbol };
+  | {
+      readonly type: 'resolve';
+      readonly trophy?: GameSymbol;
+      /**
+       * Espacios de daño del monstruo que se pagan con HPie para contarlos como cubiertos
+       * (feedback 2026-11-11: es opcional). Por defecto, todos los libres.
+       */
+      readonly damage?: number;
+    };
 
 export type CombatEvent =
   | {
@@ -234,11 +242,36 @@ export function pendingDamage(state: CombatState): number {
  */
 export function previewOutcome(state: CombatState): Exclude<Outcome, 'ko'> | null {
   if (coveredSlots(state) === 0) return null;
-  const covered = coveredSlots(state) + pendingDamage(state);
+  return outcomeFor(state, coveredSlots(state) + pendingDamage(state));
+}
+
+function outcomeFor(state: CombatState, covered: number): Exclude<Outcome, 'ko'> {
   if (covered >= state.monster.slots.length) return 'defeat';
   // RF-16: al jefe no se le estudia: o se le derrota o se huye
   if (covered >= 2 && !state.monster.boss) return 'study';
   return 'flee';
+}
+
+/** Una forma de resolver: el resultado y cuántos espacios de daño se pagan con HPie. */
+export interface ResolveOption {
+  readonly outcome: Exclude<Outcome, 'ko'>;
+  readonly damage: number;
+}
+
+/**
+ * Feedback del cliente (2026-11-11): el espacio de daño del monstruo es opcional. Pagarlo con
+ * 1 HPie lo cuenta como cubierto; si no, se resuelve sin él. Con un solo dado en un monstruo
+ * con daño: huir (0 daño) o estudiar (1 daño); con dos dados, estudiar sin daño. Devuelve cada
+ * resultado posible con el menor daño que cuesta, del peor al mejor.
+ */
+export function resolveOptions(state: CombatState): ResolveOption[] {
+  if (state.status !== 'active' || coveredSlots(state) === 0) return [];
+  const options: ResolveOption[] = [];
+  for (let damage = 0; damage <= pendingDamage(state); damage++) {
+    const outcome = outcomeFor(state, coveredSlots(state) + damage);
+    if (!options.some((o) => o.outcome === outcome)) options.push({ outcome, damage });
+  }
+  return options;
 }
 
 /** Slots libres que esta cara podría cubrir — la UI lo usa para resaltar, sin calcular reglas. */
@@ -300,10 +333,16 @@ export function canActivate(state: CombatState, ability: Ability): boolean {
   return pieces.filter((d) => dieActivates(d, ability)).length >= ABILITY_INPUTS[effect.type];
 }
 
+/** Comodín que se pierde al terminar la pelea: dorado/de color (carta) o el del dado blanco. */
+export function isTemporaryWild(die: Pick<Die, 'kind' | 'face'>): boolean {
+  return die.face === 'wild' && (die.kind === 'token' || die.kind === 'white');
+}
+
 /**
- * Llenado automático (feedback del cliente, 2026-10-27): reparte los dados elegidos en los
- * espacios libres del monstruo cubriendo el máximo posible y, a igualdad, gastando menos
- * comodines. Solo planea: la UI aplica el resultado como acciones `assign`.
+ * Llenado automático (feedback del cliente, 2026-10-27 y 2026-11-11): reparte los dados elegidos
+ * en los espacios libres del monstruo cubriendo el máximo posible; a igualdad, usa primero los
+ * comodines temporales (dorados y blancos, que se pierden al terminar) y después gasta los menos
+ * comodines permanentes. Solo planea: la UI aplica el resultado como acciones `assign`.
  */
 export function autoFillPlan(
   state: CombatState,
@@ -315,33 +354,41 @@ export function autoFillPlan(
     state.assignments[i] === null ? [{ slot, i }] : [],
   );
   let best: { dieId: string; slot: number }[] = [];
+  let bestTemp = -1;
   let bestWilds = Infinity;
   const plan: { dieId: string; slot: number }[] = [];
   const used = new Set<string>();
-  // Como mucho 4 espacios: la búsqueda exhaustiva es pequeña
-  function search(k: number, wilds: number): void {
+  // Como mucho 6 espacios (el jefe): la búsqueda exhaustiva es pequeña
+  function search(k: number, temp: number, wilds: number): void {
     const target = free[k];
     if (!target) {
-      if (plan.length > best.length || (plan.length === best.length && wilds < bestWilds)) {
+      const better =
+        plan.length > best.length ||
+        (plan.length === best.length &&
+          (temp > bestTemp || (temp === bestTemp && wilds < bestWilds)));
+      if (better) {
         best = [...plan];
+        bestTemp = temp;
         bestWilds = wilds;
       }
       return;
     }
-    const tried = new Set<Face>();
+    const tried = new Set<string>();
     for (const d of dice) {
-      // Dados con la misma cara son intercambiables: basta probar uno
-      if (used.has(d.id) || tried.has(d.face) || !faceMatchesSlot(d.face, target.slot)) continue;
-      tried.add(d.face);
+      // Dados con la misma cara (y el mismo tipo de comodín) son intercambiables: basta uno
+      const key = `${d.face}:${isTemporaryWild(d)}`;
+      if (used.has(d.id) || tried.has(key) || !faceMatchesSlot(d.face, target.slot)) continue;
+      tried.add(key);
       used.add(d.id);
       plan.push({ dieId: d.id, slot: target.i });
-      search(k + 1, wilds + (d.face === 'wild' ? 1 : 0));
+      const isTemp = isTemporaryWild(d);
+      search(k + 1, temp + (isTemp ? 1 : 0), wilds + (d.face === 'wild' && !isTemp ? 1 : 0));
       plan.pop();
       used.delete(d.id);
     }
-    search(k + 1, wilds);
+    search(k + 1, temp, wilds);
   }
-  search(0, 0);
+  search(0, 0, 0);
   return best;
 }
 
@@ -752,9 +799,19 @@ function undoAbility(state: CombatState, abilityId: string): CombatState {
  * pendiente de los dados blancos (D-08) y cada espacio de daño del monstruo sin corazón
  * (D-07), 1 HPie cada uno; si eso deja KO, solo derrotar conserva los beneficios.
  */
-function resolve(state: CombatState, trophy: GameSymbol | undefined): CombatState {
-  const outcome = previewOutcome(state);
-  if (outcome === null) throw new CombatError('Necesitas al menos un símbolo para resolver');
+function resolve(
+  state: CombatState,
+  trophy: GameSymbol | undefined,
+  paidDamage: number | undefined,
+): CombatState {
+  if (coveredSlots(state) === 0) {
+    throw new CombatError('Necesitas al menos un símbolo para resolver');
+  }
+  const damage = paidDamage ?? pendingDamage(state);
+  if (!Number.isInteger(damage) || damage < 0 || damage > pendingDamage(state)) {
+    throw new CombatError(`No hay ${damage} espacio(s) de daño libres`);
+  }
+  const outcome = outcomeFor(state, coveredSlots(state) + damage);
   let chosen: GameSymbol | null = null;
   if (outcome !== 'flee' && !state.monster.boss) {
     if (trophy === undefined) throw new CombatError('Elige un trofeo');
@@ -764,7 +821,6 @@ function resolve(state: CombatState, trophy: GameSymbol | undefined): CombatStat
     chosen = trophy;
   }
   const paid = takeWhiteDamage(state);
-  const damage = pendingDamage(state);
   const hp = Math.max(0, paid.hp - damage);
   const ko = hp === 0;
   const final: Outcome = ko && outcome !== 'defeat' ? 'ko' : outcome;
@@ -816,10 +872,43 @@ export function applyAction(
     case 'heal':
       return heal(state, action.dieId);
     case 'resolve':
-      return resolve(state, action.trophy);
+      return resolve(state, action.trophy, action.damage);
     default:
       throw new CombatError('Acción desconocida');
   }
+}
+
+/**
+ * ¿Por qué no se puede hacer esta acción? Devuelve el mensaje del engine o null si es válida.
+ * La UI lo usa antes de abrir un paso extra (por ejemplo, elegir el trofeo de "tres iguales")
+ * para no pedirle al jugador una decisión que luego el engine rechazaría.
+ */
+export function actionError(
+  state: CombatState,
+  action: CombatAction,
+  table: DiceTable,
+): string | null {
+  try {
+    applyAction(state, action, table);
+    return null;
+  } catch (e) {
+    if (e instanceof CombatError) return e.message;
+    throw e;
+  }
+}
+
+/**
+ * Cloning Tool en combate (feedback 2026-11-11): recarga un objeto. Si ya se usó con este
+ * monstruo, se puede volver a usar; si estaba gastado desde antes, aparece entre las habilidades.
+ */
+export function rechargeInCombat(state: CombatState, ability: Ability): CombatState {
+  if (state.status !== 'active') throw new CombatError('El combate ya terminó');
+  const listed = state.abilities.some((a) => a.id === ability.id);
+  return {
+    ...state,
+    abilities: listed || !isActive(ability) ? state.abilities : [...state.abilities, ability],
+    usedAbilities: state.usedAbilities.filter((id) => id !== ability.id),
+  };
 }
 
 /**

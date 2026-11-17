@@ -15,7 +15,7 @@ import { useT } from '../game/useT';
 export function OverScreen({ game }: { game: GameState }) {
   const t = useT();
   const { newGame, goHome } = useGame();
-  const { questKill, questTrophy, hp: hpValue } = gameConfig.scoring;
+  const { questKill, questTrophy, hp: hpValue, life: lifeValue } = gameConfig.scoring;
   const final = game.bossDefeated ? scoreBreakdown(game, gameData) : null;
   const best = game.bestRun;
   const parts = final ?? best;
@@ -32,9 +32,17 @@ export function OverScreen({ game }: { game: GameState }) {
           value: questTrophies * questTrophy,
         },
         ...(final ? [{ label: t('over.hp', { n: final.hp }), value: final.hp * hpValue }] : []),
+        ...(final
+          ? [{ label: t('over.lives', { n: final.lives }), value: final.lives * lifeValue }]
+          : []),
         ...(parts.cards > 0 ? [{ label: t('over.cards'), value: parts.cards }] : []),
         ...(final
-          ? [{ label: t('over.multiplier', { runs: game.runs }), value: `×${final.multiplier}` }]
+          ? [
+              {
+                label: t('over.multiplier', { hp: game.pieland.hp }),
+                value: `×${final.multiplier}`,
+              },
+            ]
           : []),
       ]
     : [];
@@ -53,7 +61,7 @@ export function OverScreen({ game }: { game: GameState }) {
               : '/assets/huntmaster-puppet.png'
           }
           alt=""
-          className={`mx-auto h-24 object-contain ${game.bossDefeated ? 'grayscale' : ''}`}
+          className={`mx-auto h-24 object-contain ${game.bossDefeated ? 'opacity-60' : ''}`}
         />
         <h1 className="font-comic text-4xl text-bark">
           {game.bossDefeated ? t('over.victory', { name: gameConfig.boss.name }) : t('over.title')}

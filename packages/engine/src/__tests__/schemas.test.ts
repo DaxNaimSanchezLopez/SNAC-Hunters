@@ -75,7 +75,7 @@ describe('DiceTableSchema / GameConfigSchema', () => {
       maxSkills: 3,
     },
     lives: 3,
-    pieland: { hp: 5, countdown: [6, 5, 4, 3, 2] },
+    pieland: { hp: 5, damageAfterRuns: [4, 6, 8, 10, 12] },
     map: { columns: 3, minNodes: 2, maxNodes: 3 },
     boss: { id: 'pieous', name: 'Pieous Assassin', pun: '', slots: 6 },
     tutorial: { monsterId: 'garden-salaad', seed: 'seed' },
@@ -87,7 +87,7 @@ describe('DiceTableSchema / GameConfigSchema', () => {
       hp: 10,
       pointsCard: 10,
       pointsCardMax: 4,
-      bossMultiplier: [{ maxRuns: 4, multiplier: 2 }],
+      bossMultiplier: [{ minPielandHp: 5, multiplier: 2 }],
       slowMultiplier: 1.25,
     },
   };

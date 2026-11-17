@@ -55,6 +55,9 @@ export {
   availableDice,
   coveredSlots,
   previewOutcome,
+  resolveOptions,
+  actionError,
+  isTemporaryWild,
   validSlotsFor,
   slotsForFace,
   dieActivates,
@@ -82,6 +85,7 @@ export type {
   CombatSetup,
   Outcome,
   ActiveEffect,
+  ResolveOption,
 } from './combat.js';
 
 // RF-12: Expedición (run)
@@ -113,7 +117,10 @@ export {
   findSecretQuest,
   questPayment,
   payableOptions,
-  oldestQuest,
+  oldestQuests,
+  rechargeTargets,
+  runsUntilPielandHit,
+  TOWN_OPTIONS,
   reachableNodes,
   nodeMonster,
   BOSS_NODE,
@@ -135,4 +142,5 @@ export type {
   ScoreBreakdown,
   TownOption,
   TownOptionState,
+  AlchemyPick,
 } from './game.js';

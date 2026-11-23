@@ -24,6 +24,7 @@ import { FaceIcon } from '../components/DieView';
 import { Hud } from '../components/Hud';
 import { Icon } from '../components/Icon';
 import { Modal } from '../components/Modal';
+import { RichText } from '../components/RichText';
 import { CompletedQuests, CostIcon, QuestBoard } from '../components/Quests';
 import { TrophySlot, TrophyToken } from '../components/Trophy';
 import { gameConfig, gameData, getAbility, getQuest } from '../game/config';
@@ -61,7 +62,7 @@ export function TownScreen({ game }: { game: GameState }) {
   const t = useT();
   const act = useGame((s) => s.act);
   const goHome = useGame((s) => s.goHome);
-  const [modal, setModal] = useState<'alchemist' | 'forge' | null>(null);
+  const [modal, setModal] = useState<'alchemist' | 'forge' | 'training' | null>(null);
   const { town } = gameConfig;
   const capacity = trophyCapacity(game, gameData);
   const items = owned(game.items.map((i) => i.id));
@@ -71,6 +72,10 @@ export function TownScreen({ game }: { game: GameState }) {
   const canLeave = canLeaveTown(game, gameData);
   // Cloning Tool cargado: objetos que puede recargar
   const recharge = rechargeTargets(game, gameData);
+  // Entrenamiento: con varios objetos gastados se elige cuál recargar (feedback final)
+  const spentItems = game.items.filter((i) => !i.ready).map((i) => i.id);
+  const train = () =>
+    spentItems.length > 1 ? setModal('training') : act({ type: 'training', item: spentItems[0] });
 
   const sign = (option: TownOption, img: string, onClick?: () => void) => (
     <TownSign
@@ -129,14 +134,15 @@ export function TownScreen({ game }: { game: GameState }) {
           </div>
         </section>
 
-        {/* Partida guiada: solo se muestran las opciones ya desbloqueadas */}
+        {/* Partida guiada: solo se muestran las opciones ya desbloqueadas, en el orden en que se
+            abren (feedback final) */}
         <div data-guide-target="actions" className="grid gap-2 md:grid-cols-2 md:items-start">
           {sign('rest', '/assets/town/rest-scene.png', () => act({ type: 'rest' }))}
           <QuestHouse game={game} kind="villager" status={options.item} />
+          {sign('training', '/assets/town/training-sign.png', train)}
+          {sign('alchemist', '/assets/town/alchemist-sign.png', () => setModal('alchemist'))}
           <QuestHouse game={game} kind="huntmaster" status={options.skill} />
           {sign('scavenge', '/assets/town/scavenge-sign.png', () => act({ type: 'scavenge' }))}
-          {sign('alchemist', '/assets/town/alchemist-sign.png', () => setModal('alchemist'))}
-          {sign('training', '/assets/town/training-sign.png', () => act({ type: 'training' }))}
           {sign('forge', '/assets/town/forge-sign.png', () => setModal('forge'))}
         </div>
 
@@ -189,6 +195,9 @@ export function TownScreen({ game }: { game: GameState }) {
         {game.offer && <Offer game={game} />}
         {modal === 'alchemist' && <AlchemistModal onClose={() => setModal(null)} />}
         {modal === 'forge' && <ForgeModal onClose={() => setModal(null)} />}
+        {modal === 'training' && (
+          <TrainingModal items={spentItems} onClose={() => setModal(null)} />
+        )}
       </AnimatePresence>
     </div>
   );
@@ -242,6 +251,33 @@ function AlchemistModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+/** Entrenamiento (feedback final): +1 dado rojo y se elige qué objeto gastado recargar. */
+function TrainingModal({ items, onClose }: { items: readonly string[]; onClose: () => void }) {
+  const t = useT();
+  const act = useGame((s) => s.act);
+  return (
+    <Modal title={t('town.trainingTitle')} onClose={onClose}>
+      <img src="/assets/town/training-scene.png" alt="" className="mx-auto h-28 object-contain" />
+      <div className="mt-2 grid gap-2">
+        {owned(items).map((a) => (
+          <AbilityCard
+            key={a.id}
+            ability={a}
+            row
+            onClick={() => {
+              onClose();
+              act({ type: 'training', item: a.id });
+            }}
+          />
+        ))}
+      </div>
+      <Button variant="secondary" className="mt-3 w-full" onClick={onClose}>
+        {t('town.cancel')}
+      </Button>
+    </Modal>
+  );
+}
+
 /** Forja: un dado rojo se cambia por un dado especial del color que se elija. */
 function ForgeModal({ onClose }: { onClose: () => void }) {
   const t = useT();
@@ -290,6 +326,7 @@ function QuestHouse({
   status: TownOptionState;
 }) {
   const t = useT();
+  const setGuideUi = useGame((s) => s.setGuideUi);
   const [open, setOpen] = useState(false);
   if (!status.unlocked) return null;
   const villager = kind === 'villager';
@@ -303,18 +340,23 @@ function QuestHouse({
     >
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => {
+          // Feedback final: la lección del aldeano aparece al abrir su casa
+          if (villager && !open) setGuideUi({ villagerOpen: true });
+          setOpen((o) => !o);
+        }}
         aria-expanded={open}
-        className={`relative flex min-h-[96px] w-full items-stretch text-left ${
+        className={`relative flex min-h-[112px] w-full items-stretch text-left ${
           villager ? '' : 'flex-row-reverse'
         }`}
       >
         {status.used && <UsedBadge />}
         {/* El borde recto del arte queda alineado con el borde del recuadro */}
+        {/* Feedback final: Huntmaster y su cabaña (más recortada) del tamaño del aldeano */}
         <img
-          src={villager ? '/assets/town/villager-scene.png' : '/assets/town/huntmaster-scene.png'}
+          src={villager ? '/assets/town/villager-scene.png' : '/assets/town/huntmaster-hut.png'}
           alt=""
-          className={`h-24 w-24 shrink-0 self-end object-contain ${
+          className={`h-28 w-28 shrink-0 self-end object-contain ${
             villager ? 'object-left-bottom' : 'object-right-bottom'
           } ${status.used ? 'opacity-60' : ''}`}
           draggable={false}
@@ -324,7 +366,7 @@ function QuestHouse({
             {t(villager ? 'town.villager' : 'town.huntmaster')}
           </span>
           <span className="text-[11px] leading-tight text-bark/75">
-            {t(villager ? 'town.villagerText' : 'town.huntmasterText')}
+            <RichText text={t(villager ? 'town.villagerText' : 'town.huntmasterText')} />
           </span>
           <span className="mt-1 flex items-center gap-1 text-xs font-bold text-bark">
             <Icon
@@ -441,7 +483,9 @@ function TownSign(props: {
       <img src={props.img} alt="" className="h-20 w-28 shrink-0 object-contain" draggable={false} />
       <span className="flex flex-col">
         <span className="font-comic text-base leading-tight text-bark">{props.title}</span>
-        <span className="text-[11px] leading-tight text-bark/75">{props.text}</span>
+        <span className="text-[11px] leading-tight text-bark/75">
+          <RichText text={props.text} />
+        </span>
       </span>
     </motion.button>
   );

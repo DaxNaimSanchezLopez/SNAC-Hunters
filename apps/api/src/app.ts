@@ -60,7 +60,7 @@ const GameActionSchema = z.discriminatedUnion('type', [
     type: z.literal('alchemist'),
     picks: z.array(z.enum(['hp', 'trophy', 'slot'])).length(2),
   }),
-  z.object({ type: z.literal('training') }),
+  z.object({ type: z.literal('training'), item: Id.optional() }),
   z.object({ type: z.literal('forge'), die: z.enum(['orange', 'blue', 'purple', 'green']) }),
   z.object({ type: z.literal('quest'), id: Id, pay: QuestCostSchema.optional() }),
   z.object({ type: z.literal('recharge'), target: Id }),

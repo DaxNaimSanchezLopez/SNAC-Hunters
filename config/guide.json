@@ -4,13 +4,14 @@
     "phase": "setup",
     "when": [],
     "advance": "next",
+    "screen": true,
     "es": {
       "title": "¡Bienvenido, aprendiz!",
-      "text": "Soy el Huntmaster. Esta es la versión digital del juego de mesa Attack of the SNACs. Cada ronda empieza con la EXPEDICIÓN: sales a cazar SNACs con tus dados. Después vuelves al PUEBLO para hacerte más fuerte. Cuando estés listo, enfrenta al jefe, Pieous Assassin: derrotarlo termina la partida con el mejor puntaje."
+      "text": "Soy el Huntmaster. Esta es la versión digital del juego de mesa Attack of the SNACs. Cada ronda empieza con la EXPEDICIÓN: sales a cazar SNACs con tus dados. Después vuelves al PUEBLO para hacerte más fuerte. Derrota suficientes SNACs para llegar al jefe, el Pieous Agent, y derrótalo para terminar la partida con el mejor puntaje."
     },
     "en": {
       "title": "Welcome, apprentice!",
-      "text": "I'm the Huntmaster. This is the digital version of the board game Attack of the SNACs. Each round starts with the EXPEDITION: you head out to hunt SNACs with your dice. Then you go back to TOWN to get stronger. When you're ready, face the boss, Pieous Assassin: defeating it ends the game with the best score."
+      "text": "I'm the Huntmaster. This is the digital version of the board game Attack of the SNACs. Each round starts with the EXPEDITION: you head out to hunt SNACs with your dice. Then you go back to TOWN to get stronger. Defeat enough SNACs to reach the boss, the Pieous Agent, and defeat it to end the game with the best score."
     }
   },
   {
@@ -20,12 +21,12 @@
     "advance": "next",
     "highlight": "colors",
     "es": {
-      "title": "Elige tu color y tu misión secreta",
-      "text": "Cada cazador tiene un color, y ese color te da tu DADO ESPECIAL: 4 caras de su símbolo y 2 comodines. Naranja = hachas, azul = flechas, morado = anzuelos y verde = lupas. Al elegirlo recibes tu MISIÓN SECRETA: da puntos extra por derrotar SNACs de su tipo y por guardar trofeos de sus símbolos. Toca ENTENDIDO y elige tu color."
+      "title": "Elige tus dados",
+      "text": "Cada cazador empieza con una especialidad de caza, que se ve en su DADO ESPECIAL: 4 caras de su símbolo y 2 [wild]. Toca ENTENDIDO y elige tu color."
     },
     "en": {
-      "title": "Choose your color and secret quest",
-      "text": "Each hunter has a color, and that color gives you your SPECIAL DIE: 4 faces of its symbol and 2 wilds. Orange = axes, blue = arrows, purple = hooks and green = finders. Choosing it gives you your SECRET QUEST: bonus points for defeating SNACs of its type and keeping trophies of its symbols. Tap GOT IT and choose your color."
+      "title": "Choose your dice",
+      "text": "Each hunter starts with a hunting speciality, shown by a SPECIAL DIE: 4 faces of its symbol and 2 [wild]. Tap GOT IT and choose your colour."
     }
   },
   {
@@ -36,11 +37,11 @@
     "highlight": "hp",
     "es": {
       "title": "Tus dados y tu vida",
-      "text": "Sales con 4 dados ROJOS (tienen los 4 símbolos y 2 corazones) y el dado especial de tu color. Arriba a la derecha están tus 4 corazones de HPie: si llegan a 0 quedas KO y la expedición se acaba."
+      "text": "Sales con 4 dados ROJOS (cada uno con una cara de cada símbolo y 2 [heart]) y el dado especial de tu color. Arriba a la derecha están tus 4 HPie: si llegan a 0, quedas KO y la ronda termina."
     },
     "en": {
       "title": "Your dice and your life",
-      "text": "You head out with 4 RED dice (they have the 4 symbols and 2 hearts) and the special die of your color. Top right are your 4 HP hearts: if they reach 0 you're KO'd and the run is over."
+      "text": "You head out with 4 RED dice (each with one face of each symbol and 2 [heart]) and the special die of your colour. Top right are your 4 HP: if they reach 0, you're KO'd and the round is over."
     }
   },
   {
@@ -50,12 +51,12 @@
     "advance": "next",
     "highlight": "threat",
     "es": {
-      "title": "Vidas y Pieland",
-      "text": "Tienes 3 VIDAS: cada KO cuesta una, y sin vidas la partida termina. Además Pieland está amenazada: empieza con 5 PV y pierde 1 al volver al pueblo después de los runs 4, 6, 8, 10 y 12. Si llega a 0, la partida termina. Arriba ves cuántos runs faltan."
+      "title": "Pieland bajo ataque",
+      "text": "¡Los SNACs están atacando Pieland! Cada vez que vuelves al pueblo sin derrotar al jefe y limpiar Sherbert Forest, Pieland pierde un corazón. Cuando Pieland llega a 0 corazones, la partida termina. Entre más corazones le queden a Pieland cuando limpies el bosque, más puntos ganas."
     },
     "en": {
-      "title": "Lives and Pieland",
-      "text": "You have 3 LIVES: each KO costs one, and with none left the game is over. Pieland is also under threat: it starts with 5 HP and loses 1 when you return to town after runs 4, 6, 8, 10 and 12. If it hits 0, the game is over. The bar at the top shows how many runs are left."
+      "title": "Pieland under attack",
+      "text": "SNACs are attacking Pieland! Every time you return to town without defeating the boss and clearing Sherbert Forest, Pieland loses one heart. When Pieland reaches 0 hearts, it's game over. The more hearts Pieland has left when the forest is cleared, the more points you earn."
     }
   },
   {
@@ -65,11 +66,11 @@
     "highlight": "map",
     "es": {
       "title": "El mapa",
-      "text": "Cada expedición tiene un mapa nuevo de Sherbert Forest: columnas de SNACs del pueblo (izquierda) hasta la guarida del jefe (derecha). Solo sabes el TIPO de cada SNAC. Cada tipo pide sobre todo un símbolo: Cuerno → Hacha, Ala → Flecha, Garra → Lupa y Cola → Anzuelo. Avanzas por los caminos, una columna a la vez."
+      "text": "Cada ronda tiene un mapa nuevo de Sherbert Forest: columnas de SNACs del pueblo (izquierda) a la guarida del jefe (derecha). ¡Derrota al jefe para limpiar Sherbert Forest de SNACs! Solo conoces el TIPO de cada SNAC. Cada tipo pide sobre todo un símbolo: Cuerno → Hacha, Ala → Flecha, Garra → Lupa, Cola → Anzuelo. Avanzas por los caminos una columna a la vez."
     },
     "en": {
       "title": "The map",
-      "text": "Each run has a new map of Sherbert Forest: columns of SNACs from town (left) to the boss's lair (right). You only know each SNAC's TYPE. Each type mostly asks for one symbol: Horn → Axe, Wing → Arrow, Claw → Finder, Tail → Hook. You move along the paths, one column at a time."
+      "text": "Each round has a new map of Sherbert Forest: columns of SNACs from town (left) to the boss's lair (right). Defeat the boss to clear Sherbert Forest of SNACs! You only know each SNAC's TYPE. Each type mostly asks for one symbol: Horn → Axe, Wing → Arrow, Claw → Finder, Tail → Hook. You move along the paths one column at a time."
     }
   },
   {
@@ -79,11 +80,11 @@
     "highlight": "map",
     "es": {
       "title": "Elige un camino",
-      "text": "Toca uno de los nodos que brillan. El SNAC se revela cuando empieza el combate."
+      "text": "Selecciona uno de los nodos que brillan para cazar un SNAC."
     },
     "en": {
       "title": "Pick a path",
-      "text": "Tap one of the glowing nodes. The SNAC is revealed when the fight starts."
+      "text": "Select one of the glowing nodes to hunt a SNAC."
     }
   },
   {
@@ -94,11 +95,11 @@
     "highlight": "boss",
     "es": {
       "title": "La guarida del jefe",
-      "text": "El siguiente paso es la guarida de PIEOUS ASSASSIN. Tiene 6 espacios con símbolos al azar: hay que cubrirlos TODOS para derrotarlo (no se le estudia, y las cartas de \"tres iguales\" no sirven). Derrotarlo termina la partida: entre más PV le queden a Pieland, más se multiplica tu puntaje. Si no estás listo, vuelve al pueblo."
+      "text": "El siguiente paso es la guarida del PIEOUS AGENT. Tiene 6 espacios con símbolos al azar: hay que cubrirlos TODOS para derrotarlo (no se le estudia, y las habilidades de \"tres iguales\" no sirven). Derrotarlo limpia Sherbert Forest y termina la partida: entre más corazones le queden a Pieland, más puntos ganas. Si no estás listo, vuelve al pueblo."
     },
     "en": {
       "title": "The boss's lair",
-      "text": "The next step is PIEOUS ASSASSIN's lair. It has 6 random symbol spaces: you must fill ALL of them to defeat it (it can't be studied, and \"three of a kind\" cards don't work). Defeating it ends the game: the more HP Pieland has left, the bigger your score multiplier. If you're not ready, head back to town."
+      "text": "The next step is the PIEOUS AGENT's lair. It has 6 random symbol spaces: you must fill ALL of them to defeat it (it can't be studied, and \"three of a kind\" abilities don't work). Defeating it clears Sherbert Forest and ends the game: the more hearts Pieland has left, the more points you earn. If you're not ready, head back to town."
     }
   },
   {
@@ -107,12 +108,12 @@
     "advance": "next",
     "highlight": "monster",
     "es": {
-      "title": "Tu SNAC",
-      "text": "Para DERROTARLO cubre sus 4 espacios con el símbolo que pide cada uno. El espacio de 4 símbolos acepta cualquiera de ellos."
+      "title": "Tu primer SNAC",
+      "text": "Para DERROTARLO, consigue sus 4 símbolos con los símbolos de tus dados. [any] puede ser cualquiera de los 4 símbolos de los dados (no corazones)."
     },
     "en": {
-      "title": "Your SNAC",
-      "text": "To DEFEAT it, fill its 4 spaces with the symbol each one asks for. The 4-symbol space takes any of them."
+      "title": "Your first SNAC",
+      "text": "To DEFEAT it, match its 4 required symbols with the symbols on your dice. [any] can be any of the 4 dice symbols (not hearts)."
     }
   },
   {
@@ -123,11 +124,11 @@
     "highlight": "monster",
     "es": {
       "title": "Espacio de daño",
-      "text": "Este SNAC tiene un espacio de daño (marcado en rojo). Es OPCIONAL: puedes pagarlo con 1 HPie para contarlo como cubierto, o no usarlo. Un CORAZÓN de un dado rojo lo cubre sin daño. Así, con un solo dado puedes HUIR sin daño o ESTUDIAR pagando 1 HPie; con dos dados estudias sin daño."
+      "text": "Este SNAC tiene un espacio de daño (marcado en rojo), que lo hace más peligroso. Para cubrir ese espacio, recibe el daño o usa un dado que muestre un [heart]."
     },
     "en": {
       "title": "Damage space",
-      "text": "This SNAC has a damage space (marked in red). It's OPTIONAL: pay 1 HP to count it as filled, or leave it. A HEART from a red die covers it with no damage. So with one die you can FLEE with no damage or STUDY paying 1 HP; with two dice you study with no damage."
+      "text": "This SNAC has a damage space (marked in red), which makes it more dangerous. To cover that space, either take the damage or use a die showing a [heart]."
     }
   },
   {
@@ -137,11 +138,11 @@
     "highlight": "dice",
     "es": {
       "title": "Tu tirada",
-      "text": "Al empezar se lanzan todos tus dados. El COMODÍN vale como cualquier símbolo. Los CORAZONES no cubren símbolos, pero te protegen: cubren el daño de un dado blanco o el daño de un SNAC."
+      "text": "Al inicio de cada pelea se tiran todos tus dados. Esta es tu tirada. Un [wild] cuenta como cualquier símbolo. Los [heart] no cubren espacios de símbolo, pero te protegen: cubren el daño de un dado blanco o el daño de un SNAC."
     },
     "en": {
       "title": "Your roll",
-      "text": "At the start all your dice are rolled. A WILD counts as any symbol. HEARTS don't fill symbol spaces, but they protect you: they cover a white die's damage or damage from a SNAC."
+      "text": "At the start of each fight, all your dice are rolled. This is your roll. A [wild] counts as any symbol. [heart] don't fill symbol spaces, but they protect you: they cover a white die's damage or damage from a SNAC."
     }
   },
   {
@@ -151,16 +152,17 @@
     "highlight": "dice",
     "es": {
       "title": "Coloca tus dados",
-      "text": "Toca un dado: se iluminan los espacios donde sirve. Luego toca el espacio. ¿Varios a la vez? Selecciónalos y toca un espacio (o el botón AUTO): se acomodan solos. Si te equivocas, toca el espacio para quitarlo."
+      "text": "Toca un dado: se iluminan los espacios donde cabe. Luego toca el espacio. ¿Vas a colocar varios a la vez? Selecciónalos y toca un espacio (o el botón AUTO), y se acomodan solos. Si cambias de opinión, toca el espacio para recuperar el dado."
     },
     "en": {
       "title": "Place your dice",
-      "text": "Tap a die: the spaces where it fits light up. Then tap the space. Several at once? Select them and tap a space (or the AUTO button): they slot in by themselves. If you change your mind, tap the space to take it back."
+      "text": "Tap a die: the spaces where it fits light up. Then tap the space. Placing several at once? Select them and tap a space (or the AUTO button), and they slot in by themselves. If you change your mind, tap the space to take the die back."
     }
   },
   {
     "id": "combat-reroll",
     "phase": "combat",
+    "when": ["abilityFirst"],
     "advance": "reroll",
     "highlight": "reroll",
     "es": {
@@ -175,16 +177,16 @@
   {
     "id": "combat-white",
     "phase": "combat",
-    "when": ["whiteDie"],
+    "when": ["whiteDamage"],
     "advance": "next",
     "highlight": "dice",
     "es": {
       "title": "El dado blanco",
-      "text": "Los dados blancos representan que tu personaje se está cansando. Tienen 3 caras de daño, 2 en blanco y 1 comodín. El daño queda pendiente: lo recibes al relanzar o al resolver, salvo que lo cubras con un CORAZÓN de un dado rojo. Los blancos en blanco te acompañan hasta volver al pueblo."
+      "text": "Los dados blancos representan que tu personaje se está cansando. Tienen 3 caras de daño, 2 caras en blanco y 1 [wild]. El daño queda pendiente: lo recibes al relanzar o al resolver, salvo que lo cubras con un [heart] de un dado rojo. Los dados blancos en blanco se quedan contigo hasta que vuelvas al pueblo."
     },
     "en": {
       "title": "The white die",
-      "text": "White dice show your character getting tired. They have 3 damage faces, 2 blank faces and 1 wild. Damage sits pending: you take it when you re-roll or resolve, unless you cover it with a red die's HEART. Blank white dice stay with you until you return to town."
+      "text": "White dice show your character getting tired. They have 3 damage faces, 2 blank faces and 1 wild. Damage stays pending: you take it when you re-roll or resolve, unless you cover it with a red die's [heart]. Blank white dice stay with you until you return to town."
     }
   },
   {
@@ -195,11 +197,11 @@
     "highlight": "dice",
     "es": {
       "title": "Comodín blanco",
-      "text": "Salió el COMODÍN de un dado blanco (tiene un candado). No se puede volver a tirar: al relanzar se queda en tu bandeja. Úsalo en este SNAC, porque al terminar la pelea se pierde. Solo los comodines de los dados de color se pueden relanzar."
+      "text": "Un dado blanco sacó su [wild] (tiene un candado). Un [wild] en un dado blanco es buena suerte, pero hay que usarlo en este SNAC o se pierde. Un [wild] en un dado ESPECIAL siempre se puede relanzar."
     },
     "en": {
       "title": "White wild",
-      "text": "A white die rolled its WILD (it has a padlock). It can't be re-rolled: when you re-roll it stays in your tray. Use it on this SNAC, because it's lost when the fight ends. Only wilds on colored dice can be re-rolled."
+      "text": "A white die rolled its [wild] (it has a padlock). A [wild] on a white die is good luck, but it must be used on this SNAC or it's lost. A [wild] on a SPECIAL die can always be re-rolled."
     }
   },
   {
@@ -209,12 +211,12 @@
     "advance": "next",
     "highlight": "resolve",
     "es": {
-      "title": "Cómo termina la caza",
-      "text": "El botón de abajo dice qué pasará: todos los espacios = DERROTAR (trofeo y puntos), 2 o 3 = ESTUDIAR (trofeo, sin puntos), 1 = HUIR (vuelves al pueblo). Si el SNAC tiene espacio de daño, al resolver eliges si lo pagas con HPie o no. Si el botón se pone ROJO, esa decisión te dejará KO."
+      "title": "Cómo termina una caza",
+      "text": "El botón amarillo grande de abajo termina la pelea. Cómo termina depende de cuántos símbolos conseguiste: los 4 símbolos = DERROTAR, 2 símbolos = ESTUDIAR, 1 símbolo = HUIR. Un espacio [damage] cuenta como símbolo, y puedes elegir cubrirlo con HPie o con un dado. Si el botón se pone ROJO, esa decisión te dejará KO.\nDERROTAR: puntos + trofeo\nESTUDIAR: trofeo\nHUIR: nada"
     },
     "en": {
       "title": "How a hunt ends",
-      "text": "The button below shows what will happen: every space = DEFEAT (trophy and points), 2 or 3 = STUDY (trophy, no points), 1 = FLEE (back to town). If the SNAC has a damage space, when you resolve you choose whether to pay it with HP. If the button turns RED, that decision will get you KO'd."
+      "text": "The big yellow button below ends the fight. How it ends depends on how many symbols you've matched: all 4 symbols = DEFEAT, 2 symbols = STUDY, 1 symbol = FLEE. A [damage] space counts as a symbol, and you can choose to cover it with HP or a die. If the button turns RED, that choice will get you KO'd.\nDEFEAT: points + trophy\nSTUDY: trophy\nFLEE: nothing"
     }
   },
   {
@@ -225,11 +227,11 @@
     "highlight": "dice",
     "es": {
       "title": "Cúrate con corazones",
-      "text": "Estás herido. Selecciona un CORAZÓN de tu reserva y toca CURAR: recuperas 1 HPie y ese dado se gasta. Úsalo cuando no lo necesites para bloquear daño."
+      "text": "Estás herido. Selecciona un [heart] de tu reserva y toca CURAR: recuperas 1 HPie y ese dado se gasta."
     },
     "en": {
       "title": "Heal with hearts",
-      "text": "You're hurt. Select a HEART in your pool and tap HEAL: you recover 1 HP and that die is spent. Use it when you don't need it to block damage."
+      "text": "You're hurt. Select a [heart] in your pool and tap HEAL: you recover 1 HP and that die is spent."
     }
   },
   {
@@ -240,11 +242,11 @@
     "highlight": "trophies",
     "es": {
       "title": "Trofeos",
-      "text": "Cada trofeo es una parte de un SNAC y lleva un símbolo de dado. En combate lo puedes usar como si fuera un dado, y en el pueblo sirve como dinero. Tienes 2 espacios para trofeos (algunas cartas dan más)."
+      "text": "Cada trofeo es una parte de un SNAC y lleva un símbolo de dado. En combate lo puedes usar como un dado, y en el pueblo lo puedes usar para cumplir misiones. Tienes 2 espacios para trofeos (algunos objetos te dan más)."
     },
     "en": {
       "title": "Trophies",
-      "text": "Each trophy is a piece of a SNAC and carries a dice symbol. In combat you can use it as if it were a die, and in town it works as money. You have 2 trophy spaces (some cards give you more)."
+      "text": "Each trophy is a piece of a SNAC and carries a dice symbol. In combat you can use it like a die, and in town you can use it to complete quests. You have 2 trophy spaces (some items give you more)."
     }
   },
   {
@@ -255,11 +257,11 @@
     "highlight": "trophies",
     "es": {
       "title": "Usa un trofeo",
-      "text": "Si te falta un símbolo, toca un trofeo y luego el espacio: cuenta como un dado. También puedes usar trofeos para activar habilidades. Solo se gasta si lo dejas puesto al resolver."
+      "text": "¿Te falta un símbolo? Toca un trofeo y luego el espacio: cuenta como un dado. También puedes usar trofeos para activar habilidades. Un trofeo solo se gasta si sigue colocado cuando resuelves."
     },
     "en": {
       "title": "Use a trophy",
-      "text": "Missing a symbol? Tap a trophy, then the space: it counts as a die. You can also use trophies to activate abilities. It's only spent if it's still placed when you resolve."
+      "text": "Missing a symbol? Tap a trophy, then the space: it counts as a die. You can also use trophies to activate abilities. A trophy is only spent if it's still placed when you resolve."
     }
   },
   {
@@ -270,26 +272,26 @@
     "highlight": "abilities",
     "es": {
       "title": "Objetos y destrezas",
-      "text": "Tus cartas son habilidades. Un OBJETO se usa una vez y se recarga al descansar en el pueblo. Las DESTREZAS se consiguen en el pueblo y se pueden usar con cada SNAC. Ahora tienes los símbolos para activar una."
+      "text": "Las habilidades cambian y multiplican los símbolos de tus dados. Un OBJETO se usa una vez y se recarga cuando DESCANSAS en el pueblo. Las DESTREZAS se consiguen en el pueblo y se pueden usar una vez contra cada SNAC. Ahora mismo tienes los símbolos para activar una."
     },
     "en": {
       "title": "Items and skills",
-      "text": "Your cards are abilities. An ITEM is used once and recharges when you rest in town. SKILLS are earned in town and can be used against every SNAC. Right now you have the symbols to activate one."
+      "text": "Abilities change and multiply your dice symbols. An ITEM can be used once and recharges when you REST in town. SKILLS are earned in town and can be used once against every SNAC. Right now you have the symbols to activate one."
     }
   },
   {
     "id": "combat-abilities",
     "phase": "combat",
     "when": ["abilityReady"],
-    "advance": "next",
+    "advance": "ability",
     "highlight": "abilities",
     "es": {
-      "title": "Usa tus cartas",
-      "text": "Selecciona los dados o trofeos que pide la carta (el comodín también sirve) y toca la carta. Por ejemplo, 1 → 2 convierte un símbolo en dos. Cada carta se usa una vez por SNAC; las que no puedes usar ahora se ven en gris. Puedes deshacerla tocándola otra vez, pero solo hasta que vuelvas a relanzar. AUTO usa primero los comodines dorados y blancos."
+      "title": "Usa tu habilidad",
+      "text": "Selecciona los dados o trofeos que vas a usar en la habilidad y luego toca la habilidad. Por ejemplo, esta habilidad convierte flechas en un [wild] azul, que sirve cuando el SNAC no necesita flechas. Cada objeto se usa una vez hasta que descanses en el pueblo, y cada destreza una vez por SNAC. Las que no puedes usar ahora se ven en gris. Puedes deshacer una habilidad tocándola otra vez, pero solo hasta que relances."
     },
     "en": {
-      "title": "Use your cards",
-      "text": "Select the dice or trophies the card asks for (a wild works too) and tap the card. For example, 1 → 2 turns one symbol into two. Each card is used once per SNAC; the ones you can't use right now are greyed out. You can undo it by tapping it again, but only until you re-roll. AUTO uses gold and white wilds first."
+      "title": "Use your ability",
+      "text": "Select dice or trophies to use on the ability, then tap the ability. For example, this ability turns arrows into a blue [wild], which is useful when the SNAC doesn't need arrows. Each item can be used once until you rest in town, and each skill once per SNAC. The ones you can't use right now are greyed out. You can undo an ability by tapping it again, but only until you re-roll."
     }
   },
   {
@@ -300,11 +302,11 @@
     "highlight": "dice",
     "es": {
       "title": "Símbolos temporales",
-      "text": "Los símbolos DORADOS los creó una carta. Sirven en este SNAC, también para activar otra carta, pero desaparecen al terminar la pelea. Si el comodín tiene COLOR (hachas naranja, flechas azul…), cuenta como el comodín de ese dado especial: una carta Lucky de ese color lo convierte en dos."
+      "text": "Los símbolos DORADOS los creó una habilidad. Sirven en este SNAC, también para activar otra habilidad, pero desaparecen al terminar la pelea. Si el [wild] tiene COLOR (hachas naranja, flechas azul…), cuenta como el [wild] de ese dado especial: una habilidad Lucky de ese color lo convierte en dos."
     },
     "en": {
       "title": "Temporary symbols",
-      "text": "GOLD symbols were created by a card. They work against this SNAC, including to activate another card, but they disappear when the fight ends. If the wild has a COLOR (axes orange, arrows blue…), it counts as that special die's wild: a Lucky card of that color turns it into two."
+      "text": "GOLD symbols were created by an ability. They work against this SNAC, including to activate another ability, but they disappear when the fight ends. If the [wild] has a COLOR (axes orange, arrows blue…), it counts as that special die's [wild]: a Lucky ability of that color turns it into two."
     }
   },
   {
@@ -314,12 +316,12 @@
     "advance": "next",
     "highlight": "monster",
     "es": {
-      "title": "¡Pieous Assassin!",
-      "text": "El jefe tiene 6 espacios y no da trofeo. Solo hay dos salidas: cubrirlos TODOS para derrotarlo y terminar la partida, o huir. Usa tus trofeos y tus cartas, y cuida tu HPie: el que te quede al derrotarlo suma puntos."
+      "title": "¡Pieous Agent!",
+      "text": "El jefe tiene 6 espacios y no da trofeo. Solo hay dos salidas: cubrirlos TODOS para derrotarlo, limpiar Sherbert Forest y terminar la partida, o huir. Usa tus trofeos y tus habilidades."
     },
     "en": {
-      "title": "Pieous Assassin!",
-      "text": "The boss has 6 spaces and gives no trophy. There are only two ways out: fill ALL of them to defeat it and end the game, or flee. Use your trophies and cards, and watch your HP: whatever you have left when you defeat it adds points."
+      "title": "Pieous Agent!",
+      "text": "The boss has 6 spaces and gives no trophy. There are only two ways out: fill ALL of them to defeat it, clear Sherbert Forest and end the game, or flee. Use your trophies and abilities."
     }
   },
   {
@@ -330,26 +332,26 @@
     "highlight": "score",
     "es": {
       "title": "Puntos de cadena",
-      "text": "Cada SNAC que derrotas en la MISMA expedición vale más que el anterior: 10, 20, 30, 40… Estudiar no suma ni rompe la cadena. Quedar KO no te quita puntos, pero se acaba la cadena. Si el SNAC es del tipo de tu misión secreta, +10 más."
+      "text": "Cada SNAC que derrotas en la misma ronda vale más puntos que el anterior: 10, 20, 30, 40… Estudiar no suma a la cadena ni la rompe. Tu cadena se guarda cuando vuelves al pueblo. Si quedas KO, pierdes la cadena y solo conservas 10 puntos por SNAC. Si el SNAC es del tipo de tu misión secreta, ganas +10 puntos extra."
     },
     "en": {
       "title": "Chain points",
-      "text": "Each SNAC you defeat on the SAME run is worth more than the last: 10, 20, 30, 40… Studying neither adds nor breaks the chain. Getting KO'd doesn't cost points, but the chain ends. If the SNAC matches your secret quest's type, +10 more."
+      "text": "Each SNAC you defeat in the same round is worth more points than the last: 10, 20, 30, 40… Studying doesn't add to the chain or break it. Your chain is banked when you return to town. If you're KO'd, you lose the chain and only keep 10 points per SNAC. If the SNAC matches your secret quest's type, you earn +10 bonus points."
     }
   },
   {
-    "id": "after-life",
+    "id": "after-ko",
     "phase": "aftermath",
-    "when": ["lifeLost"],
+    "when": ["ko"],
     "advance": "next",
     "highlight": "threat",
     "es": {
-      "title": "Perdiste una vida",
-      "text": "Quedar KO te quita una de tus 3 vidas (no te quita puntos). La expedición termina y en el pueblo recuperas tu HPie. Si te quedas sin vidas, la partida termina."
+      "title": "¡Quedaste KO!",
+      "text": "Quedar KO termina la ronda y Pieland pierde un corazón. Pierdes la cadena de esta ronda: solo conservas 10 puntos por cada SNAC que derrotaste en ella. En el pueblo recuperas todo tu HPie y tus habilidades, igual que al DESCANSAR."
     },
     "en": {
-      "title": "You lost a life",
-      "text": "Getting KO'd costs one of your 3 lives (not points). The run ends and you recover your HP in town. If you run out of lives, the game is over."
+      "title": "You were KO'd!",
+      "text": "Getting KO'd ends the round and Pieland loses a heart. You lose this round's chain: you only keep 10 points for each SNAC you defeated in it. In town you recover all your HP and abilities, just like when you REST."
     }
   },
   {
@@ -360,11 +362,11 @@
     "highlight": "status",
     "es": {
       "title": "Dados gastados",
-      "text": "Los dados que usaste en el SNAC quedan GASTADOS hasta que vuelvas al pueblo y tu HPie no se recupera. Los dados BLANCOS en blanco se quedan en tu reserva hasta el pueblo; el comodín blanco que no usaste se perdió. Puedes SEGUIR CAZANDO para alargar la cadena o VOLVER AL PUEBLO a tiempo."
+      "text": "Los dados que usaste en el SNAC quedan GASTADOS hasta que vuelvas al pueblo. Los dados BLANCOS en blanco se quedan en tu reserva hasta que vuelvas al pueblo. Puedes SEGUIR CAZANDO para hacer crecer tu cadena, o VOLVER AL PUEBLO para guardarla."
     },
     "en": {
       "title": "Spent dice",
-      "text": "The dice you used on the SNAC stay SPENT until you return to town, and your HP doesn't recover. Blank WHITE dice remain in your pool until town; an unused white wild is lost. You can KEEP HUNTING to grow your chain or HEAD BACK TO TOWN in time."
+      "text": "The dice you used on the SNAC are SPENT until you return to town. Blank WHITE dice stay in your pool until you return to town. You can KEEP HUNTING to grow your chain, or HEAD BACK TO TOWN to bank it."
     }
   },
   {
@@ -374,12 +376,12 @@
     "advance": "next",
     "highlight": "status",
     "es": {
-      "title": "Fin de la expedición",
-      "text": "Huir o quedar KO termina la expedición: toca VOLVER AL PUEBLO."
+      "title": "Fin de la ronda",
+      "text": "Huir o quedar KO termina la ronda: toca VOLVER AL PUEBLO."
     },
     "en": {
-      "title": "The run is over",
-      "text": "Fleeing or getting KO'd ends the run: tap BACK TO TOWN."
+      "title": "The round is over",
+      "text": "Fleeing or getting KO'd ends the round: tap BACK TO TOWN."
     }
   },
   {
@@ -389,26 +391,26 @@
     "advance": "next",
     "es": {
       "title": "De vuelta en el pueblo",
-      "text": "Bienvenido al PUEBLO. Aquí recuperas tus dados y se retiran los dados blancos, pero tu HPie NO se recupera solo: para sanar hay que DESCANSAR."
+      "text": "Bienvenido al PUEBLO. Aquí tus dados se recuperan y se retiran los dados blancos, pero tu HPie NO se recupera solo: tienes que DESCANSAR para sanar."
     },
     "en": {
       "title": "Back in town",
-      "text": "Welcome to TOWN. Here you get your dice back and white dice are removed, but your HP does NOT come back on its own: you have to REST to heal."
+      "text": "Welcome to TOWN. Here your dice recover and white dice are removed, but your HP does NOT come back on its own: you have to REST to heal."
     }
   },
   {
     "id": "town-quests",
     "phase": "town",
-    "when": ["returnVisit"],
+    "when": ["villagerOpen"],
     "advance": "next",
     "highlight": "quests",
     "es": {
-      "title": "El tablero de misiones",
-      "text": "Hay 3 misiones de ALDEANO y 3 del HUNTMASTER: toca su casa para ver la lista. La de aldeano pide UNO de los trofeos o corazones que muestra y te da a elegir un OBJETO; la del Huntmaster pide TODO lo que muestra y te da una DESTREZA. Los corazones rotos se pagan con HPie. Cada vez que vuelves al pueblo se retira la más antigua de cada casa (marcada en naranja). También las ves con el botón de misiones de arriba."
+      "title": "Misión de aldeano",
+      "text": "Una misión de aldeano pide UNO de los trofeos o corazones que muestra, y te recompensa con puntos y a elegir un OBJETO. Los corazones rotos se pagan con HPie. Cada vez que vuelves al pueblo, la misión más antigua (marcada en naranja) se retira. También puedes ver las misiones con el botón de misiones de arriba."
     },
     "en": {
-      "title": "The quest board",
-      "text": "There are 3 VILLAGER quests and 3 HUNTMASTER quests: tap their house to see the list. A villager quest asks for ONE of the trophies or hearts it shows and lets you pick an ITEM; a Huntmaster quest asks for EVERYTHING it shows and gives a SKILL. Broken hearts are paid with HP. Each time you return to town the oldest quest of each house (marked in orange) is retired. You can also check them with the quests button at the top."
+      "title": "Villager quest",
+      "text": "A villager quest asks for ONE of the trophies or hearts it shows, and rewards you with points and a choice of ITEM. Broken hearts are paid with HP. Each time you return to town, the oldest quest (marked in orange) is retired. You can also check quests with the quests button at the top."
     }
   },
   {
@@ -419,11 +421,11 @@
     "highlight": "actions",
     "es": {
       "title": "Acciones del pueblo",
-      "text": "En cada visita tienes 2 acciones y debes usarlas antes de salir; cada opción se usa una vez por visita. Por ahora hay dos: DESCANSAR (sanas todo tu HPie, recargas objetos y ganas un trofeo) y cumplir una MISIÓN DE ALDEANO del tablero. La próxima vez que regreses se abrirá una opción nueva."
+      "text": "Cada visita te da 2 acciones, y debes usarlas antes de salir. Cada opción se usa una vez por visita. Por ahora hay tres: DESCANSAR (sana todo tu HPie, recarga tus objetos y gana un trofeo), el Entrenamiento (gana más dados rojos y además recarga un OBJETO) y cumplir una MISIÓN DE ALDEANO del tablero. La próxima vez que vuelvas, se abrirá una opción nueva."
     },
     "en": {
       "title": "Town actions",
-      "text": "Each visit gives you 2 actions and you must use them before leaving; each option can be used once per visit. For now there are two: REST (heal all your HP, recharge items and gain a trophy) and complete a VILLAGER QUEST from the board. Next time you come back a new option will open."
+      "text": "Each visit gives you 2 actions, and you must use them before leaving. Each option can be used once per visit. For now there are three: REST (heal all your HP, recharge items and gain a trophy), the Training (Gain more red dice, plus refresh an ITEM), and completing a VILLAGER QUEST from the board. Next time you come back, a new option will open."
     }
   },
   {
@@ -434,57 +436,27 @@
     "position": "top",
     "es": {
       "title": "Elige una carta",
-      "text": "Robaste 3 cartas: quédate con una. Puedes tener hasta 3 objetos y 3 destrezas; si ya tienes 3, la nueva reemplaza a otra."
+      "text": "Robaste 3 habilidades: elige una para quedártela. Puedes tener hasta 3 objetos y 3 destrezas. Si ya tienes 3, la nueva habilidad reemplaza a una que ya tengas."
     },
     "en": {
       "title": "Pick a card",
-      "text": "You drew 3 cards: keep one. You can hold up to 3 items and 3 skills; with 3 already, the new one replaces another."
+      "text": "You drew 3 abilities: choose one to keep. You can hold up to 3 items and 3 skills. If you already have 3, a new ability replaces one you have."
     }
   },
   {
     "id": "town-leave",
     "phase": "town",
-    "when": ["returnVisit"],
+    "when": ["returnVisit", "actionsSpent"],
     "advance": "next",
     "highlight": "leave",
     "position": "top",
     "es": {
       "title": "¡A cazar!",
-      "text": "Cuando hayas usado tus acciones, pulsa SALIR DE EXPEDICIÓN. Sales con todos tus dados y con el HPie que tengas. Con MENÚ PRINCIPAL puedes ver tus mejores puntuaciones y volver cuando quieras."
+      "text": "Cuando hayas usado tus acciones, toca SALIR DEL PUEBLO. Sales con todos tus dados y con el HPie que tengas. Con MENÚ PRINCIPAL puedes ver tus mejores puntajes y volver cuando quieras."
     },
     "en": {
       "title": "Let's hunt!",
       "text": "Once you've used your actions, tap LEAVE TOWN. You head out with all your dice and whatever HP you have. MAIN MENU lets you check your top scores and come back whenever you like."
-    }
-  },
-  {
-    "id": "town-huntmaster",
-    "phase": "town",
-    "when": ["skillUnlocked"],
-    "advance": "next",
-    "highlight": "actions",
-    "es": {
-      "title": "¡Nueva opción!",
-      "text": "Se abrieron las MISIONES DEL HUNTMASTER: entrega TODOS los trofeos y corazones que piden y elige una DESTREZA. Las destrezas no se gastan: se pueden usar con cada SNAC. Las que dan un dado especial también te dan un trofeo de su color."
-    },
-    "en": {
-      "title": "New option!",
-      "text": "HUNTMASTER QUESTS are now open: hand in ALL the trophies and hearts they ask for and pick a SKILL. Skills are never spent: you can use them against every SNAC. The ones that give a special die also give you a trophy of its color."
-    }
-  },
-  {
-    "id": "town-score",
-    "phase": "town",
-    "when": ["skillUnlocked"],
-    "advance": "next",
-    "highlight": "hud",
-    "es": {
-      "title": "Tu puntaje",
-      "text": "Arriba ves tu puntaje ACTUAL (el del run en curso) y el MEJOR. Si dejas de jugar, cuenta tu mejor run: sus puntos de cadena más 10 por cada SNAC y cada trofeo de tu misión secreta. Si derrotas al jefe, cuenta ese run, más 10 por cada HPie y cada vida que te queden, y todo se multiplica según los PV de Pieland: ×2 con 5, ×1.75 con 4, ×1.5 con 3 y ×1.25 con 2 o menos."
-    },
-    "en": {
-      "title": "Your score",
-      "text": "At the top you see your CURRENT score (the run in progress) and your BEST. If you stop playing, your best run counts: its chain points plus 10 for each SNAC and trophy of your secret quest. If you defeat the boss, that run counts, plus 10 per HP and per life you have left, and it all gets multiplied by Pieland's HP: ×2 with 5, ×1.75 with 4, ×1.5 with 3 and ×1.25 with 2 or less."
     }
   },
   {
@@ -495,11 +467,41 @@
     "highlight": "actions",
     "es": {
       "title": "¡Nueva opción!",
-      "text": "Desde ahora se abre un lugar nuevo del pueblo en cada regreso, como en el tablero del juego de mesa: SAQUEO (+2 trofeos), ALQUIMISTA (elige 2: +1 HPie, +1 trofeo o +1 espacio), ENTRENAMIENTO (+1 dado rojo) y FORJA (cambia un dado rojo por uno de color y gana un trofeo). Siempre tendrás algo útil que hacer con tus 2 acciones."
+      "text": "Se abrió el ALQUIMISTA: elige 2 de +1 HPie, +1 trofeo o +1 espacio para trofeos. Desde ahora se abre un lugar nuevo del pueblo cada vez que vuelves: después el HUNTMASTER, luego el SAQUEO (+2 trofeos) y al final la HERRERÍA (cambia un dado rojo por uno de color y gana un trofeo)."
     },
     "en": {
       "title": "New option!",
-      "text": "From now on a new town spot opens each time you return, just like on the board game: SCAVENGE (+2 trophies), ALCHEMIST (choose 2: +1 HP, +1 trophy or +1 space), TRAINING (+1 red die) and FORGE (swap a red die for a colored one and gain a trophy). You will always have something useful to do with your 2 actions."
+      "text": "The ALCHEMIST is now open: choose 2 of +1 HP, +1 trophy or +1 trophy space. From now on a new town spot opens each time you come back: next the HUNTMASTER, then SCAVENGE (+2 trophies) and finally the BLACKSMITH (swap a red die for a coloured one and gain a trophy)."
+    }
+  },
+  {
+    "id": "town-huntmaster",
+    "phase": "town",
+    "when": ["skillUnlocked"],
+    "advance": "next",
+    "highlight": "actions",
+    "es": {
+      "title": "¡Nueva opción!",
+      "text": "Se abrieron las MISIONES DEL HUNTMASTER. Una misión del Huntmaster pide TODOS los trofeos y corazones que muestra, y te recompensa con puntos y a elegir una DESTREZA. Las destrezas nunca se gastan: las puedes usar contra cada SNAC."
+    },
+    "en": {
+      "title": "New option!",
+      "text": "HUNTMASTER QUESTS are now open. A Huntmaster quest asks for ALL the trophies and hearts it shows, and rewards you with points and a choice of SKILL. Skills are never spent: you can use them against every SNAC."
+    }
+  },
+  {
+    "id": "town-score",
+    "phase": "town",
+    "when": ["skillUnlocked"],
+    "advance": "next",
+    "highlight": "hud",
+    "es": {
+      "title": "Tu puntaje",
+      "text": "Tu puntaje se suma a lo largo de todas las rondas. Cada SNAC que derrotas te da puntos, y cada misión que cumples te da puntos extra. Limpia Sherbert Forest para ganar un bono por limpiarlo, más puntos extra por cada corazón que le quede a Pieland."
+    },
+    "en": {
+      "title": "Your score",
+      "text": "Your score adds up across every round. Each SNAC you defeat earns points, and each quest you complete earns bonus points. Clear Sherbert Forest to earn a clearing bonus, plus extra points for every heart Pieland has left."
     }
   },
   {
@@ -510,11 +512,11 @@
     "final": true,
     "es": {
       "title": "¡Ya sabes jugar!",
-      "text": "Eso es todo el juego de mesa. Desde aquí ya no te interrumpo. ¡Buena caza, cazador!"
+      "text": "Eso es todo el juego. Desde aquí ya no te interrumpo. ¡Buena caza!"
     },
     "en": {
       "title": "You know how to play!",
-      "text": "That's the whole board game. From here on I won't interrupt you. Happy hunting, hunter!"
+      "text": "That's the whole game. From here on I won't interrupt you. Happy hunting!"
     }
   }
 ]

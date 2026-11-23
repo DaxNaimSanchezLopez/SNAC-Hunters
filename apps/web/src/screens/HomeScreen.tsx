@@ -82,8 +82,8 @@ export function HomeScreen() {
       <section className="rounded-3xl border-4 border-black bg-sherbet/95 p-4 text-center shadow-[0_6px_0_#000]">
         <h2 className="font-comic text-2xl text-bark">{t('home.topScores')}</h2>
         <ol className="mt-2 grid gap-2">
-          {[0, 1, 2].map((i) => (
-            <TopScore key={i} rank={i + 1} game={topScores[i]} />
+          {podium(topScores).map((entry, i) => (
+            <TopScore key={i} rank={i + 1} entry={entry} />
           ))}
         </ol>
       </section>
@@ -141,8 +141,37 @@ export function HomeScreen() {
 
 const MEDALS = ['bg-yellow-300', 'bg-gray-200', 'bg-orange-300'];
 
+/** Puntaje de ejemplo del podio (feedback final): una meta para los jugadores nuevos. */
+interface SampleScore {
+  readonly name: string;
+  readonly level: 'low' | 'mid' | 'high';
+  readonly score: number;
+}
+
+const SAMPLES: readonly SampleScore[] = [
+  { name: 'Colonel Custard', level: 'high', score: 3000 },
+  { name: 'Samurpie', level: 'mid', score: 2000 },
+  { name: 'Flunkie', level: 'low', score: 800 },
+];
+
+type PodiumEntry = { readonly sample: SampleScore } | { readonly game: FinishedGame };
+
+/**
+ * Los 3 mejores entre los puntajes de ejemplo y los del jugador: conforme el jugador los supera,
+ * sus partidas van reemplazando a los de ejemplo. A igualdad gana el del jugador.
+ */
+function podium(games: readonly FinishedGame[]): PodiumEntry[] {
+  const score = (e: PodiumEntry) => ('game' in e ? e.game.score : e.sample.score);
+  return [
+    ...games.map((game): PodiumEntry => ({ game })),
+    ...SAMPLES.map((sample): PodiumEntry => ({ sample })),
+  ]
+    .sort((a, b) => score(b) - score(a))
+    .slice(0, 3);
+}
+
 /** Un puesto del podio (feedback del cliente, 2026-10-27): siempre se ven los 3 lugares. */
-function TopScore({ rank, game }: { rank: number; game: FinishedGame | undefined }) {
+function TopScore({ rank, entry }: { rank: number; entry: PodiumEntry }) {
   const t = useT();
   return (
     <li className="flex items-center gap-3 rounded-2xl border-2 border-black bg-white px-3 py-1.5 text-left">
@@ -151,20 +180,34 @@ function TopScore({ rank, game }: { rank: number; game: FinishedGame | undefined
       >
         {rank}
       </span>
-      {game ? (
+      {'sample' in entry ? (
         <>
-          <span className="flex-1 text-xs text-bark/70">
-            {game.bossDefeated && (
-              <span className="mr-1 rounded-full border border-black bg-purple-800 px-1.5 font-bold text-white">
-                {t('home.boss')}
-              </span>
-            )}
-            {t('home.snacs', { n: game.defeated })} · {new Date(game.at).toLocaleDateString()}
+          <span className="flex flex-1 flex-col leading-tight">
+            <span className="font-comic text-lg text-bark">{entry.sample.name}</span>
+            <span className="text-[11px] text-bark/60">
+              {t(`home.level.${entry.sample.level}`)}
+            </span>
           </span>
-          <span className="font-comic text-2xl text-bark">{game.score}</span>
+          <span className="font-comic text-2xl text-bark/70">{entry.sample.score}</span>
         </>
       ) : (
-        <span className="flex-1 text-sm text-bark/50">{t('home.emptyScore')}</span>
+        <>
+          <span className="flex flex-1 flex-col leading-tight">
+            <span className="font-comic text-lg text-bark">
+              {t('home.you')}
+              {entry.game.bossDefeated && (
+                <span className="ml-1 rounded-full border border-black bg-purple-800 px-1.5 align-middle font-sans text-[10px] font-bold text-white">
+                  {t('home.boss')}
+                </span>
+              )}
+            </span>
+            <span className="text-[11px] text-bark/60">
+              {t('home.snacs', { n: entry.game.defeated })} ·{' '}
+              {new Date(entry.game.at).toLocaleDateString()}
+            </span>
+          </span>
+          <span className="font-comic text-2xl text-bark">{entry.game.score}</span>
+        </>
       )}
     </li>
   );

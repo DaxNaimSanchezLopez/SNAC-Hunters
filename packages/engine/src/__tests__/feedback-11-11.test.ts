@@ -65,8 +65,8 @@ describe('espacio de daño opcional (porcupineapple: Claw, Claw, Horn, damage)',
     s = applyAction(s, { type: 'assign', dieId: 'd1', slot: 1 }, table);
     expect(resolveOptions(s)).toEqual([{ outcome: 'study', damage: 0 }]);
     expect(applyAction(s, { type: 'resolve', damage: 0, trophy: 'Claw' }, table).hp).toBe(4);
-    // Sin `damage` se paga todo, como antes (partidas guardadas)
-    expect(applyAction(s, { type: 'resolve', trophy: 'Claw' }, table).hp).toBe(3);
+    // Feedback final: estudiar pide 2 símbolos, así que nunca se paga daño de más
+    expect(applyAction(s, { type: 'resolve', trophy: 'Claw' }, table).hp).toBe(4);
     expect(() => applyAction(s, { type: 'resolve', damage: 2, trophy: 'Claw' }, table)).toThrow(
       /espacio/,
     );

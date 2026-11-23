@@ -5,13 +5,11 @@ import { availableDice, canRerollAny, coveredSlots, validSlotsFor } from '../com
 import {
   applyGameAction,
   BOSS_NODE,
-  bossMultiplier,
   finalScore,
   canLeaveTown,
   findQuest,
   newGame,
   oldestQuests,
-  runsUntilPielandHit,
   payableOptions,
   reachableNodes,
   readyAbilities,
@@ -175,12 +173,13 @@ describe('nueva partida', () => {
       skills: [],
       runs: 1,
       chain: 0,
-      runHuntPoints: 0,
+      pendingChain: 0,
+      score: 0,
     });
     expect(g.run).toMatchObject({ hp: 4, pool: ['red', 'red', 'red', 'red', 'green'], fights: 0 });
     expect(g.map?.columns).toBe(CONFIG.map.columns);
     expect(reachableNodes(g).length).toBeGreaterThanOrEqual(2);
-    expect(g).toMatchObject({ lives: 3, pieland: { hp: 5 }, result: null });
+    expect(g).toMatchObject({ pieland: { hp: 8 }, result: null });
     expect(() => applyGameAction(g, { type: 'rest' }, DATA)).toThrow(/fase/);
     expect(g.trophies).toHaveLength(1);
     expect(g.items).toHaveLength(1);
@@ -317,8 +316,14 @@ describe('pueblo', () => {
     const rested = applyGameAction(g, { type: 'rest' }, DATA);
     // Feedback 2026-11-11: saqueo, alquimista y entrenamiento siempre se pueden elegir
     expect(canLeaveTown({ ...rested, trophies: [] }, DATA)).toBe(false);
-    // Sin esos espacios (partida guiada al principio) y sin con qué pagar, puede salir
-    const early: GameState = { ...rested, trophies: [], guided: true, townVisits: 1 };
+    // Partida guiada al principio: ya descansó y entrenó, y no tiene con qué pagar
+    const early: GameState = {
+      ...rested,
+      trophies: [],
+      guided: true,
+      townVisits: 1,
+      townUsed: ['rest', 'training'],
+    };
     expect(canLeaveTown(early, DATA)).toBe(true);
     // Con un trofeo que pide una misión, todavía le queda algo por hacer
     const wing: GameState = { ...rested, trophies: ['Wing'] };
@@ -329,7 +334,7 @@ describe('pueblo', () => {
     expect(applyGameAction(done, { type: 'leave' }, DATA).phase).toBe('trail');
   });
 
-  it('partida guiada: el pueblo empieza con 2 opciones y suma una en cada regreso', () => {
+  it('partida guiada: el pueblo abre sus opciones en el orden del feedback final', () => {
     const g = applyGameAction(
       newGame(DATA, 'guided'),
       { type: 'start', die: 'green', guided: true },
@@ -338,15 +343,27 @@ describe('pueblo', () => {
     const returned = applyGameAction(g, { type: 'return' }, DATA);
     const first: GameState = { ...returned, trophies: ['Horn', 'Wing'], ...board('h-two') };
     expect(first.townVisits).toBe(1);
-    const options = townOptions(first, DATA);
-    expect(options.rest.unlocked && options.item.unlocked).toBe(true);
-    expect(options.skill).toMatchObject({ unlocked: false, available: false });
+    const unlocked = (s: GameState) =>
+      Object.entries(townOptions(s, DATA))
+        .filter(([, o]) => o.unlocked)
+        .map(([k]) => k);
+    // Inicio: descansar, aldeano y entrenamiento
+    expect(unlocked(first)).toEqual(['rest', 'item', 'training']);
     expect(() => applyGameAction(first, { type: 'quest', id: 'h-two' }, DATA)).toThrow(
       /aún no está disponible/,
     );
-    const second = run({ ...first, townActions: 0 }, [{ type: 'leave' }, { type: 'return' }]);
+    const back = (s: GameState) =>
+      run({ ...s, townActions: 0 }, [{ type: 'leave' }, { type: 'return' }]);
+    const second = back(first);
     expect(second.townVisits).toBe(2);
-    expect(townOptions(second, DATA).skill.unlocked).toBe(true);
+    expect(unlocked(second)).toEqual(['rest', 'item', 'training', 'alchemist']);
+    const third = back(second);
+    expect(townOptions(third, DATA).skill.unlocked).toBe(true);
+    expect(townOptions(third, DATA).scavenge.unlocked).toBe(false);
+    const fourth = back(third);
+    expect(townOptions(fourth, DATA).scavenge.unlocked).toBe(true);
+    expect(townOptions(fourth, DATA).forge.unlocked).toBe(false);
+    expect(townOptions(back(fourth), DATA).forge.unlocked).toBe(true);
     // Sin guía, las 3 opciones desde la primera visita
     const free = applyGameAction(begin(DATA, 'free'), { type: 'return' }, DATA);
     expect(townOptions(free, DATA).skill.unlocked).toBe(true);
@@ -508,7 +525,7 @@ describe('expedición', () => {
     expect(g1).toMatchObject({
       phase: 'aftermath',
       chain: 1,
-      runHuntPoints: 10,
+      pendingChain: 10,
       fights: 1,
       outcomes: { defeat: 1 },
     });
@@ -539,7 +556,7 @@ describe('expedición', () => {
     expect(t).toMatchObject({ phase: 'town', run: null, hp: 4, townActions: 2 });
   });
 
-  it('KO: no resta puntos, la expedición termina y en el pueblo se recupera el HPie', () => {
+  it('KO: la ronda termina; en el pueblo se recargan el HPie y los objetos, como descansar', () => {
     const data = rigged({ red: 'Tail', green: 'Tail', white: 'damage' });
     let g = run(
       withState({ trophies: [] }, data),
@@ -549,9 +566,12 @@ describe('expedición', () => {
     for (let i = 0; i < 8 && g.phase === 'combat'; i++) {
       g = applyGameAction(g, { type: 'combat', action: { type: 'reroll', dieIds: ['d0'] } }, data);
     }
-    expect(g).toMatchObject({ phase: 'aftermath', hp: 0, kos: 1, runHuntPoints: 0 });
+    expect(g).toMatchObject({ phase: 'aftermath', hp: 0, kos: 1, pendingChain: 0 });
     expect(g.run?.endedBy).toBe('ko');
-    expect(applyGameAction(g, { type: 'return' }, data).hp).toBe(4);
+    const spent = { ...g, items: g.items.map((i) => ({ ...i, ready: false })) };
+    const town = applyGameAction(spent, { type: 'return' }, data);
+    expect(town).toMatchObject({ hp: 4, pieland: { hp: 7 } });
+    expect(town.items.every((i) => i.ready)).toBe(true);
   });
 
   it('volver al pueblo no sana: se sale con el HPie que se tenga hasta descansar', () => {
@@ -648,8 +668,8 @@ describe('trofeos sin espacio', () => {
   });
 });
 
-describe('puntaje (feedback 2026-11-03)', () => {
-  it('cada monstruo derrotado del run vale más que el anterior; estudiar no cambia la cadena', () => {
+describe('puntaje (feedback final)', () => {
+  it('cada SNAC derrotado en la ronda vale más que el anterior; estudiar no cambia la cadena', () => {
     const quest = SECRET_QUESTS[0]!; // Axe and Claw: monstruos de tipo Garra
     let g = longRun({ secretQuest: quest.id });
     let claws = 0;
@@ -660,79 +680,62 @@ describe('puntaje (feedback 2026-11-03)', () => {
       if (covered === 4 && g.combat!.monster.type === quest.monsterType) claws++;
       g = hunt(g, covered, WILDS);
     }
-    expect(g).toMatchObject({ chain: 2, runHuntPoints: 30, runQuestKills: claws });
+    // La cadena queda en riesgo; la misión secreta suma +10 al instante
+    expect(g).toMatchObject({ chain: 2, roundSnacs: 2, pendingChain: 30, score: claws * 10 });
+    expect(g.points.secret).toBe(claws * 10);
     // Al final del mapa (sin jefe) ya no se puede seguir
     expect(() => applyGameAction(g, { type: 'continue' }, WILDS)).toThrow(/final del mapa/);
-    // Un run nuevo empieza la cadena de cero
+    // Al volver al pueblo se guarda la cadena; una ronda nueva empieza de cero
     const town = applyGameAction(g, { type: 'return' }, WILDS);
+    expect(town).toMatchObject({ score: 30 + claws * 10, pendingChain: 0 });
+    expect(town.points.chain).toBe(30);
     const next = applyGameAction({ ...town, townActions: 0 }, { type: 'leave' }, WILDS);
-    expect(next).toMatchObject({ chain: 0, runHuntPoints: 0, runQuestKills: 0, runs: 2 });
+    expect(next).toMatchObject({ chain: 0, roundSnacs: 0, pendingChain: 0, runs: 2 });
   });
 
-  it('casos de prueba del cliente (jefe derrotado)', () => {
-    const final = (
-      pielandHp: number,
-      hunt: number,
-      kills: number,
-      trophies: GameState['trophies'],
-      hp: number,
-      lives = 0,
-    ) =>
-      finalScore(
-        withState({
-          bossDefeated: true,
-          pieland: { hp: pielandHp },
-          runHuntPoints: hunt,
-          runQuestKills: kills,
-          trophies,
-          secretQuest: 'axe-and-claw',
-          hp,
-          lives,
-        }),
-        DATA,
-      );
-    // A: (450 + 50) × 2.0; B: (280 + 70) × 1.5; C: (360 + 100) × 1.25
-    expect(final(5, 450, 2, ['Horn', 'Tail'], 2)).toBe(1000);
-    expect(final(3, 280, 2, ['Horn', 'Claw'], 3)).toBe(525);
-    expect(final(2, 360, 2, ['Claw', 'Claw'], 6)).toBe(575);
-    // Feedback 2026-11-11: +10 por vida restante, antes del multiplicador
-    expect(final(4, 100, 0, [], 1, 2)).toBe(Math.floor((100 + 10 + 20) * 1.75));
+  it('puntaje final: lo guardado + corazones de Pieland × 150 + 500 si se limpió el bosque', () => {
+    const g = withState({
+      score: 450,
+      points: { chain: 380, secret: 30, quests: 40 },
+      pieland: { hp: 5 },
+    });
+    // Sin limpiar el bosque: solo lo guardado, sin bonos
+    expect(finalScore(g, DATA)).toBe(450);
+    expect(scoreBreakdown({ ...g, bossDefeated: true }, DATA)).toMatchObject({
+      cleared: true,
+      chain: 380,
+      secret: 30,
+      quests: 40,
+      hearts: 5,
+      heartBonus: 750,
+      clearedBonus: 500,
+      total: 1700,
+    });
   });
 
-  it('multiplicador del jefe según los PV de Pieland: 2 / 1.75 / 1.5 / 1.25', () => {
-    expect([5, 4, 3, 2, 1, 0].map((hp) => bossMultiplier(hp, CONFIG))).toEqual([
-      2, 1.75, 1.5, 1.25, 1.25, 1.25,
-    ]);
+  it('cumplir una misión del pueblo suma 20 puntos', () => {
+    const g = withState({ trophies: ['Wing'], townActions: 2, ...board('v-wing', 'h-two') });
+    const paid = applyGameAction(g, { type: 'quest', id: 'v-wing', pay: 'Wing' }, DATA);
+    expect(paid).toMatchObject({ score: 20, points: { chain: 0, secret: 0, quests: 20 } });
   });
 
-  it('partida sin terminar: el puntaje es el del mejor run, sin HPie ni multiplicador', () => {
+  it('la cadena en riesgo se guarda al volver al pueblo y se pierde al abandonar', () => {
     const g = withState({
       runs: 2,
       run: { hp: 3, maxHp: 4, pool: [], fights: 3, status: 'active', endedBy: null },
       phase: 'aftermath',
-      runHuntPoints: 60,
-      runQuestKills: 1,
-      trophies: ['Horn', 'Wing'],
-      secretQuest: 'axe-and-claw',
-      hp: 3,
+      chain: 3,
+      roundSnacs: 3,
+      pendingChain: 60,
+      score: 10,
+      points: { chain: 0, secret: 10, quests: 0 },
     });
-    expect(scoreBreakdown(g, DATA)).toMatchObject({
-      final: false,
-      hunt: 60,
-      questKills: 1,
-      questTrophies: 1,
-      hp: 0,
-      multiplier: 1,
-      total: 80,
-    });
-    // El run a medias ya cuenta; al volver al pueblo queda guardado como el mejor
-    expect(finalScore(g, DATA)).toBe(80);
+    expect(scoreBreakdown(g, DATA)).toMatchObject({ atRisk: 60, total: 10 });
     const town = applyGameAction(g, { type: 'return' }, DATA);
-    expect(town.bestRun).toMatchObject({ run: 2, total: 80 });
-    expect(finalScore(town, DATA)).toBe(80);
-    // Un run peor no lo reemplaza
-    const worse = run({ ...town, townActions: 0 }, [{ type: 'leave' }, { type: 'return' }]);
-    expect(worse.bestRun?.total).toBe(80);
+    expect(town).toMatchObject({ score: 70, pendingChain: 0, points: { chain: 60 } });
+    const quit = applyGameAction(g, { type: 'finish' }, DATA);
+    expect(quit).toMatchObject({ result: 'abandon', pendingChain: 0 });
+    expect(finalScore(quit, DATA)).toBe(10);
   });
 
   it('las cartas de puntos suman 10 por cada tipo distinto', () => {
@@ -741,7 +744,7 @@ describe('puntaje (feedback 2026-11-03)', () => {
       trophies: ['Horn', 'Wing', 'Claw'],
       secretQuest: 'axe-and-claw',
     });
-    expect(scoreBreakdown(g, DATA)).toMatchObject({ cards: 30, questTrophies: 2, total: 50 });
+    expect(scoreBreakdown(g, DATA)).toMatchObject({ cards: 30, total: 30 });
   });
 });
 
@@ -791,58 +794,49 @@ describe('jefe', () => {
     }
     s = applyGameAction(s, { type: 'continue' }, BOSS_ON);
     s = hunt(applyGameAction(s, { type: 'follow', node: BOSS_NODE }, BOSS_ON), 6, BOSS_ON);
+    // Limpiar el bosque termina la partida de inmediato: la cadena (también el jefe) se guarda
+    // y Pieland no pierde corazón
     expect(s).toMatchObject({
       phase: 'over',
       result: 'victory',
       bossDefeated: true,
       chain: 2,
-      runHuntPoints: 30,
+      pendingChain: 0,
+      pieland: { hp: 4 },
     });
+    expect(s.points.chain).toBe(30);
     const score = scoreBreakdown(s, BOSS_ON);
-    expect(score).toMatchObject({ final: true, hp: 4, multiplier: 1.75 });
-    expect(finalScore(s, BOSS_ON)).toBe(score.total);
+    expect(score).toMatchObject({ cleared: true, hearts: 4, heartBonus: 600, clearedBonus: 500 });
+    expect(finalScore(s, BOSS_ON)).toBe(s.score + 1100);
     expect(() => applyGameAction(s, { type: 'return' }, BOSS_ON)).toThrow(/terminó/);
   });
 });
 
-describe('vidas y Pieland (V1)', () => {
-  it('cada KO cuesta una vida; sin vidas la partida termina al volver al pueblo', () => {
+describe('KO y Pieland (feedback final)', () => {
+  it('KO: se pierde la cadena y quedan 10 puntos por SNAC de la ronda', () => {
     const data = rigged({ red: 'Tail', green: 'Tail', white: 'damage' });
-    const ko = (state: GameState): GameState => {
-      let g = applyGameAction(state, { type: 'follow', node: 'c0n0' }, data);
-      for (let i = 0; i < 8 && g.phase === 'combat'; i++) {
-        g = applyGameAction(
-          g,
-          { type: 'combat', action: { type: 'reroll', dieIds: ['d0'] } },
-          data,
-        );
-      }
-      return g;
-    };
-    const g = ko(run(withState({ trophies: [], lives: 2 }, data), [{ type: 'leave' }], data));
-    expect(g).toMatchObject({ lives: 1, result: null, kos: 1 });
+    const out = run(withState({ trophies: [] }, data), [{ type: 'leave' }], data);
+    // Ya derrotó 2 SNACs en esta ronda (10 + 20 en riesgo)
+    let g: GameState = { ...out, chain: 2, roundSnacs: 2, pendingChain: 30 };
+    g = applyGameAction(g, { type: 'follow', node: 'c0n0' }, data);
+    for (let i = 0; i < 8 && g.phase === 'combat'; i++) {
+      g = applyGameAction(g, { type: 'combat', action: { type: 'reroll', dieIds: ['d0'] } }, data);
+    }
+    expect(g).toMatchObject({ kos: 1, pendingChain: 0, score: 20, points: { chain: 20 } });
     const town = applyGameAction(g, { type: 'return' }, data);
-    expect(town.phase).toBe('town');
-    const last = ko(applyGameAction({ ...town, townActions: 0 }, { type: 'leave' }, data));
-    expect(last).toMatchObject({ phase: 'aftermath', lives: 0, result: 'lives' });
-    expect(() => applyGameAction(last, { type: 'continue' }, data)).toThrow(/terminó/);
-    const over = applyGameAction(last, { type: 'return' }, data);
-    expect(over).toMatchObject({ phase: 'over', result: 'lives' });
-    expect(over.bestRun).not.toBeNull();
+    expect(town).toMatchObject({ phase: 'town', score: 20, pieland: { hp: 7 }, hp: 4 });
   });
 
-  it('Pieland pierde 1 PV al volver tras los runs 4, 6, 8, 10 y 12; en 0, fin de la partida', () => {
+  it('Pieland pierde 1 corazón en cada regreso al pueblo: 8 rondas y fin de la partida', () => {
     const back = (g: GameState) =>
       run({ ...g, townActions: 0 }, [{ type: 'leave' }, { type: 'return' }]);
     let g = withState({});
-    expect(runsUntilPielandHit(g, DATA)).toBe(4);
     const seen: number[] = [];
     for (let i = 0; i < 20 && g.phase === 'town'; i++) {
       g = back(g);
       seen.push(g.pieland.hp);
     }
-    expect(seen).toEqual([5, 5, 5, 4, 4, 3, 3, 2, 2, 1, 1, 0]);
-    // 12 runs como máximo
+    expect(seen).toEqual([7, 6, 5, 4, 3, 2, 1, 0]);
     expect(g).toMatchObject({ phase: 'over', result: 'pieland', pieland: { hp: 0 } });
   });
 
@@ -859,8 +853,7 @@ describe('fin de partida', () => {
     expect(() => applyGameAction(over, { type: 'rest' }, DATA)).toThrow(/terminó/);
     const trail = applyGameAction(townGame(DATA, 's'), { type: 'leave' }, DATA);
     const quit = applyGameAction(trail, { type: 'finish' }, DATA);
-    expect(quit).toMatchObject({ phase: 'over', run: null });
-    expect(quit.bestRun).toMatchObject({ run: 1 });
+    expect(quit).toMatchObject({ phase: 'over', run: null, result: 'abandon' });
     const fighting = applyGameAction(trail, nextNode(trail), DATA);
     expect(() => applyGameAction(fighting, { type: 'finish' }, DATA)).toThrow(/fase/);
   });

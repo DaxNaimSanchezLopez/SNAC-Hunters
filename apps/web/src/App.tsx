@@ -41,6 +41,12 @@ export function App() {
   // El fondo cubre toda la ventana (en escritorio la columna del juego es angosta)
   const phase = useGame((s) => s.game?.phase);
   const inTown = screen === 'game' && phase === 'town';
+  // Feedback final: menú principal con fortress.png y pueblo con fortress-background.png
+  const background = inTown
+    ? 'linear-gradient(rgba(20,10,0,.25),rgba(20,10,0,.7)),url(/assets/bg/fortress-background.jpg)'
+    : screen === 'home'
+      ? 'linear-gradient(rgba(20,10,0,.1),rgba(20,10,0,.55)),url(/assets/bg/fortress.jpg)'
+      : 'linear-gradient(rgba(20,10,0,.25),rgba(20,10,0,.55)),url(/assets/bg/sherbert-forest.png)';
   const game = useGame((s) => s.game);
   const startSeen = useGame((s) => s.startSeen);
   const startGear = screen === 'game' && game !== null && showsStartGear(game, startSeen);
@@ -69,11 +75,7 @@ export function App() {
   return (
     <div
       className={`min-h-[100dvh] bg-bark bg-cover font-sans ${inTown ? 'bg-top' : 'bg-center'}`}
-      style={{
-        backgroundImage: inTown
-          ? 'linear-gradient(rgba(20,10,0,.35),rgba(20,10,0,.75)),url(/assets/bg/town.jpg)'
-          : 'linear-gradient(rgba(20,10,0,.25),rgba(20,10,0,.55)),url(/assets/bg/sherbert-forest.png)',
-      }}
+      style={{ backgroundImage: background }}
     >
       {/* Feedback 2026-11-11: en computadora la interfaz usa más ancho */}
       <main className="mx-auto max-w-md md:max-w-3xl">

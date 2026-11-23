@@ -29,8 +29,8 @@ export function SecretQuestCard({ id, compact = false }: { id: string; compact?:
   const t = useT();
   const quest = getSecretQuest(id);
   if (!quest) return null;
-  const { questKill, questTrophy } = gameConfig.scoring;
-  const [a, b] = quest.symbols;
+  // Feedback final: la misión secreta da +10 por cada SNAC de su tipo (ya no por trofeos)
+  const { secretKill } = gameConfig.scoring;
   return (
     <div className="overflow-hidden rounded-2xl border-[3px] border-black bg-white shadow-[0_3px_0_#000]">
       <img
@@ -42,11 +42,7 @@ export function SecretQuestCard({ id, compact = false }: { id: string; compact?:
       <ul className="grid gap-1 border-t-2 border-black/20 px-2 py-1.5 text-xs leading-tight text-bark">
         <li className="flex items-center gap-1.5">
           <TypeIcon type={quest.monsterType} className="h-5 w-5" />
-          {t('secret.monsters', { type: typeName(t, quest.monsterType), n: questKill })}
-        </li>
-        <li className="flex items-center gap-1.5">
-          <img src="/assets/icons/quest.png" alt="" className="h-5 w-5 object-contain" />
-          {t('secret.trophies', { a: typeName(t, a), b: typeName(t, b), n: questTrophy })}
+          {t('secret.monsters', { type: typeName(t, quest.monsterType), n: secretKill })}
         </li>
       </ul>
     </div>

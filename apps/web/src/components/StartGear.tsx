@@ -6,6 +6,7 @@ import { useT } from '../game/useT';
 import { AbilityCard } from './AbilityCard';
 import { Button } from './Button';
 import { Modal } from './Modal';
+import { RichText } from './RichText';
 import { TrophyToken } from './Trophy';
 
 const KIND_BG: Record<DieKind, string> = {
@@ -40,6 +41,10 @@ export function StartGear({ game }: { game: GameState }) {
     <Modal title={t('start.title')}>
       <p className="text-sm text-bark/80">{t('start.text')}</p>
       <h4 className="mt-3 font-comic text-lg text-bark">{t('start.item')}</h4>
+      {/* Feedback final: para qué sirven los objetos y los trofeos */}
+      <p className="text-sm text-bark/80">
+        <RichText text={t('start.itemText')} />
+      </p>
       <div className="mt-1 grid gap-2">
         {game.items.map((i) => {
           const ability = getAbility(i.id);
@@ -47,6 +52,9 @@ export function StartGear({ game }: { game: GameState }) {
         })}
       </div>
       <h4 className="mt-3 font-comic text-lg text-bark">{t('start.trophy')}</h4>
+      <p className="text-sm text-bark/80">
+        <RichText text={t('start.trophyText')} />
+      </p>
       <div className="mt-1 flex flex-wrap gap-2 rounded-2xl bg-bark/80 p-2">
         {game.trophies.map((s, i) => (
           <TrophyToken key={`${s}-${i}`} symbol={s} />

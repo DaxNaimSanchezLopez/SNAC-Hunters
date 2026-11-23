@@ -7,9 +7,11 @@ import {
   availableDice,
   BOSS_NODE,
   canActivate,
+  canLeaveTown,
   coveredSlots,
   isWhiteWild,
   loadGuide,
+  pendingHits,
   reachableNodes,
   townOptions,
 } from '@snac-hunters/engine';
@@ -21,18 +23,33 @@ export const guide: readonly GuideLesson[] = loadGuide(rawGuide);
 
 type Condition = GuideLesson['when'][number];
 
-const CONDITIONS: Record<Condition, (g: GameState) => boolean> = {
+/** Estado de la interfaz que también decide lecciones (no es estado del juego). */
+export interface GuideUi {
+  /** El jugador abrió la casa del aldeano en el pueblo. */
+  readonly villagerOpen?: boolean;
+}
+
+const abilityReady = ({ combat }: GameState) =>
+  combat ? combat.abilities.some((a) => canActivate(combat, a)) : false;
+
+const CONDITIONS: Record<Condition, (g: GameState, ui: GuideUi) => boolean> = {
   // Trofeos: a partir del segundo combate, cuando ya se entiende lo básico
   laterFight: (g) => g.fights > 0,
-  abilityReady: ({ combat }) =>
-    combat ? combat.abilities.some((a) => canActivate(combat, a)) : false,
+  abilityReady,
+  // Feedback final: en el primer combate guiado primero se enseña la habilidad y después
+  // relanzar (si no, la flecha roja se relanzaría antes de aprender a usarla)
+  abilityFirst: (g) => !abilityReady(g) || (g.combat?.usedAbilities.length ?? 0) > 0,
+  // El dado blanco se explica con una tirada de daño normal (feedback final)
+  whiteDamage: (g) => (g.combat ? pendingHits(g.combat).length > 0 : false),
+  villagerOpen: (_g, ui) => ui.villagerOpen === true,
+  actionsSpent: (g) => g.townActions === 0 || canLeaveTown(g, gameData),
   canHeal: (g) =>
     g.combat
       ? g.combat.hp < g.combat.maxHp && availableDice(g.combat).some((d) => d.face === 'heart')
       : false,
   tempWild: (g) => (g.combat ? availableDice(g.combat).some((d) => d.kind === 'token') : false),
-  // La misión del Huntmaster se abre en la segunda visita de la partida guiada
-  skillUnlocked: (g) => g.guided && g.townVisits >= 2,
+  // Feedback final: el Huntmaster se abre en la tercera visita de la partida guiada
+  skillUnlocked: (g) => g.guided && townOptions(g, gameData).skill.unlocked,
   firstHunt: (g) => g.runs === 1 && g.run?.fights === 0,
   returnVisit: (g) => g.runs > 0,
   offer: (g) => g.offer !== null,
@@ -47,15 +64,20 @@ const CONDITIONS: Record<Condition, (g: GameState) => boolean> = {
   whiteWild: (g) => (g.combat ? availableDice(g.combat).some(isWhiteWild) : false),
   // V1: el siguiente paso del mapa es la guarida del jefe; se perdió una vida
   bossReady: (g) => g.phase === 'trail' && reachableNodes(g).includes(BOSS_NODE),
-  lifeLost: (g) => g.combat?.ko === true,
+  ko: (g) => g.combat?.ko === true,
   boss: (g) => g.combat?.monster.boss === true,
   defeatedNow: (g) => g.combat?.outcome === 'defeat',
-  // Feedback 2026-11-11: espacios del tablero (saqueo, alquimista, entrenamiento, forja)
-  spacesUnlocked: (g) => townOptions(g, gameData).scavenge.unlocked,
+  // Feedback final: el alquimista abre la serie de lugares nuevos (segunda visita)
+  spacesUnlocked: (g) =>
+    g.guided && townOptions(g, gameData).alchemist.unlocked && g.townVisits > 1,
 };
 
 /** Primera lección no vista cuya fase y condiciones se cumplen ahora mismo. */
-export function activeLesson(game: GameState | null, seen: readonly string[]): GuideLesson | null {
+export function activeLesson(
+  game: GameState | null,
+  seen: readonly string[],
+  ui: GuideUi = {},
+): GuideLesson | null {
   // Con un trofeo pendiente manda su propia ventana; la guía espera
   if (!game || game.pendingTrophy !== null) return null;
   return (
@@ -65,7 +87,7 @@ export function activeLesson(game: GameState | null, seen: readonly string[]): G
         lesson.phase === game.phase &&
         // Con la oferta de cartas abierta solo se explica la oferta
         (game.offer === null || lesson.when.includes('offer')) &&
-        lesson.when.every((c) => CONDITIONS[c](game)),
+        lesson.when.every((c) => CONDITIONS[c](game, ui)),
     ) ?? null
   );
 }

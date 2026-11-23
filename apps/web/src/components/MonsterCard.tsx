@@ -27,7 +27,8 @@ const TYPE_ICONS: Record<GameSymbol, string> = {
   Horn: '/assets/types/horn.png',
   Wing: '/assets/types/wing.png',
   Tail: '/assets/types/tail.png',
-  Claw: '/assets/trophies/claw.png',
+  // Feedback final: el tipo Garra ya no usa el trofeo verde (recortado de la carta de misión)
+  Claw: '/assets/types/claw.png',
 };
 
 /** Icono del tipo de monstruo (no del trofeo): así el rastro no parece un premio. */

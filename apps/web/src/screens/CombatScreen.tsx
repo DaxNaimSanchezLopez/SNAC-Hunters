@@ -435,10 +435,13 @@ export function CombatScreen() {
             variant={rerollKills ? 'danger' : 'secondary'}
             onClick={() => confirmLethal('reroll', rerollKills, rerollRest)}
             data-guide-target="reroll"
-            disabled={!canReroll || (rerollCount === 0 && !whiteOnly)}
+            // Feedback final: conservar todo y relanzar solo los dados blancos también se puede
+            disabled={!canReroll}
             className={highlight === 'reroll' ? 'ring-4 ring-yellow-300' : ''}
           >
-            {whiteOnly ? t('combat.rerollWhite') : `${t('combat.reroll')} (${rerollCount})`}
+            {whiteOnly || rerollCount === 0
+              ? t('combat.rerollWhite')
+              : `${t('combat.reroll')} (${rerollCount})`}
             <span className="block font-sans text-xs">
               {rerollKills
                 ? t(armed === 'reroll' ? 'combat.koConfirm' : 'combat.koWarning')

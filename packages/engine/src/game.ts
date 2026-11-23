@@ -1,7 +1,8 @@
 // RF-15: Partida — máquina de estados pura sobre todo el juego.
 //   Color del cazador y misión secreta → expedición (mapa estilo FTL con monstruos ocultos y el
 //   jefe al final) → combate → resultado → seguir por el mapa o volver al pueblo.
-// V1 (roguelite sencillo): 3 vidas y Pieland amenazada con su cuenta regresiva.
+// Feedback final: Pieland con 8 corazones (pierde uno en cada regreso al pueblo), sin vidas, y un
+// puntaje que se acumula durante toda la partida.
 // Toda la aleatoriedad sale de la seed de la partida, así que el servidor re-simula
 // seed + acciones con `replayGame` exactamente igual que el cliente (Regla de oro 2).
 
@@ -15,6 +16,7 @@ import type {
   Ability,
   DiceTable,
   DieKind,
+  Face,
   GameSymbol,
   Monster,
   QuestCost,
@@ -40,8 +42,8 @@ export interface GameData {
  */
 export type GamePhase = 'setup' | 'town' | 'trail' | 'combat' | 'aftermath' | 'over';
 
-/** Cómo terminó la partida (V1): ganó, se quedó sin vidas, cayó Pieland o la dejó. */
-export type GameResult = 'victory' | 'lives' | 'pieland' | 'abandon';
+/** Cómo terminó la partida: limpió Sherbert Forest, cayó Pieland o la dejó. */
+export type GameResult = 'victory' | 'pieland' | 'abandon';
 
 /** Nodo del mapa de la región: solo se conoce el tipo de monstruo hasta pelear. */
 export interface MapNode {
@@ -62,8 +64,8 @@ export interface GameMap {
 export const BOSS_NODE = 'boss';
 
 /**
- * Pieland amenazada (feedback 2026-11-11): empieza con 5 PV y pierde 1 al volver al pueblo
- * después de los runs 4, 6, 8, 10 y 12 (`config.pieland.damageAfterRuns`).
+ * Pieland bajo ataque (feedback final): empieza con 8 corazones y pierde 1 cada vez que el
+ * cazador vuelve al pueblo, por decisión propia o por KO. En 0 termina la partida.
  */
 export interface Pieland {
   readonly hp: number;
@@ -82,15 +84,14 @@ export interface QuestSlot {
   readonly since: number;
 }
 
-/** Puntaje de un run (feedback del cliente, 2026-11-03, "Partida sin terminar"). */
-export interface RunScore {
-  /** Número de expedición. */
-  readonly run: number;
-  readonly hunt: number;
-  readonly questKills: number;
-  readonly questTrophies: number;
-  readonly cards: number;
-  readonly total: number;
+/** Puntos ya guardados, por origen (para la pantalla final). */
+export interface ScorePoints {
+  /** Cadenas guardadas, más los 10 por SNAC que se conservan tras un KO. */
+  readonly chain: number;
+  /** SNACs del tipo de la misión secreta. */
+  readonly secret: number;
+  /** Misiones del pueblo cumplidas. */
+  readonly quests: number;
 }
 
 export interface GameState {
@@ -133,17 +134,18 @@ export interface GameState {
   readonly questDeck: readonly string[];
   readonly questSerial: number;
   readonly completedQuests: readonly string[];
-  /** Monstruos derrotados seguidos en este run: el siguiente vale (chain + 1) × 10. */
+  /** Puntaje guardado de la partida (feedback final: se acumula durante toda la partida). */
+  readonly score: number;
+  readonly points: ScorePoints;
+  /** SNACs derrotados en esta ronda: el siguiente vale (chain + 1) × 10. */
   readonly chain: number;
-  readonly runHuntPoints: number;
-  readonly runQuestKills: number;
-  /** El mejor run terminado: es el puntaje si la partida no llega a derrotar al jefe. */
-  readonly bestRun: RunScore | null;
+  readonly roundSnacs: number;
+  /** Cadena en riesgo: se guarda al volver al pueblo o limpiar el bosque; con KO se pierde. */
+  readonly pendingChain: number;
+  /** Jefe derrotado = Sherbert Forest limpio. */
   readonly bossDefeated: boolean;
   /** Tipos de los monstruos derrotados en la partida (para Well Traveled). */
   readonly defeatedTypes: readonly GameSymbol[];
-  /** V1: vidas del cazador (cada KO cuesta una) y Pieland con su cuenta regresiva. */
-  readonly lives: number;
   readonly pieland: Pieland;
   /** Espacios para trofeos ganados en el alquimista (se suman a los del personaje). */
   readonly extraSlots: number;
@@ -166,10 +168,10 @@ export type TownOption = 'rest' | Ability['kind'] | 'scavenge' | 'alchemist' | '
 export const TOWN_OPTIONS: readonly TownOption[] = [
   'rest',
   'item',
+  'training',
+  'alchemist',
   'skill',
   'scavenge',
-  'alchemist',
-  'training',
   'forge',
 ];
 
@@ -194,7 +196,8 @@ export type GameAction =
   | { readonly type: 'rest' }
   | { readonly type: 'scavenge' }
   | { readonly type: 'alchemist'; readonly picks: readonly AlchemyPick[] }
-  | { readonly type: 'training' }
+  /** Entrenamiento: +1 dado rojo y recarga ese objeto gastado (por defecto, el primero). */
+  | { readonly type: 'training'; readonly item?: string }
   | { readonly type: 'forge'; readonly die: SpecialDieKind }
   /** Cumple una misión del tablero; la de aldeano dice con cuál de sus opciones paga. */
   | { readonly type: 'quest'; readonly id: string; readonly pay?: QuestCost }
@@ -272,32 +275,24 @@ export function readyAbilities(state: GameState, data: GameData): Ability[] {
 // ---------------------------------------------------------------------------------------
 
 export interface ScoreBreakdown {
-  /** true = jefe derrotado: puntaje final con HPie y multiplicador. */
-  readonly final: boolean;
-  /** Expedición de la que salen los valores. */
-  readonly run: number;
-  /** Puntos de cadena del run (10 + 20 + 30…). */
-  readonly hunt: number;
-  readonly questKills: number;
-  readonly questTrophies: number;
-  readonly hp: number;
-  /** Vidas que le quedan al cazador (solo con el jefe derrotado, feedback 2026-11-11). */
-  readonly lives: number;
+  /** true = Sherbert Forest limpio: se suman los bonos de corazones y de bosque limpio. */
+  readonly cleared: boolean;
+  readonly chain: number;
+  readonly secret: number;
+  readonly quests: number;
   /** Puntos de las cartas de puntos (Piebix Cube, Varied Samples, Well Traveled). */
   readonly cards: number;
-  readonly multiplier: number;
+  /** Corazones que le quedan a Pieland y lo que valen (solo con el bosque limpio). */
+  readonly hearts: number;
+  readonly heartBonus: number;
+  readonly clearedBonus: number;
+  /** Cadena de la ronda en curso, todavía en riesgo (no cuenta en el total). */
+  readonly atRisk: number;
   readonly total: number;
 }
 
 function distinct<T>(list: readonly T[]): number {
   return new Set(list).size;
-}
-
-/** Trofeos sin gastar que coinciden con la misión secreta. */
-export function questTrophiesHeld(state: GameState, data: GameData): number {
-  if (!state.secretQuest) return 0;
-  const { symbols } = findSecretQuest(data, state.secretQuest);
-  return state.trophies.filter((s) => symbols.includes(s)).length;
 }
 
 /** Cartas de puntos: un punto por color o tipo distinto (máximo 4), en la escala ×10. */
@@ -317,80 +312,47 @@ function cardPoints(state: GameState, data: GameData): number {
 }
 
 /**
- * Multiplicador del jefe (feedback 2026-11-11): depende de los PV que le quedan a Pieland,
- * no de los runs. 5 → 2, 4 → 1.75, 3 → 1.5 y 2 o menos → slowMultiplier (1.25).
- */
-export function bossMultiplier(pielandHp: number, config: GameConfig): number {
-  const { bossMultiplier: steps, slowMultiplier } = config.scoring;
-  return steps.find((s) => pielandHp >= s.minPielandHp)?.multiplier ?? slowMultiplier;
-}
-
-/**
- * Puntaje del run actual. Con el jefe derrotado es el puntaje final (feedback 2026-11-11):
- *   extras = misión × 10 + trofeos de misión × 10 + HPie × 10 + vidas × 10 (+ cartas de puntos)
- *   floor((puntos de cadena + extras) × multiplicador de Pieland)
- * Si no, el de "partida sin terminar": sin HPie, vidas ni multiplicador.
+ * Puntaje (feedback final, sección 6): lo guardado (cadenas, misión secreta y misiones del
+ * pueblo) más las cartas de puntos; si se limpió Sherbert Forest, + corazones de Pieland ×
+ * HEART_BONUS + CLEARED_BONUS. La cadena de la ronda en curso no cuenta hasta guardarse.
  */
 export function scoreBreakdown(state: GameState, data: GameData): ScoreBreakdown {
   const { scoring } = data.config;
-  const final = state.bossDefeated;
-  const questTrophies = questTrophiesHeld(state, data);
+  const cleared = state.bossDefeated;
   const cards = cardPoints(state, data);
-  const hp = final ? state.hp : 0;
-  const lives = final ? state.lives : 0;
-  const multiplier = final ? bossMultiplier(state.pieland.hp, data.config) : 1;
-  const base =
-    state.runHuntPoints +
-    state.runQuestKills * scoring.questKill +
-    questTrophies * scoring.questTrophy +
-    hp * scoring.hp +
-    lives * scoring.life +
-    cards;
+  const hearts = cleared ? state.pieland.hp : 0;
+  const heartBonus = hearts * scoring.heartBonus;
+  const clearedBonus = cleared ? scoring.clearedBonus : 0;
   return {
-    final,
-    run: state.runs,
-    hunt: state.runHuntPoints,
-    questKills: state.runQuestKills,
-    questTrophies,
-    hp,
-    lives,
+    cleared,
+    ...state.points,
     cards,
-    multiplier,
-    total: Math.floor(base * multiplier),
+    hearts,
+    heartBonus,
+    clearedBonus,
+    atRisk: state.pendingChain,
+    total: state.score + cards + heartBonus + clearedBonus,
   };
 }
 
-/**
- * Runs (contando el actual, o el siguiente si está en el pueblo) que faltan por terminar para
- * que Pieland pierda su siguiente PV; 1 = al volver de este run. null si ya no perderá más.
- */
-export function runsUntilPielandHit(state: GameState, data: GameData): number | null {
-  const current = state.run ? state.runs : state.runs + 1;
-  const next = data.config.pieland.damageAfterRuns.find((r) => r >= current);
-  return next === undefined ? null : next - current + 1;
-}
-
-function runScoreOf(state: GameState, data: GameData): RunScore {
-  const { run, hunt, questKills, questTrophies, cards, total } = scoreBreakdown(state, data);
-  return { run, hunt, questKills, questTrophies, cards, total };
-}
-
-/**
- * Puntaje de la partida: con el jefe derrotado, el final; si no, el del mejor run. Un run a
- * medias cuenta como terminado: dejar de jugar también lo termina.
- */
+/** Puntaje de la partida: lo guardado hasta ahora (y los bonos, si se limpió el bosque). */
 export function finalScore(state: GameState, data: GameData): number {
-  if (state.bossDefeated) return scoreBreakdown(state, data).total;
-  const best = state.bestRun?.total ?? 0;
-  return state.run ? Math.max(best, runScoreOf(state, data).total) : best;
+  return scoreBreakdown(state, data).total;
 }
 
-/** Termina el run: se guarda si es el mejor. */
-function closeRun(state: GameState, data: GameData): GameState {
-  if (!state.run || state.bossDefeated) return state;
-  const score = runScoreOf(state, data);
-  const better = state.bestRun === null || score.total > state.bestRun.total;
-  return { ...state, bestRun: better ? score : state.bestRun };
+/** Suma puntos guardados de un origen. */
+function bank(state: GameState, key: keyof ScorePoints, amount: number): GameState {
+  if (amount === 0) return state;
+  return {
+    ...state,
+    score: state.score + amount,
+    points: { ...state.points, [key]: state.points[key] + amount },
+  };
+}
+
+/** Guarda la cadena en riesgo (al volver al pueblo o al limpiar el bosque). */
+function bankChain(state: GameState): GameState {
+  return { ...bank(state, 'chain', state.pendingChain), pendingChain: 0 };
 }
 
 // ---------------------------------------------------------------------------------------
@@ -533,7 +495,7 @@ function scale(i: number, from: number, to: number): number {
  * columna y todos los de la última llevan al jefe (si el toggle `boss` está encendido). Los
  * tipos (y el monstruo oculto de cada nodo) son aleatorios y cambian en cada expedición.
  */
-function makeMap(data: GameData, rng: SeededRng): GameMap {
+function makeMap(data: GameData, rng: SeededRng, first?: Monster): GameMap {
   const { columns, minNodes, maxNodes } = data.config.map;
   const boss = data.config.features.boss === true;
   const sizes = Array.from({ length: columns }, () => rng.nextInt(minNodes, maxNodes));
@@ -542,10 +504,13 @@ function makeMap(data: GameData, rng: SeededRng): GameMap {
   sizes.forEach((size, c) => {
     const nextSize = sizes[c + 1];
     for (let i = 0; i < size; i++) {
-      const type = randomTrophy(rng);
-      const ofType = data.monsters.filter((m) => m.type === type);
+      const rolledType = randomTrophy(rng);
+      const ofType = data.monsters.filter((m) => m.type === rolledType);
       const pool = ofType.length > 0 ? ofType : data.monsters;
-      const monster = pool[rng.nextInt(0, pool.length - 1)] as Monster;
+      const rolled = pool[rng.nextInt(0, pool.length - 1)] as Monster;
+      // Partida guiada: la primera columna lleva al SNAC programado para enseñar
+      const monster = first && c === 0 ? first : rolled;
+      const type = monster.type;
       const next = new Set<string>();
       if (nextSize === undefined) {
         if (boss) next.add(BOSS_NODE);
@@ -577,12 +542,6 @@ export function reachableNodes(state: GameState): string[] {
 export function nodeMonster(state: GameState, data: GameData, nodeId: string): Monster {
   const node = state.map?.nodes.find((n) => n.id === nodeId) ?? fail(`No hay nodo ${nodeId}`);
   return findMonster(data, node.monsterId);
-}
-
-/** Pieland pierde 1 PV al volver al pueblo después de ciertos runs (feedback 2026-11-11). */
-function pielandAfterRun(state: GameState, data: GameData): Pieland {
-  const hit = data.config.pieland.damageAfterRuns.includes(state.runs);
-  return hit ? { hp: state.pieland.hp - 1 } : state.pieland;
 }
 
 // ---------------------------------------------------------------------------------------
@@ -640,13 +599,13 @@ export function newGame(data: GameData, seed: string): GameState {
     questDeck: board.deck,
     questSerial: board.serial,
     completedQuests: [],
+    score: 0,
+    points: { chain: 0, secret: 0, quests: 0 },
     chain: 0,
-    runHuntPoints: 0,
-    runQuestKills: 0,
-    bestRun: null,
+    roundSnacs: 0,
+    pendingChain: 0,
     bossDefeated: false,
     defeatedTypes: [],
-    lives: data.config.lives,
     pieland: { hp: pieland.hp },
     extraSlots: 0,
     result: null,
@@ -680,19 +639,20 @@ function canCompleteAny(state: GameState, data: GameData, kind: Ability['kind'])
   });
 }
 
+/** Visita al pueblo en la que se abre la opción en la partida guiada (1 = desde el inicio). */
+export function unlockVisit(option: TownOption, data: GameData): number {
+  return data.config.town.guidedUnlocks[option] ?? 1;
+}
+
 /**
  * Estado de cada opción del pueblo (feedback del cliente, 2026-10-27): cada opción se usa
- * una vez por visita, y en la partida guiada se empieza con 2 opciones y se suma una más en
- * cada regreso, para que el Huntmaster no quite poder al jugador al principio.
+ * una vez por visita. En la partida guiada se abren en orden (feedback final): al inicio
+ * descansar, aldeano y entrenamiento; luego alquimista, Huntmaster, saqueo y herrería.
  */
 export function townOptions(state: GameState, data: GameData): Record<TownOption, TownOptionState> {
-  const { town } = data.config;
-  const open = state.guided
-    ? town.guidedStartOptions + Math.max(0, state.townVisits - 1)
-    : TOWN_OPTIONS.length;
   const free = state.phase === 'town' && state.townActions > 0 && state.offer === null;
-  const entries = TOWN_OPTIONS.map((option, i): [TownOption, TownOptionState] => {
-    const unlocked = i < open;
+  const entries = TOWN_OPTIONS.map((option): [TownOption, TownOptionState] => {
+    const unlocked = !state.guided || state.townVisits >= unlockVisit(option, data);
     const used = state.townUsed.includes(option);
     const possible =
       option === 'item' || option === 'skill'
@@ -782,10 +742,22 @@ function alchemist(state: GameState, data: GameData, picks: readonly AlchemyPick
   return next;
 }
 
-/** ENTRENAMIENTO (tablero): +1 dado rojo para el resto de la partida. */
-function training(state: GameState, data: GameData): GameState {
+/**
+ * ENTRENAMIENTO (tablero; feedback final): +1 dado rojo para el resto de la partida y recarga un
+ * objeto gastado (el elegido, o el primero si no se indica).
+ */
+function training(state: GameState, data: GameData, target: string | undefined): GameState {
+  const spentItems = state.items.filter((i) => !i.ready).map((i) => i.id);
+  if (target !== undefined && !spentItems.includes(target)) {
+    fail(`No tienes un objeto gastado "${target}"`);
+  }
   const next = spendTownAction(state, data, 'training');
-  return { ...next, dice: [...next.dice, 'red'] };
+  const refresh = target ?? spentItems[0];
+  return {
+    ...next,
+    dice: [...next.dice, 'red'],
+    items: next.items.map((i) => (i.id === refresh ? { ...i, ready: true } : i)),
+  };
 }
 
 /** FORJA (tablero): un dado rojo se cambia por un dado especial del color elegido + 1 trofeo. */
@@ -823,9 +795,11 @@ function completeQuest(
   if (candidates.length === 0) fail('No quedan cartas de ese tipo');
   const rng = new SeededRng(state.rngState);
   const ids = sample(rng, candidates, data.config.town.offerSize).map((a) => a.id);
+  // Feedback final: cada misión cumplida suma QUEST_POINTS
+  const scored = bank(spent, 'quests', data.config.scoring.questPoints);
   return replaceQuest(
     {
-      ...spent,
+      ...scored,
       rngState: rng.currentState,
       hp: state.hp - payment.hearts,
       trophies: state.trophies.filter((_, i) => !payment.trophies.includes(i)),
@@ -940,7 +914,12 @@ function leave(state: GameState, data: GameData): GameState {
     fail('Usa tus acciones en el pueblo antes de salir');
   }
   const rng = new SeededRng(state.rngState);
-  const map = makeMap(data, rng);
+  const guidedMonster = data.config.tutorial.guided?.monsterId;
+  const first =
+    state.guided && state.fights === 0 && guidedMonster
+      ? findMonster(data, guidedMonster)
+      : undefined;
+  const map = makeMap(data, rng, first);
   return {
     ...state,
     rngState: rng.currentState,
@@ -948,32 +927,35 @@ function leave(state: GameState, data: GameData): GameState {
     run: startRun({ dice: state.dice, maxHp: state.maxHp, hp: state.hp }),
     runs: state.runs + 1,
     chain: 0,
-    runHuntPoints: 0,
-    runQuestKills: 0,
+    roundSnacs: 0,
+    pendingChain: 0,
     map,
     position: null,
   };
 }
 
 /**
- * Lleva el resultado del combate a la partida: dados, HPie, trofeos, objetos y puntaje. Cada
- * monstruo derrotado del run vale más que el anterior (10, 20, 30…); estudiar no cambia la
- * cadena y quedar KO no resta, pero cuesta una vida. Derrotar al jefe termina la partida; sin
- * vidas, termina al volver al pueblo.
+ * Lleva el resultado del combate a la partida: dados, HPie, trofeos, objetos y puntaje
+ * (feedback final). Cada SNAC derrotado en la ronda (también el jefe) suma a la cadena en
+ * riesgo: 10, 20, 30… El de la misión secreta suma +10 de inmediato. Con KO se pierde la cadena
+ * y solo quedan 10 por SNAC de la ronda. Derrotar al jefe limpia Sherbert Forest: la cadena se
+ * guarda y la partida termina en ese momento.
  */
 function settle(state: GameState, data: GameData, combat: CombatState): GameState {
+  const { scoring } = data.config;
   const run = endCombat(state.run as RunState, combat);
   const outcome = combat.outcome as Outcome;
   const { monster } = combat;
   const defeated = outcome === 'defeat';
   const boss = monster.boss === true;
   const chain = defeated ? state.chain + 1 : state.chain;
+  const roundSnacs = state.roundSnacs + (defeated ? 1 : 0);
   const secret = state.secretQuest ? findSecretQuest(data, state.secretQuest) : null;
-  const questKill = defeated && !boss && secret?.monsterType === monster.type;
-  const lives = state.lives - (combat.ko ? 1 : 0);
-  const next: GameState = {
+  const secretKill = defeated && !boss && secret?.monsterType === monster.type;
+  const cleared = defeated && boss;
+  let next: GameState = {
     ...state,
-    phase: defeated && boss ? 'over' : 'aftermath',
+    phase: cleared ? 'over' : 'aftermath',
     combat,
     run,
     hp: run.hp,
@@ -983,28 +965,60 @@ function settle(state: GameState, data: GameData, combat: CombatState): GameStat
       combat.usedAbilities.includes(i.id) ? { ...i, ready: false } : i,
     ),
     chain,
-    runHuntPoints: state.runHuntPoints + (defeated ? chain * data.config.scoring.chainStep : 0),
-    runQuestKills: state.runQuestKills + (questKill ? 1 : 0),
-    bossDefeated: state.bossDefeated || (defeated && boss),
-    lives,
-    result: defeated && boss ? 'victory' : lives <= 0 ? 'lives' : state.result,
+    roundSnacs,
+    pendingChain: state.pendingChain + (defeated ? chain * scoring.chainStep : 0),
+    bossDefeated: state.bossDefeated || cleared,
+    result: cleared ? 'victory' : state.result,
     defeatedTypes: defeated && !boss ? [...state.defeatedTypes, monster.type] : state.defeatedTypes,
     kos: state.kos + (combat.ko ? 1 : 0),
     fights: state.fights + 1,
     rerolls: state.rerolls + combat.rerolls,
     outcomes: { ...state.outcomes, [outcome]: (state.outcomes[outcome] ?? 0) + 1 },
   };
+  if (secretKill) next = bank(next, 'secret', scoring.secretKill);
+  if (combat.ko) {
+    // KO: se pierde la cadena; solo quedan 10 puntos por SNAC derrotado en la ronda
+    next = { ...bank(next, 'chain', roundSnacs * scoring.koSnac), pendingChain: 0 };
+  } else if (cleared) {
+    next = bankChain(next);
+  }
   return combat.trophy ? gainTrophy(next, data, combat.trophy) : next;
+}
+
+/**
+ * Primera tirada programada de la partida guiada (feedback final): solo coinciden 2 dados y
+ * hay una flecha roja para enseñar a usar una habilidad. Depende del color del cazador.
+ */
+function guidedRoll(
+  state: GameState,
+  data: GameData,
+  dice: readonly DieKind[],
+): Face[] | undefined {
+  const script = data.config.tutorial.guided;
+  if (!state.guided || state.fights > 0 || !script) return undefined;
+  const special = dice.find((d): d is SpecialDieKind =>
+    (SPECIAL_DICE as readonly string[]).includes(d),
+  );
+  const roll = special ? script.roll[special] : undefined;
+  return roll && roll.length === dice.length ? [...roll] : undefined;
 }
 
 /** Empieza el combate contra ese monstruo con lo que queda de la expedición. */
 function fight(state: GameState, data: GameData, monster: Monster, rng: SeededRng): GameState {
+  const setup = runCombatSetup(state.run as RunState);
+  // Feedback final: desde el segundo SNAC de la partida siempre hay al menos un dado blanco,
+  // aunque el cazador nunca relance
+  const tired = state.fights + 1 >= data.config.player.whiteDieFromFight;
+  const dice: DieKind[] =
+    tired && !setup.dice.includes('white') ? [...setup.dice, 'white'] : [...setup.dice];
   const combat = startCombat(
     monster,
     {
-      ...runCombatSetup(state.run as RunState),
+      ...setup,
+      dice,
       trophies: state.trophies,
       abilities: readyAbilities(state, data),
+      faces: guidedRoll(state, data, dice),
     },
     rng.nextInt(0, UINT32_MAX),
     data.dice,
@@ -1061,59 +1075,48 @@ function next(state: GameState): GameState {
 }
 
 /**
- * Volver al pueblo termina el run (se guarda si fue el mejor). Se recuperan los dados y se
- * retiran los blancos. El HPie no se recupera solo: hay que descansar (D-21), salvo tras un
- * KO, que lo recupera todo (manual p. 11). La misión más antigua del tablero se retira y
- * llega una nueva (feedback del cliente, 2026-11-03). Aquí se decide el game over de V1: sin
- * vidas, o con Pieland en 0 tras su cuenta regresiva → puntaje.
+ * Volver al pueblo termina la ronda (feedback final): se guarda la cadena (con KO ya se perdió)
+ * y Pieland pierde un corazón; en 0, la partida termina. Se recuperan los dados y se retiran los
+ * blancos. El HPie no se recupera solo: hay que descansar (D-21), salvo tras un KO, que recarga
+ * el HPie y los objetos como descansar. La misión más antigua de cada casa se retira y llega una
+ * nueva (feedback del cliente, 2026-11-03).
  */
 function goToTown(state: GameState, data: GameData): GameState {
-  const closed = closeRun(state, data);
-  if (state.result !== null) {
-    return { ...closed, phase: 'over', run: null, combat: null, map: null, position: null };
-  }
-  const pieland = pielandAfterRun(state, data);
+  const banked = bankChain(state);
+  const pieland: Pieland = { hp: state.pieland.hp - 1 };
+  const closed = { run: null, combat: null, map: null, position: null } as const;
   if (pieland.hp <= 0) {
-    return {
-      ...closed,
-      phase: 'over',
-      result: 'pieland',
-      pieland,
-      run: null,
-      combat: null,
-      map: null,
-      position: null,
-    };
+    return { ...banked, ...closed, phase: 'over', result: 'pieland', pieland };
   }
-  const rotated = oldestQuests(closed, data).reduce(
+  const rotated = oldestQuests(banked, data).reduce(
     (s, id) =>
       replaceQuest(
         s,
         data,
         s.quests.findIndex((q) => q.id === id),
       ),
-    closed,
+    banked,
   );
+  const ko = state.run?.endedBy === 'ko';
   return {
     ...rotated,
+    ...closed,
     phase: 'town',
-    run: null,
-    hp: state.run?.endedBy === 'ko' ? state.maxHp : state.hp,
+    hp: ko ? state.maxHp : state.hp,
+    items: ko ? state.items.map((i) => ({ ...i, ready: true })) : state.items,
     pieland,
-    combat: null,
-    map: null,
-    position: null,
     townActions: data.config.town.actionsPerVisit,
     townUsed: [],
     townVisits: state.townVisits + 1,
   };
 }
 
-/** Dejar de jugar: el run a medias cuenta como terminado y queda el mejor puntaje. */
-function finish(state: GameState, data: GameData): GameState {
+/** Dejar de jugar: queda lo que se guardó; la cadena en riesgo se pierde (feedback final). */
+function finish(state: GameState): GameState {
   if (state.offer) fail('Primero elige una de las cartas ofrecidas');
   return {
-    ...closeRun(state, data),
+    ...state,
+    pendingChain: 0,
     phase: 'over',
     result: 'abandon',
     run: null,
@@ -1139,7 +1142,10 @@ function start(
   if (secretQuest !== null && !state.secretOffer.includes(secretQuest)) {
     fail(`"${secretQuest}" no es una de las misiones secretas ofrecidas`);
   }
-  return leave({ ...state, guided, secretQuest, dice: [...state.dice, die] }, data);
+  // Partida guiada: el objeto inicial es el que enseña las habilidades (Auto-Aimer)
+  const item = guided ? data.config.tutorial.guided?.item : undefined;
+  const items = item ? [{ id: findAbility(data, item).id, ready: true }] : state.items;
+  return leave({ ...state, guided, secretQuest, items, dice: [...state.dice, die] }, data);
 }
 
 /** Aplica una acción de la partida. Lanza CombatError si no es válida en el estado actual. */
@@ -1185,7 +1191,7 @@ export function applyGameAction(state: GameState, action: GameAction, data: Game
       return alchemist(state, data, action.picks);
     case 'training':
       requirePhase(state, 'town');
-      return training(state, data);
+      return training(state, data, action.item);
     case 'forge':
       requirePhase(state, 'town');
       return forge(state, data, action.die);
@@ -1197,7 +1203,7 @@ export function applyGameAction(state: GameState, action: GameAction, data: Game
       return goToTown(state, data);
     case 'finish':
       requirePhase(state, 'town', 'trail', 'aftermath');
-      return finish(state, data);
+      return finish(state);
     default:
       return fail('Acción desconocida');
   }

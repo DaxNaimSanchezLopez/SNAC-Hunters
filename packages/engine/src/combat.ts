@@ -26,6 +26,11 @@ export interface CombatSetup {
   readonly trophies?: readonly GameSymbol[];
   /** RF-14: Habilidades listas para usar en este combate (objetos cargados y destrezas). */
   readonly abilities?: readonly Ability[];
+  /**
+   * Caras forzadas de la primera tirada, por posición (partida guiada: el primer combate está
+   * programado para enseñar, feedback final). El RNG avanza igual, así que el resto no cambia.
+   */
+  readonly faces?: readonly Face[];
 }
 
 export type CombatAction =
@@ -342,7 +347,8 @@ export function isTemporaryWild(die: Pick<Die, 'kind' | 'face'>): boolean {
  * Llenado automático (feedback del cliente, 2026-10-27 y 2026-11-11): reparte los dados elegidos
  * en los espacios libres del monstruo cubriendo el máximo posible; a igualdad, usa primero los
  * comodines temporales (dorados y blancos, que se pierden al terminar) y después gasta los menos
- * comodines permanentes. Solo planea: la UI aplica el resultado como acciones `assign`.
+ * comodines permanentes. Feedback final: un comodín no va al espacio "any 4" si otro dado cabe
+ * ahí. Solo planea: la UI aplica el resultado como acciones `assign`.
  */
 export function autoFillPlan(
   state: CombatState,
@@ -354,10 +360,13 @@ export function autoFillPlan(
     state.assignments[i] === null ? [{ slot, i }] : [],
   );
   let best: { dieId: string; slot: number }[] = [];
+  let bestOnAll = Infinity;
   let bestTemp = -1;
   let bestWilds = Infinity;
   const plan: { dieId: string; slot: number }[] = [];
   const used = new Set<string>();
+  // Comodines puestos en espacios "any 4" (cualquier símbolo los cubre: el comodín sobra ahí)
+  let onAll = 0;
   // Como mucho 6 espacios (el jefe): la búsqueda exhaustiva es pequeña
   function search(k: number, temp: number, wilds: number): void {
     const target = free[k];
@@ -365,9 +374,12 @@ export function autoFillPlan(
       const better =
         plan.length > best.length ||
         (plan.length === best.length &&
-          (temp > bestTemp || (temp === bestTemp && wilds < bestWilds)));
+          (onAll < bestOnAll ||
+            (onAll === bestOnAll &&
+              (temp > bestTemp || (temp === bestTemp && wilds < bestWilds)))));
       if (better) {
         best = [...plan];
+        bestOnAll = onAll;
         bestTemp = temp;
         bestWilds = wilds;
       }
@@ -382,7 +394,10 @@ export function autoFillPlan(
       used.add(d.id);
       plan.push({ dieId: d.id, slot: target.i });
       const isTemp = isTemporaryWild(d);
+      const wildOnAll = d.face === 'wild' && target.slot === 'all' ? 1 : 0;
+      onAll += wildOnAll;
       search(k + 1, temp + (isTemp ? 1 : 0), wilds + (d.face === 'wild' && !isTemp ? 1 : 0));
+      onAll -= wildOnAll;
       plan.pop();
       used.delete(d.id);
     }
@@ -488,11 +503,12 @@ export function startCombat(
     throw new CombatError(`HPie inválido: ${setup.hp}`);
   }
   const rng = new SeededRng(seed);
-  const dice = setup.dice.map((kind, i) => ({
-    id: `d${i}`,
-    kind,
-    face: rollFace(kind, rng, table),
-  }));
+  const dice = setup.dice.map((kind, i) => {
+    const rolled = rollFace(kind, rng, table);
+    const forced = setup.faces?.[i];
+    // Solo se fuerza una cara que ese dado tiene
+    return { id: `d${i}`, kind, face: forced && table[kind].includes(forced) ? forced : rolled };
+  });
   const ids = dice.map((d) => d.id);
   return {
     monster,
@@ -524,14 +540,10 @@ export function canRerollAny(state: CombatState): boolean {
 
 /**
  * RF-11.3: Relanza los dados elegidos; cada relanzamiento añade un dado de daño blanco.
- * Antes de lanzar se paga el daño pendiente (D-08). Sin dados que relanzar (todos gastados
- * o asignados) se puede "empujar la suerte" solo con el dado blanco, para que el combate
- * nunca quede trabado (D-19).
+ * Antes de lanzar se paga el daño pendiente (D-08). Se puede conservar todo y "empujar la
+ * suerte" solo con los dados blancos (D-19; feedback final: relanzar solo los blancos).
  */
 function reroll(state: CombatState, dieIds: readonly string[], table: DiceTable): CombatState {
-  if (dieIds.length === 0 && canRerollAny(state)) {
-    throw new CombatError('Selecciona al menos un dado para relanzar');
-  }
   if (new Set(dieIds).size !== dieIds.length)
     throw new CombatError('Dados repetidos en el relanzamiento');
   const available = new Set(availableDice(state).map((d) => d.id));
@@ -794,6 +806,31 @@ function undoAbility(state: CombatState, abilityId: string): CombatState {
   };
 }
 
+/** Símbolos que pide estudiar a un SNAC. */
+export const STUDY_SYMBOLS = 2;
+
+/**
+ * Retira `count` piezas del SNAC antes de estudiar: primero los dados de verdad (vuelven a la
+ * reserva), luego los trofeos (vuelven al inventario) y al final el resto; a igualdad, la
+ * última que se colocó ("el tercer dado").
+ */
+function returnExtras(state: CombatState, count: number): CombatState {
+  if (count <= 0) return state;
+  const placedAt = (id: string) => {
+    for (let i = state.log.length - 1; i >= 0; i--) {
+      const e = state.log[i] as CombatEvent;
+      if ((e.type === 'assign' || e.type === 'trophy') && e.dieId === id) return i;
+    }
+    return -1;
+  };
+  const rank = (die: Die) =>
+    canReroll(die) && die.kind !== 'white' ? 0 : die.kind === 'trophy' ? 1 : 2;
+  const placed = state.assignments
+    .flatMap((id, slot) => (id === null ? [] : [{ slot, die: getDie(state, id) }]))
+    .sort((a, b) => rank(a.die) - rank(b.die) || placedAt(b.die.id) - placedAt(a.die.id));
+  return placed.slice(0, count).reduce((s, p) => unassign(s, p.slot), state);
+}
+
 /**
  * RF-11.5: Derrotar (4 espacios), Estudiar (2–3) o Huir (1). Al resolver se paga el daño
  * pendiente de los dados blancos (D-08) y cada espacio de daño del monstruo sin corazón
@@ -807,11 +844,19 @@ function resolve(
   if (coveredSlots(state) === 0) {
     throw new CombatError('Necesitas al menos un símbolo para resolver');
   }
-  const damage = paidDamage ?? pendingDamage(state);
-  if (!Number.isInteger(damage) || damage < 0 || damage > pendingDamage(state)) {
-    throw new CombatError(`No hay ${damage} espacio(s) de daño libres`);
+  const requested = paidDamage ?? pendingDamage(state);
+  if (!Number.isInteger(requested) || requested < 0 || requested > pendingDamage(state)) {
+    throw new CombatError(`No hay ${requested} espacio(s) de daño libres`);
   }
-  const outcome = outcomeFor(state, coveredSlots(state) + damage);
+  const outcome = outcomeFor(state, coveredSlots(state) + requested);
+  // Feedback final: estudiar solo necesita 2 símbolos. Lo que sobra vuelve a la reserva (o al
+  // inventario, si era un trofeo) y no se paga daño de más.
+  const damage =
+    outcome === 'study'
+      ? Math.min(requested, Math.max(0, STUDY_SYMBOLS - coveredSlots(state)))
+      : requested;
+  const base =
+    outcome === 'study' ? returnExtras(state, coveredSlots(state) + damage - STUDY_SYMBOLS) : state;
   let chosen: GameSymbol | null = null;
   if (outcome !== 'flee' && !state.monster.boss) {
     if (trophy === undefined) throw new CombatError('Elige un trofeo');
@@ -820,7 +865,7 @@ function resolve(
     }
     chosen = trophy;
   }
-  const paid = takeWhiteDamage(state);
+  const paid = takeWhiteDamage(base);
   const hp = Math.max(0, paid.hp - damage);
   const ko = hp === 0;
   const final: Outcome = ko && outcome !== 'defeat' ? 'ko' : outcome;

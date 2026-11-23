@@ -179,7 +179,9 @@ function gameEvents(
   if (after.dice.join() !== before.dice.join()) {
     lines.push(tr('log.ev.dice', { dice: after.dice.map((d) => kindName(t, d)).join(', ') }));
   }
-  if (after.lives < before.lives) lines.push(tr('log.ev.lives', { n: after.lives }));
+  if (after.score > before.score) {
+    lines.push(tr('log.ev.score', { n: after.score - before.score, total: after.score }));
+  }
   if (after.pieland.hp < before.pieland.hp) {
     lines.push(tr('log.ev.pieland', { n: after.pieland.hp }));
   }

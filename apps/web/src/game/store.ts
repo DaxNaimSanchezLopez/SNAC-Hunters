@@ -10,7 +10,6 @@ import {
   autoFillPlan,
   availableDice,
   canReroll,
-  canRerollAny,
   CombatError,
   finalScore,
   isActive,
@@ -38,6 +37,7 @@ import {
   tutorialSteps,
 } from './config';
 import { activeLesson, completesLesson, guide } from './guide';
+import type { GuideUi } from './guide';
 import { faceName, kindName, translate } from './i18n';
 import type { Lang, MessageKey, Vars } from './i18n';
 import type { Rejected } from './log';
@@ -86,6 +86,8 @@ interface GameStore {
   guideOn: boolean;
   /** Lecciones de la guía ya vistas. */
   guideSeen: readonly string[];
+  /** Estado de la interfaz que decide algunas lecciones (por ejemplo, abrir la casa del aldeano). */
+  guideUi: GuideUi;
   /** Dados seleccionados: para colocar (uno), conservar al relanzar o activar una habilidad. */
   selected: string[];
   /** Trofeos del inventario seleccionados: uno para colocarlo, o varios para una habilidad. */
@@ -101,6 +103,7 @@ interface GameStore {
   setLang(lang: Lang): void;
   newGame(guided?: boolean): void;
   dismissLesson(id: string): void;
+  setGuideUi(ui: GuideUi): void;
   skipGuide(): void;
   continueGame(): void;
   act(action: GameAction): void;
@@ -131,19 +134,11 @@ const HISTORY_SIZE = 10;
 const TOP_SIZE = 3;
 
 /**
- * Las mejores partidas: primero las que derrotaron al jefe, sin importar los números (si no,
- * quien abandona tras un run largo quedaría arriba de quien terminó la partida); después, de
- * mayor a menor puntaje y, a igualdad, la más antigua primero.
+ * Las mejores partidas, de mayor a menor puntaje y, a igualdad, la más antigua primero. Con el
+ * puntaje final (feedback final) limpiar el bosque ya da los bonos más grandes.
  */
 export function topOf(games: readonly FinishedGame[]): FinishedGame[] {
-  return [...games]
-    .sort(
-      (a, b) =>
-        Number(b.bossDefeated === true) - Number(a.bossDefeated === true) ||
-        b.score - a.score ||
-        a.at - b.at,
-    )
-    .slice(0, TOP_SIZE);
+  return [...games].sort((a, b) => b.score - a.score || a.at - b.at).slice(0, TOP_SIZE);
 }
 
 /** ¿Se puede dejar la partida ahora (desde el menú) sin perder lo jugado? */
@@ -294,9 +289,9 @@ export const useGame = create<GameStore>()(
       }
 
       function act(action: GameAction): void {
-        const { saved, game, guideOn, guideSeen } = getState();
+        const { saved, game, guideOn, guideSeen, guideUi } = getState();
         if (!saved || !game) return;
-        const lesson = guideOn ? activeLesson(game, guideSeen) : null;
+        const lesson = guideOn ? activeLesson(game, guideSeen, guideUi) : null;
         let next: GameState;
         try {
           next = applyGameAction(game, action, gameData);
@@ -399,6 +394,7 @@ export const useGame = create<GameStore>()(
         topScores: [],
         guideOn: false,
         guideSeen: [],
+        guideUi: {},
         selected: [],
         selectedTrophies: [],
         server: { state: 'idle' },
@@ -423,6 +419,7 @@ export const useGame = create<GameStore>()(
           setState({
             guideOn,
             guideSeen: [],
+            guideUi: {},
             saved: { seed, actions: [] },
             game: newGame(gameData, seed),
             screen: 'game',
@@ -442,6 +439,10 @@ export const useGame = create<GameStore>()(
             setState({ guideOn: false, tutorialDone: true });
             void track('tutorial_complete', { mode: 'guided' });
           }
+        },
+
+        setGuideUi(ui) {
+          setState({ guideUi: { ...getState().guideUi, ...ui } });
         },
 
         skipGuide() {
@@ -553,14 +554,11 @@ export const useGame = create<GameStore>()(
           const state = getState();
           const combat = currentCombat(state);
           if (!combat) return;
-          // El comodín blanco no se relanza: se queda en la bandeja (feedback 2026-11-03)
+          // El comodín blanco no se relanza: se queda en la bandeja (feedback 2026-11-03). Si se
+          // conservan todos, solo se tiran los blancos (feedback final)
           const dieIds = availableDice(combat)
             .filter((d) => canReroll(d) && !state.selected.includes(d.id))
             .map((d) => d.id);
-          if (dieIds.length === 0 && canRerollAny(combat)) {
-            toast(t('combat.deselect'));
-            return;
-          }
           combatDispatch({ type: 'reroll', dieIds });
         },
 

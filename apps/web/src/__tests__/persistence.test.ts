@@ -1,8 +1,8 @@
 // Integración: persistencia de la partida, sesiones interrumpidas, estado corrupto e idioma.
 // En jsdom no hay IndexedDB, así que idbStorage usa su respaldo en memoria (mismo contrato).
 import { describe, it, expect, beforeEach } from 'vitest';
-import { availableDice, canReroll, finalScore, payableOptions } from '@snac-hunters/engine';
-import { gameData, getQuest } from '../game/config';
+import { availableDice, canReroll, finalScore } from '@snac-hunters/engine';
+import { gameData } from '../game/config';
 import { summarize } from '../game/analytics';
 import type { AnalyticsEvent } from '../game/analytics';
 import { activeLesson, guide } from '../game/guide';
@@ -153,14 +153,14 @@ describe('controles del combate', () => {
         ...[3000, 9000, -2, 7000].map((score, at) => ({ ...base, score, at })),
       ]).map((g) => g.score),
     ).toEqual([9000, 7000, 3000]);
-    // Quien derrotó al jefe va arriba de todos los que no, sin importar los números
+    // Feedback final: el podio es solo por puntaje (limpiar el bosque ya da los bonos grandes)
     expect(
       topOf([
         { ...base, score: 9000, at: 1 },
         { ...base, score: 500, bossDefeated: true, at: 2 },
         { ...base, score: 700, bossDefeated: true, at: 3 },
       ]).map((g) => g.score),
-    ).toEqual([700, 500, 9000]);
+    ).toEqual([9000, 700, 500]);
   });
 
   it('una acción inválida muestra un aviso y no cambia la partida', () => {
@@ -179,7 +179,7 @@ describe('controles del combate', () => {
 describe('partida guiada (V0 = tutorial del juego de mesa)', () => {
   const lessonNow = () => {
     const s = useGame.getState();
-    return s.guideOn ? activeLesson(s.game, s.guideSeen) : null;
+    return s.guideOn ? activeLesson(s.game, s.guideSeen, s.guideUi) : null;
   };
 
   it('la primera partida es guiada y empieza por la expedición, como el juego de mesa', () => {
@@ -222,7 +222,7 @@ describe('partida guiada (V0 = tutorial del juego de mesa)', () => {
     expect(ids).toContain('combat-dice');
   });
 
-  it('el pueblo se enseña por partes: el Huntmaster y el puntaje llegan en la segunda visita', () => {
+  it('el pueblo se enseña por partes: alquimista en la 2.ª visita, Huntmaster en la 3.ª', () => {
     const dismissAll = () => {
       for (let i = 0; i < 8 && lessonNow()?.advance === 'next'; i++) {
         useGame.getState().dismissLesson(lessonNow()!.id);
@@ -236,25 +236,35 @@ describe('partida guiada (V0 = tutorial del juego de mesa)', () => {
     useGame.getState().act({ type: 'return' });
     expect(lessonNow()?.id).toBe('town-return');
     dismissAll();
-    // Primera visita: solo 2 opciones y la guía sigue activa
+    // Primera visita: descansar, aldeano y entrenamiento; la guía sigue activa
     expect(useGame.getState().guideOn).toBe(true);
     expect(useGame.getState().guideSeen).not.toContain('town-huntmaster');
+    // La lección del aldeano aparece al abrir su casa
+    expect(lessonNow()?.id).not.toBe('town-quests');
+    useGame.getState().setGuideUi({ villagerOpen: true });
+    expect(lessonNow()?.id).toBe('town-quests');
+    dismissAll();
     useGame.getState().act({ type: 'rest' });
-    // Misión de aldeano del tablero, si alguna se puede pagar
-    const game = useGame.getState().game!;
-    const villager = game.quests
-      .map((q) => getQuest(q.id)!)
-      .find((q) => q.kind === 'villager' && payableOptions(game, q).length > 0);
-    if (villager) {
-      useGame
-        .getState()
-        .act({ type: 'quest', id: villager.id, pay: payableOptions(game, villager)[0] });
-      dismissAll();
-      useGame.getState().act({ type: 'pick', abilityId: useGame.getState().game!.offer!.ids[0]! });
-    }
+    if (useGame.getState().game!.pendingTrophy)
+      useGame.getState().act({ type: 'keep', discard: null });
+    useGame.getState().act({ type: 'training' });
+    // Con las acciones gastadas, el Huntmaster explica cómo salir
+    expect(lessonNow()?.id).toBe('town-leave');
+    dismissAll();
     useGame.getState().act({ type: 'leave' });
     expect(useGame.getState().game?.phase).toBe('trail');
     useGame.getState().act({ type: 'return' });
+    // Segunda visita: se abre el alquimista
+    expect(lessonNow()?.id).toBe('town-spaces');
+    dismissAll();
+    expect(useGame.getState().guideOn).toBe(true);
+    useGame.getState().act({ type: 'rest' });
+    if (useGame.getState().game!.pendingTrophy)
+      useGame.getState().act({ type: 'keep', discard: null });
+    useGame.getState().act({ type: 'alchemist', picks: ['hp', 'slot'] });
+    useGame.getState().act({ type: 'leave' });
+    useGame.getState().act({ type: 'return' });
+    // Tercera visita: Huntmaster, puntaje y fin de la guía
     expect(lessonNow()?.id).toBe('town-huntmaster');
     dismissAll();
     expect(useGame.getState()).toMatchObject({ guideOn: false, tutorialDone: true });

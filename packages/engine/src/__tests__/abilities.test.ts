@@ -350,9 +350,9 @@ describe('sin dados que relanzar', () => {
     const table = fixedTable({ red: 'heart', white: 'damage' });
     const setup: CombatSetup = { dice: ['red'], hp: 4, maxHp: 4 };
     const s0 = startCombat(GARDEN_SALAAD, setup, 1, table);
-    expect(() => applyAction(s0, { type: 'reroll', dieIds: [] }, table)).toThrow(
-      /al menos un dado/,
-    );
+    // Feedback final: conservar todo y relanzar solo los blancos también vale
+    const kept = applyAction(s0, { type: 'reroll', dieIds: [] }, table);
+    expect(kept.dice.map((d) => d.face)).toEqual(['heart', 'damage']);
     // El corazón cubre el daño del primer blanco; al seguir, ambos se gastan
     const s1 = applyAction(s0, { type: 'reroll', dieIds: ['d0'] }, table);
     const s2 = applyAction(s1, { type: 'block', dieId: 'd0', damageId: 'd1' }, table);

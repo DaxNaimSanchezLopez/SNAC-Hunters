@@ -5,12 +5,11 @@
     "startingDice": ["red", "red", "red", "red"],
     "trophySlots": 2,
     "startingTrophies": 1,
-    "startingItems": 1
+    "startingItems": 1,
+    "whiteDieFromFight": 2
   },
-  "lives": 3,
   "pieland": {
-    "hp": 5,
-    "damageAfterRuns": [4, 6, 8, 10, 12]
+    "hp": 8
   },
   "map": {
     "columns": 4,
@@ -23,17 +22,35 @@
     "offerSize": 3,
     "maxItems": 3,
     "maxSkills": 3,
-    "guidedStartOptions": 2
+    "guidedUnlocks": {
+      "rest": 1,
+      "item": 1,
+      "training": 1,
+      "alchemist": 2,
+      "skill": 3,
+      "scavenge": 4,
+      "forge": 5
+    }
   },
   "boss": {
     "id": "pieous",
-    "name": "Pieous Assassin",
+    "name": "Pieous Agent",
     "pun": "The last slice is always the deadliest",
     "slots": 6
   },
   "tutorial": {
     "monsterId": "garden-salaad",
-    "seed": "snac-hunters-tutorial"
+    "seed": "snac-hunters-tutorial",
+    "guided": {
+      "monsterId": "porcupineapple",
+      "item": "auto-aimer",
+      "roll": {
+        "orange": ["Claw", "Wing", "Tail", "Tail", "Horn"],
+        "blue": ["Claw", "Wing", "Horn", "Tail", "Wing"],
+        "purple": ["Claw", "Wing", "Horn", "Tail", "Tail"],
+        "green": ["Tail", "Wing", "Horn", "Tail", "Claw"]
+      }
+    }
   },
   "features": {
     "tutorial": true,
@@ -45,26 +62,12 @@
   },
   "scoring": {
     "chainStep": 10,
-    "questKill": 10,
-    "questTrophy": 10,
-    "hp": 10,
+    "koSnac": 10,
+    "secretKill": 10,
+    "questPoints": 20,
+    "heartBonus": 150,
+    "clearedBonus": 500,
     "pointsCard": 10,
-    "pointsCardMax": 4,
-    "bossMultiplier": [
-      {
-        "minPielandHp": 5,
-        "multiplier": 2
-      },
-      {
-        "minPielandHp": 4,
-        "multiplier": 1.75
-      },
-      {
-        "minPielandHp": 3,
-        "multiplier": 1.5
-      }
-    ],
-    "slowMultiplier": 1.25,
-    "life": 10
+    "pointsCardMax": 4
   }
 }

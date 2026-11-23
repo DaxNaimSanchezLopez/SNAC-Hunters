@@ -507,4 +507,31 @@ Botón en el HUD que abre el registro de todo lo que hizo el jugador y el juego 
 
 ---
 
-_Última actualización: 2026-11-11 — feedback del cliente sobre la V1 (errores, interfaz, jugabilidad, puntaje/Pieland y registro de acciones)._
+## D-51 — Feedback final (2026-11-22): duración y puntaje
+
+Reemplaza D-43, D-45 y D-49. **Ronda** = expedición + visita al pueblo; **partida** = el juego completo.
+
+- **Sin vidas.** Pieland empieza con **8 corazones** y pierde 1 en **cada** regreso al pueblo (por decisión o por KO). En 0 termina la partida (8 rondas). Derrotar al jefe limpia Sherbert Forest y termina la partida de inmediato, sin perder corazón.
+- **Puntaje acumulado** (`score`, `points`): cadena 10, 20, 30… por SNAC derrotado en la ronda (también el jefe), **en riesgo** (`pendingChain`) hasta volver al pueblo o limpiar el bosque. KO: se pierde la cadena y quedan 10 por SNAC de la ronda. Misión secreta +10 al instante (no el jefe). Misión del pueblo +20. Al limpiar: + corazones de Pieland × 150 + 500. Abandonar pierde la cadena en riesgo. Valores en `config/game.json → scoring`.
+- El podio ordena solo por puntaje; el menú muestra 3 puntajes de ejemplo (Flunkie 800, Samurpie 2000, Colonel Custard 3000) que las partidas del jugador van desplazando.
+
+**Interpretaciones:** las cartas de puntos (Piebix Cube, Varied Samples, Well Traveled) siguen sumando al total aunque la pantalla final de Alex no las lista (se muestran solo si valen algo). El "mejor puntaje" del HUD es el mejor del jugador (o el actual si es mayor).
+
+---
+
+## D-52 — Feedback final: jugabilidad y tutorial
+
+- **Dado blanco desde el 2.º SNAC de la partida:** si la reserva no trae ya un blanco, se agrega uno a la tirada inicial (`player.whiteDieFromFight`).
+- **Estudiar con 3 dados:** solo se gastan 2 símbolos; el sobrante vuelve a la reserva (primero dados de verdad, el último colocado) y no se paga daño de más.
+- **KO** recarga HPie **y objetos**, igual que descansar.
+- **AUTO** no pone un comodín en "any 4" si otro dado cabe ahí.
+- **Relanzar solo los blancos:** conservar todos los dados ya no bloquea el botón (se relanzan los blancos y se agrega uno nuevo).
+- **Entrenamiento** (texto 29/35 de Alex): +1 dado rojo **y recarga un objeto gastado** (se elige si hay varios).
+- **Partida guiada:** opciones del pueblo por visita (`town.guidedUnlocks`): 1 descansar/aldeano/entrenamiento, 2 alquimista, 3 Huntmaster, 4 saqueo, 5 herrería. El primer combate está programado (`tutorial.guided`): Porcupineapple, Auto-Aimer como objeto inicial y una tirada con solo 2 coincidencias y una flecha roja; la lección de habilidades va antes que la de relanzar. Bienvenida a pantalla completa; lección del aldeano al abrir su casa; la del dado blanco con una tirada de daño.
+- Textos con `[wild]`/`[heart]`/`[damage]`/`[any]` se muestran como ícono y las palabras en MAYÚSCULAS van en negritas (`RichText`).
+
+**Interpretaciones:** el texto 32/35 dice "visita 4" pero la tabla de desbloqueo pone al Huntmaster en la 3; se siguió la tabla y la lección aparece cuando se abre. El orden de desbloqueo aplica a la partida guiada (sin guía todo está abierto, como antes). El ícono de tipo Garra se recortó de la carta de misión secreta "Axe and Claw" porque no hay archivo propio.
+
+---
+
+_Última actualización: 2026-11-22 — feedback final del cliente (V1)._

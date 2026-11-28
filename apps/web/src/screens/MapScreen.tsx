@@ -73,7 +73,8 @@ export function MapScreen({ game }: { game: GameState }) {
         <h1 className="font-comic text-3xl drop-shadow-[0_3px_0_#000]">{t('map.title')}</h1>
         <p className="text-sm">
           {t('map.subtitle', { run: game.runs, fight: run.fights + 1 })} ·{' '}
-          {t('trail.pool', { n: run.pool.length })}
+          {/* Feedback 2026-11-11: los blancos no cuentan como dados disponibles */}
+          {t('trail.pool', { n: run.pool.length - whites })}
           {whites > 0 && ` (${t('trail.white', { n: whites })})`}
         </p>
       </div>

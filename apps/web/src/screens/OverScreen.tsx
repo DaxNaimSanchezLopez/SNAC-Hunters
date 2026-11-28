@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { finalScore, questTrophiesHeld, scoreBreakdown } from '@snac-hunters/engine';
+import { scoreBreakdown } from '@snac-hunters/engine';
 import type { GameState } from '@snac-hunters/engine';
 import { Button } from '../components/Button';
 import { ServerBadge } from '../components/ServerBadge';
@@ -8,36 +8,28 @@ import { useGame } from '../game/store';
 import { useT } from '../game/useT';
 
 /**
- * Pantalla de puntaje (feedback del cliente, 2026-11-03, sección 3). Con el jefe derrotado:
- *   (puntos de cadena + misión × 10 + trofeos de misión × 10 + HPie × 10) × multiplicador.
- * Sin derrotarlo: el mejor run, sin HPie ni multiplicador.
+ * Pantalla final (feedback final, sección 6): puntos de cadena, de misión secreta y de misiones,
+ * corazones que le quedan a Pieland, si se limpió Sherbert Forest y el puntaje final.
  */
 export function OverScreen({ game }: { game: GameState }) {
   const t = useT();
   const { newGame, goHome } = useGame();
-  const { questKill, questTrophy, hp: hpValue } = gameConfig.scoring;
-  const final = game.bossDefeated ? scoreBreakdown(game, gameData) : null;
-  const best = game.bestRun;
-  const parts = final ?? best;
-  const questTrophies = final ? questTrophiesHeld(game, gameData) : (best?.questTrophies ?? 0);
-  const rows = parts
-    ? [
-        { label: t('over.hunt'), value: parts.hunt },
-        {
-          label: t('over.questKills', { n: parts.questKills }),
-          value: parts.questKills * questKill,
-        },
-        {
-          label: t('over.questTrophies', { n: questTrophies }),
-          value: questTrophies * questTrophy,
-        },
-        ...(final ? [{ label: t('over.hp', { n: final.hp }), value: final.hp * hpValue }] : []),
-        ...(parts.cards > 0 ? [{ label: t('over.cards'), value: parts.cards }] : []),
-        ...(final
-          ? [{ label: t('over.multiplier', { runs: game.runs }), value: `×${final.multiplier}` }]
-          : []),
-      ]
-    : [];
+  const score = scoreBreakdown(game, gameData);
+  const { heartBonus } = gameConfig.scoring;
+  const rows: { label: string; value: number | string }[] = [
+    { label: t('over.chain'), value: score.chain },
+    { label: t('over.secret'), value: score.secret },
+    { label: t('over.quests'), value: score.quests },
+    ...(score.cards > 0 ? [{ label: t('over.cards'), value: score.cards }] : []),
+    {
+      label: t('over.hearts', { n: game.pieland.hp, pts: heartBonus }),
+      value: score.cleared ? score.heartBonus : t('over.noBonus'),
+    },
+    {
+      label: t(score.cleared ? 'over.cleared' : 'over.notCleared'),
+      value: score.cleared ? score.clearedBonus : t('over.noBonus'),
+    },
+  ];
 
   return (
     <div className="flex min-h-[100dvh] flex-col justify-center gap-4 px-4 py-6">
@@ -53,21 +45,17 @@ export function OverScreen({ game }: { game: GameState }) {
               : '/assets/huntmaster-puppet.png'
           }
           alt=""
-          className={`mx-auto h-24 object-contain ${game.bossDefeated ? 'grayscale' : ''}`}
+          className={`mx-auto h-24 object-contain ${game.bossDefeated ? 'opacity-60' : ''}`}
         />
         <h1 className="font-comic text-4xl text-bark">
           {game.bossDefeated ? t('over.victory', { name: gameConfig.boss.name }) : t('over.title')}
         </h1>
-        {/* V1: por qué terminó (sin vidas o Pieland cayó) */}
-        {(game.result === 'lives' || game.result === 'pieland') && (
-          <p className="font-comic text-lg text-red-700">{t(`over.result.${game.result}`)}</p>
+        {/* Por qué terminó: cayó Pieland o se dejó la partida */}
+        {game.result === 'pieland' && (
+          <p className="font-comic text-lg text-red-700">{t('over.result.pieland')}</p>
         )}
         <p className="text-sm text-bark/70">
-          {final
-            ? t('over.finalText')
-            : best
-              ? t('over.unfinished', { run: best.run })
-              : t('over.noRun')}
+          {t(score.cleared ? 'over.finalText' : 'over.unfinished')}
         </p>
         <dl className="mx-auto mt-3 max-w-xs text-left">
           {rows.map((r) => (
@@ -78,7 +66,7 @@ export function OverScreen({ game }: { game: GameState }) {
           ))}
           <div className="flex justify-between py-2 text-xl">
             <dt className="font-comic">{t('over.total')}</dt>
-            <dd className="font-comic text-3xl text-green-700">{finalScore(game, gameData)}</dd>
+            <dd className="font-comic text-3xl text-green-700">{score.total}</dd>
           </div>
         </dl>
         <p className="text-sm text-bark/70">

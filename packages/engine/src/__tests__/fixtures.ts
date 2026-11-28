@@ -168,6 +168,7 @@ export const QUESTS: readonly TownQuest[] = [
   { id: 'h-two', kind: 'huntmaster', name: questName, cost: ['Horn', 'Wing'] },
   { id: 'h-hearts', kind: 'huntmaster', name: questName, cost: ['Claw', 'heart', 'heart'] },
   { id: 'v-wing', kind: 'villager', name: questName, cost: ['Wing', 'Wing'] },
+  { id: 'h-claw', kind: 'huntmaster', name: questName, cost: ['Claw', 'Claw'] },
 ];
 
 export function ability(id: string): Ability {
@@ -185,33 +186,30 @@ export const CONFIG: GameConfig = {
     trophySlots: 2,
     startingTrophies: 1,
     startingItems: 1,
+    // Los tests viejos no esperan el dado blanco extra; los nuevos lo activan con su config
+    whiteDieFromFight: 99,
   },
   town: {
     actionsPerVisit: 2,
-    questSlots: 3,
+    questSlots: 2,
     offerSize: 3,
     maxItems: 3,
     maxSkills: 3,
-    guidedStartOptions: 2,
+    guidedUnlocks: { rest: 1, item: 1, training: 1, alchemist: 2, skill: 3, scavenge: 4, forge: 5 },
   },
-  lives: 3,
-  pieland: { hp: 5, countdown: [6, 5, 4, 3, 2] },
+  pieland: { hp: 8 },
   map: { columns: 3, minNodes: 2, maxNodes: 3 },
-  boss: { id: 'pieous', name: 'Pieous Assassin', pun: 'Pun', slots: 6 },
+  boss: { id: 'pieous', name: 'Pieous Agent', pun: 'Pun', slots: 6 },
   tutorial: { monsterId: 'garden-salaad', seed: 'tutorial' },
   features: {},
   scoring: {
     chainStep: 10,
-    questKill: 10,
-    questTrophy: 10,
-    hp: 10,
+    koSnac: 10,
+    secretKill: 10,
+    questPoints: 20,
+    heartBonus: 150,
+    clearedBonus: 500,
     pointsCard: 10,
     pointsCardMax: 4,
-    bossMultiplier: [
-      { maxRuns: 4, multiplier: 2 },
-      { maxRuns: 5, multiplier: 1.75 },
-      { maxRuns: 6, multiplier: 1.5 },
-    ],
-    slowMultiplier: 1.25,
   },
 };

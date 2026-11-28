@@ -454,4 +454,84 @@ El riesgo de D-11 (seeds elegidas por el cliente) sigue igual.
 
 ---
 
-_Última actualización: 2026-11-07 — V1 completa: mapa FTL, vidas y Pieland sobre el feedback del 2026-11-03._
+## D-46 — Feedback del cliente del 2026-11-11: errores
+
+- **Modo oscuro / imágenes en celular:** el modo oscuro forzado del navegador invertía los símbolos negros y dejaba en blanco las imágenes con filtros CSS (`invert`, `grayscale`, `brightness`): eran justo las vidas, los octopies, el jefe derrotado, las cartas gastadas y la opción usada del pueblo. Ahora la página declara `color-scheme: only light` (meta y CSS) y **ninguna imagen usa filtros**: hay PNG ya pintados (`life.png`, `life-used.png`, `octopie-white.png`, `face-heart-black.png`) y lo atenuado se hace con opacidad.
+- **Espacio de daño opcional:** pagarlo con 1 HPie lo cuenta como cubierto; si no, se resuelve sin él (`resolveOptions`, `resolve.damage`). Con 1 dado: huir (0) o estudiar (1); con 2: estudiar (0). Si hay más de una opción, la UI muestra la tabla Acción / Daño. Sin `damage` se paga todo, para que las partidas guardadas se re-simulen igual.
+- **Boom Blade con un blanco vacío:** la UI valida con el engine (`actionError`) antes de pedir el trofeo; si no se puede activar, se avisa sin abrir la ventana.
+- **Dados disponibles:** el mapa y el resultado ya no cuentan los dados blancos.
+
+---
+
+## D-47 — Feedback del 2026-11-11: interfaz
+
+- Vidas: calavera derecha, **blanca = disponible, negra = usada**. Ícono de Garra: se sigue usando el trofeo hasta que el cliente suba el suyo.
+- Habilidades en **columna** (carta en fila: arte + texto). En combate se ven **todas** las cartas del cazador; las que no se pueden usar (gastadas, pasivas, usadas) en gris con su etiqueta.
+- Cartas de monstruo con los **símbolos negros** de los dados.
+- En computadora la columna se ensancha (`md:max-w-3xl`); el combate pasa a dos columnas (monstruo | dados y cartas) y la barra de botones queda **pegada** a la interfaz (`sticky`), no al fondo de la ventana.
+- **Equipo inicial:** al salir a la primera expedición, una ventana muestra el objeto, el trofeo y los dados iniciales (`StartGear`, una vez por partida: `startSeen`).
+- Pueblo: el arte de las casas de misiones va pegado al borde del recuadro por su lado recto (aldeano a la izquierda, Huntmaster a la derecha) y cada casa abre un **desplegable con sus 3 misiones**. Al elegir qué trofeo conservar se pueden ver las misiones.
+
+---
+
+## D-48 — Feedback del 2026-11-11: jugabilidad
+
+- Mapa: **4 columnas** (una más).
+- **Cloning Tool en cualquier momento**, también en combate (`recharge` en fase `combat`, `rechargeTargets`): un objeto ya usado con este SNAC vuelve a estar disponible.
+- **Auto** prioriza los comodines temporales (dorados, de color y el blanco) y después gasta los menos comodines permanentes (`isTemporaryWild`, `autoFillPlan`).
+- Destrezas de dado especial del Huntmaster: dan un **trofeo de su color** en vez de un espacio (se quitó `bonus` en `config/abilities.json`).
+- **Misiones:** 3 de aldeano y 3 del Huntmaster (`town.questSlots` es por tipo); al volver se retira la más antigua de cada tipo (`oldestQuests`).
+- **Espacios nuevos del pueblo** (tablero del juego de mesa), cada uno una vez por visita dentro de las 2 acciones; en la partida guiada se abren uno por regreso:
+  - Saqueo: +2 trofeos al azar (si no caben se decide uno por uno: `overflow`).
+  - Alquimista: elige 2 distintas de +1 HPie, +1 trofeo al azar, +1 espacio para trofeos (`extraSlots`).
+  - Entrenamiento: +1 dado rojo.
+  - Forja: un dado rojo → dado de color elegido, más un trofeo al azar (el "+?" del letrero).
+
+**Interpretaciones pendientes de Alex:** el corazón con flecha del alquimista se tomó como **+1 HPie máximo (y cura 1)**; el "1" del letrero de entrenamiento no tiene efecto; la forja da el trofeo del letrero aunque el texto del feedback no lo menciona.
+
+---
+
+## D-49 — Feedback del 2026-11-11: puntaje y Pieland
+
+- HUD: solo puntaje **actual** (run en curso, o final si cayó el jefe) y **mejor**; ya no el número de runs.
+- **Pieland:** 5 PV; pierde 1 al volver al pueblo tras los runs **4, 6, 8, 10 y 12** (`pieland.damageAfterRuns`). En 0 termina la partida: máximo 12 runs. Reemplaza la cuenta regresiva de D-45. El HUD dice cuántos runs faltan (`runsUntilPielandHit`).
+- **Multiplicador del jefe por PV de Pieland:** 5 → 2, 4 → 1.75, 3 → 1.5, 2 o menos → 1.25 (`scoring.bossMultiplier[].minPielandHp`).
+- **Bono por vidas:** +10 por vida restante al derrotar al jefe, antes del multiplicador (`scoring.life`).
+- Sin jefe: sin multiplicador ni bono; cuenta el mejor run (igual que D-43).
+
+---
+
+## D-50 — Registro de acciones
+
+Botón en el HUD que abre el registro de todo lo que hizo el jugador y el juego (tiradas, daño, trofeos, HPie, vidas, Pieland, cartas ofrecidas, fin), más las acciones que el engine rechazó en la sesión. No guarda nada nuevo: **re-simula seed + acciones** con el engine (`game/log.ts`), igual que el servidor. Se puede copiar como texto para reportar errores.
+
+---
+
+## D-51 — Feedback final (2026-11-22): duración y puntaje
+
+Reemplaza D-43, D-45 y D-49. **Ronda** = expedición + visita al pueblo; **partida** = el juego completo.
+
+- **Sin vidas.** Pieland empieza con **8 corazones** y pierde 1 en **cada** regreso al pueblo (por decisión o por KO). En 0 termina la partida (8 rondas). Derrotar al jefe limpia Sherbert Forest y termina la partida de inmediato, sin perder corazón.
+- **Puntaje acumulado** (`score`, `points`): cadena 10, 20, 30… por SNAC derrotado en la ronda (también el jefe), **en riesgo** (`pendingChain`) hasta volver al pueblo o limpiar el bosque. KO: se pierde la cadena y quedan 10 por SNAC de la ronda. Misión secreta +10 al instante (no el jefe). Misión del pueblo +20. Al limpiar: + corazones de Pieland × 150 + 500. Abandonar pierde la cadena en riesgo. Valores en `config/game.json → scoring`.
+- El podio ordena solo por puntaje; el menú muestra 3 puntajes de ejemplo (Flunkie 800, Samurpie 2000, Colonel Custard 3000) que las partidas del jugador van desplazando.
+
+**Interpretaciones:** las cartas de puntos (Piebix Cube, Varied Samples, Well Traveled) siguen sumando al total aunque la pantalla final de Alex no las lista (se muestran solo si valen algo). El "mejor puntaje" del HUD es el mejor del jugador (o el actual si es mayor).
+
+---
+
+## D-52 — Feedback final: jugabilidad y tutorial
+
+- **Dado blanco desde el 2.º SNAC de la partida:** si la reserva no trae ya un blanco, se agrega uno a la tirada inicial (`player.whiteDieFromFight`).
+- **Estudiar con 3 dados:** solo se gastan 2 símbolos; el sobrante vuelve a la reserva (primero dados de verdad, el último colocado) y no se paga daño de más.
+- **KO** recarga HPie **y objetos**, igual que descansar.
+- **AUTO** no pone un comodín en "any 4" si otro dado cabe ahí.
+- **Relanzar solo los blancos:** conservar todos los dados ya no bloquea el botón (se relanzan los blancos y se agrega uno nuevo).
+- **Entrenamiento** (texto 29/35 de Alex): +1 dado rojo **y recarga un objeto gastado** (se elige si hay varios).
+- **Partida guiada:** opciones del pueblo por visita (`town.guidedUnlocks`): 1 descansar/aldeano/entrenamiento, 2 alquimista, 3 Huntmaster, 4 saqueo, 5 herrería. El primer combate está programado (`tutorial.guided`): Porcupineapple, Auto-Aimer como objeto inicial y una tirada con solo 2 coincidencias y una flecha roja; la lección de habilidades va antes que la de relanzar. Bienvenida a pantalla completa; lección del aldeano al abrir su casa; la del dado blanco con una tirada de daño.
+- Textos con `[wild]`/`[heart]`/`[damage]`/`[any]` se muestran como ícono y las palabras en MAYÚSCULAS van en negritas (`RichText`).
+
+**Interpretaciones:** el texto 32/35 dice "visita 4" pero la tabla de desbloqueo pone al Huntmaster en la 3; se siguió la tabla y la lección aparece cuando se abre. El orden de desbloqueo aplica a la partida guiada (sin guía todo está abierto, como antes). El ícono de tipo Garra se recortó de la carta de misión secreta "Axe and Claw" porque no hay archivo propio.
+
+---
+
+_Última actualización: 2026-11-22 — feedback final del cliente (V1)._

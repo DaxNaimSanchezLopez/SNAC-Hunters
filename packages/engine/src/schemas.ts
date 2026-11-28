@@ -80,28 +80,35 @@ export const GameConfigSchema = z
       trophySlots: count,
       startingTrophies: count,
       startingItems: count,
+      // Feedback final (2026-11-22): desde este combate de la partida siempre hay un dado blanco
+      whiteDieFromFight: z.number().int().min(1).default(2),
     }),
     // Fase en el pueblo (manual p. 14–16): acciones por visita y cartas por misión
     town: z.object({
       actionsPerVisit: z.number().int().min(1),
-      // Misiones a la vista en el tablero (feedback 2026-11-03: siempre 3)
+      // Misiones a la vista de cada tipo (feedback 2026-11-11: 3 de aldeano y 3 del Huntmaster)
       questSlots: z.number().int().min(1),
       offerSize: z.number().int().min(1),
       maxItems: z.number().int().min(1),
       maxSkills: z.number().int().min(1),
-      // Partida guiada: opciones del pueblo en la primera visita (se suma una por regreso)
-      guidedStartOptions: z.number().int().min(1).max(3).default(2),
+      // Partida guiada: visita al pueblo en la que se abre cada opción (feedback final)
+      guidedUnlocks: z.record(z.string(), z.number().int().min(1)).default({}),
     }),
     tutorial: z.object({
       monsterId: z.string().min(1),
       seed: z.string().min(1),
+      // Primer combate de la partida guiada, programado para enseñar (feedback final)
+      guided: z
+        .object({
+          monsterId: z.string().min(1),
+          item: z.string().min(1),
+          roll: z.record(z.string(), z.array(FaceSchema).min(1)),
+        })
+        .optional(),
     }),
-    // V1 (roguelite): vidas, Pieland amenazada y mapa FTL (feedback 2026-10-20, secciones 7–9)
-    lives: z.number().int().min(1),
+    // Pieland: pierde 1 corazón cada vez que el cazador vuelve al pueblo (feedback final)
     pieland: z.object({
       hp: z.number().int().min(1),
-      // Expediciones sin vencer al jefe antes de que Pieland pierda 1 PV; la última se repite
-      countdown: z.array(z.number().int().min(1)).min(1),
     }),
     map: z
       .object({
@@ -119,21 +126,22 @@ export const GameConfigSchema = z
       slots: z.number().int().min(1),
     }),
     features: z.record(z.string(), z.boolean()),
-    // Puntaje (feedback del cliente, 2026-11-03, sección 3)
+    // Puntaje (feedback final, sección 6): se acumula durante toda la partida
     scoring: z.object({
-      // El monstruo n de la cadena de un run vale n × chainStep (10, 20, 30…)
+      // El SNAC n de la cadena de una ronda vale n × chainStep (10, 20, 30…)
       chainStep: z.number().int().min(0),
-      questKill: z.number().int().min(0),
-      questTrophy: z.number().int().min(0),
-      hp: z.number().int().min(0),
+      // Con KO se pierde la cadena y solo quedan koSnac puntos por SNAC derrotado en la ronda
+      koSnac: z.number().int().min(0),
+      // SNAC del tipo de la misión secreta
+      secretKill: z.number().int().min(0),
+      // Misión del pueblo cumplida (QUEST_POINTS)
+      questPoints: z.number().int().min(0),
+      // Al limpiar Sherbert Forest: por corazón de Pieland (HEART_BONUS) y bono fijo
+      heartBonus: z.number().int().min(0),
+      clearedBonus: z.number().int().min(0),
       // Cartas de puntos (Piebix Cube, Varied Samples, Well Traveled): por cada tipo, máx. 4
       pointsCard: z.number().int().min(0),
       pointsCardMax: z.number().int().min(0),
-      // Multiplicador al derrotar al jefe según las expediciones usadas; con más, slowMultiplier
-      bossMultiplier: z
-        .array(z.object({ maxRuns: z.number().int().min(1), multiplier: z.number().min(1) }))
-        .min(1),
-      slowMultiplier: z.number().min(1),
     }),
   })
   .refine((c) => c.player.startingHp <= c.player.maxHp, {
@@ -209,14 +217,30 @@ export const GuideSchema = z
             'skillUnlocked',
             'whiteWild',
             'bossReady',
-            'lifeLost',
+            'ko',
             'boss',
             'defeatedNow',
+            'spacesUnlocked',
+            'whiteDamage',
+            'abilityFirst',
+            'villagerOpen',
+            'actionsSpent',
           ]),
         )
         .default([]),
       // 'next' = botón "Entendido"; si no, la lección se cumple al hacer esa acción
-      advance: z.enum(['next', 'start', 'leave', 'follow', 'assign', 'reroll', 'resolve']),
+      advance: z.enum([
+        'next',
+        'start',
+        'leave',
+        'follow',
+        'assign',
+        'reroll',
+        'resolve',
+        'ability',
+      ]),
+      // La bienvenida se muestra como pantalla completa, no como globo (feedback final)
+      screen: z.boolean().default(false),
       highlight: z
         .enum([
           'hud',

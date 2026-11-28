@@ -148,7 +148,8 @@ describe('relanzar (push your luck)', () => {
   it('rechaza relanzar sin dados, dados repetidos o dados asignados', () => {
     const table = fixedTable({ red: 'Claw' });
     const s0 = startCombat(GARDEN_SALAAD, SETUP, 1, table);
-    expect(() => act(s0, { type: 'reroll', dieIds: [] }, table)).toThrow(/al menos un dado/);
+    // Feedback final: sin dados elegidos solo se tira el dado blanco nuevo
+    expect(act(s0, { type: 'reroll', dieIds: [] }, table).dice).toHaveLength(SETUP.dice.length + 1);
     expect(() => act(s0, { type: 'reroll', dieIds: ['d0', 'd0'] }, table)).toThrow(/repetidos/);
     const s1 = act(s0, { type: 'assign', dieId: 'd0', slot: 0 }, table);
     expect(() => act(s1, { type: 'reroll', dieIds: ['d0'] }, table)).toThrow(

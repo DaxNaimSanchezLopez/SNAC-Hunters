@@ -27,7 +27,8 @@ const TYPE_ICONS: Record<GameSymbol, string> = {
   Horn: '/assets/types/horn.png',
   Wing: '/assets/types/wing.png',
   Tail: '/assets/types/tail.png',
-  Claw: '/assets/trophies/claw.png',
+  // Feedback final: el tipo Garra ya no usa el trofeo verde (recortado de la carta de misión)
+  Claw: '/assets/types/claw.png',
 };
 
 /** Icono del tipo de monstruo (no del trofeo): así el rastro no parece un premio. */
@@ -48,16 +49,17 @@ export function TypeIcon({
   );
 }
 
-/** Icono de espacio. El espacio 'all' usa el símbolo "any 4" (feedback V0). */
+/**
+ * Icono de espacio. El espacio 'all' usa el símbolo "any 4" (feedback V0) y los de símbolo, los
+ * mismos símbolos negros de los dados (feedback 2026-11-11), no los de color.
+ */
 export function SlotIcon({ slot, className = 'h-8 w-8' }: { slot: Slot; className?: string }) {
   const t = useT();
-  return (
-    <img
-      src={`/assets/icons/slot-${slot}.png`}
-      alt={slotName(t, slot)}
-      className={`${className} object-contain`}
-    />
-  );
+  const src =
+    slot === 'all' || slot === 'damage'
+      ? `/assets/icons/slot-${slot}.png`
+      : `/assets/icons/face-${slot}.png`;
+  return <img src={src} alt={slotName(t, slot)} className={`${className} object-contain`} />;
 }
 
 interface Props {

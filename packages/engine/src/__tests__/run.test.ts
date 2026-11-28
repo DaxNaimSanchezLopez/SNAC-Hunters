@@ -160,9 +160,10 @@ describe('dados blancos en la expedición', () => {
     ]);
     expect(availableDice(combat).some((d) => d.kind === 'white')).toBe(true);
     const next = endCombat(run, combat);
-    expect(next.pool).toEqual(['red', 'green', 'white']);
+    // Estudiar con 3 dados devuelve el tercero a la reserva (feedback final)
+    expect(next.pool).toEqual(['red', 'red', 'green', 'white']);
     const second = startCombat(BEEHOLDER, runCombatSetup(next), 2, table);
-    expect(second.dice.map((d) => d.kind)).toEqual(['red', 'green', 'white']);
+    expect(second.dice.map((d) => d.kind)).toEqual(['red', 'red', 'green', 'white']);
   });
 
   it('los blancos en blanco se acumulan de un combate a otro', () => {

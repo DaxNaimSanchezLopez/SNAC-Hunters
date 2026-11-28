@@ -39,7 +39,11 @@ const CombatActionSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('block'), dieId: DieId, damageId: DieId }),
   z.object({ type: z.literal('unblock'), damageId: DieId }),
   z.object({ type: z.literal('heal'), dieId: DieId }),
-  z.object({ type: z.literal('resolve'), trophy: SymbolSchema.optional() }),
+  z.object({
+    type: z.literal('resolve'),
+    trophy: SymbolSchema.optional(),
+    damage: z.number().int().min(0).max(6).optional(),
+  }),
 ]);
 
 const GameActionSchema = z.discriminatedUnion('type', [
@@ -50,6 +54,14 @@ const GameActionSchema = z.discriminatedUnion('type', [
     quest: Id.optional(),
   }),
   z.object({ type: z.literal('rest') }),
+  // Espacios del pueblo del juego de mesa (feedback 2026-11-11)
+  z.object({ type: z.literal('scavenge') }),
+  z.object({
+    type: z.literal('alchemist'),
+    picks: z.array(z.enum(['hp', 'trophy', 'slot'])).length(2),
+  }),
+  z.object({ type: z.literal('training'), item: Id.optional() }),
+  z.object({ type: z.literal('forge'), die: z.enum(['orange', 'blue', 'purple', 'green']) }),
   z.object({ type: z.literal('quest'), id: Id, pay: QuestCostSchema.optional() }),
   z.object({ type: z.literal('recharge'), target: Id }),
   z.object({

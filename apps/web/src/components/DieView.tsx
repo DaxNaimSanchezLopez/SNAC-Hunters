@@ -32,10 +32,13 @@ export function FaceIcon({ face, className = 'h-8 w-8' }: { face: Face; classNam
   if (face === 'blank') return <span className={className} />;
   return (
     <img
-      src={`/assets/icons/face-${face}.png`}
+      // Solo el corazón es rojo en el arte; en el dado físico se imprime en negro. Es un PNG ya
+      // pintado: los filtros CSS se rompen con el modo oscuro del celular (feedback 2026-11-11)
+      src={
+        face === 'heart' ? '/assets/icons/face-heart-black.png' : `/assets/icons/face-${face}.png`
+      }
       alt={faceName(t, face)}
-      // Solo el corazón es rojo en el arte; en el dado físico se imprime en negro
-      className={`${className} object-contain ${face === 'heart' ? 'brightness-0' : ''}`}
+      className={`${className} object-contain`}
       draggable={false}
     />
   );

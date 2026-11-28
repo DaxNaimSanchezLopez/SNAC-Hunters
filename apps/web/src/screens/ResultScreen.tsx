@@ -1,10 +1,5 @@
 import { motion } from 'framer-motion';
-import {
-  findSecretQuest,
-  hasHuntingDice,
-  reachableNodes,
-  scoreBreakdown,
-} from '@snac-hunters/engine';
+import { findSecretQuest, hasHuntingDice, reachableNodes } from '@snac-hunters/engine';
 import type { CombatState, Outcome } from '@snac-hunters/engine';
 import { Button } from '../components/Button';
 import { Hud } from '../components/Hud';
@@ -41,7 +36,7 @@ function OutcomeCard({ combat, children }: { combat: CombatState; children?: Rea
       )}
       <MonsterPortrait
         monster={combat.monster}
-        className={`mx-auto my-3 h-32 ${outcome === 'defeat' ? 'grayscale' : ''}`}
+        className={`mx-auto my-3 h-32 ${outcome === 'defeat' ? 'opacity-60' : ''}`}
       />
       {combat.trophy && (
         <div className="flex items-center justify-center gap-3">
@@ -66,8 +61,8 @@ export function ResultScreen() {
   const ended = run.status === 'ended';
   // V1: se sigue por el mapa mientras haya un camino (el engine decide cuáles)
   const canGo = reachableNodes(game).length > 0;
-  const { chainStep, questKill } = gameConfig.scoring;
-  // Puntaje (feedback 2026-11-03): cada SNAC derrotado del run vale más que el anterior
+  const { chainStep, secretKill, koSnac } = gameConfig.scoring;
+  // Puntaje (feedback final): cada SNAC derrotado en la ronda vale más que el anterior
   const defeated = combat.outcome === 'defeat';
   const secret = game.secretQuest ? findSecretQuest(gameData, game.secretQuest) : null;
   const isQuestKill = defeated && secret?.monsterType === combat.monster.type;
@@ -77,19 +72,23 @@ export function ResultScreen() {
       <Hud game={game} />
       <OutcomeCard combat={combat}>
         <div data-guide-target="score" className="mt-2 rounded-2xl bg-white/70 p-2">
-          {defeated && (
+          {defeated && !combat.ko && (
             <p className="font-comic text-xl text-green-700">
               {t('result.chain', { pts: game.chain * chainStep, n: game.chain })}
             </p>
           )}
           {isQuestKill && (
             <p className="text-sm font-bold text-purple-800">
-              {t('result.questKill', { n: questKill })}
+              {t('result.questKill', { n: secretKill })}
             </p>
           )}
-          <p className="text-sm text-bark/80">
-            {t('result.runScore', { n: scoreBreakdown(game, gameData).total })}
-          </p>
+          {combat.ko ? (
+            <p className="text-sm font-bold text-red-800">
+              {t('result.chainLost', { n: game.roundSnacs * koSnac })}
+            </p>
+          ) : (
+            <p className="text-sm text-bark/80">{t('result.atRisk', { n: game.pendingChain })}</p>
+          )}
           {!ended && (
             <p className="text-xs text-bark/70">
               {t('result.chainHint', { next: (game.chain + 1) * chainStep })}
@@ -97,7 +96,12 @@ export function ResultScreen() {
           )}
         </div>
         <p data-guide-target="status" className="mt-2 text-sm text-bark/80">
-          {t('result.status', { hp: game.hp, max: game.maxHp, dice: run.pool.length })}
+          {/* Feedback 2026-11-11: los blancos no cuentan como dados disponibles */}
+          {t('result.status', {
+            hp: game.hp,
+            max: game.maxHp,
+            dice: run.pool.filter((k) => k !== 'white').length,
+          })}
         </p>
         {ended && run.endedBy !== 'town' && (
           <p className="mt-2 rounded-xl border-2 border-black bg-orange-200 px-3 py-2 text-sm font-bold">
@@ -109,9 +113,7 @@ export function ResultScreen() {
             data-guide-target="threat"
             className="mt-2 rounded-xl border-2 border-black bg-red-200 px-3 py-2 text-sm font-bold text-red-900"
           >
-            {game.result === 'lives'
-              ? t('result.noLives')
-              : t('result.lifeLost', { n: game.lives })}
+            {game.pieland.hp <= 1 ? t('result.koLast') : t('result.koPieland')}
           </p>
         )}
         {!ended && !canGo && (
